@@ -97,7 +97,7 @@ PUMP_MAX_RUN_SEC = 60          # 单次最大运行时长（安全限制）
 # nutrient_interval: 营养液补充间隔（秒），默认每3天
 
 PLANT_DB = {
-    # ============ 预定义植物 (0-15) ============
+    # ============ 预定义植物 (0-7) ============
     # growth_stages: 生长阶段定义
     #   - days: (起始天, 结束天)
     #   - stage: 阶段名称 (seedling=苗期, vegetative=营养生长期, flowering=开花期, fruiting=结果期, harvesting=采收期)
@@ -254,33 +254,11 @@ PLANT_DB = {
             {"days": (61, 120),"stage": "fruiting",    "fert": "PK",  "water_need": "reduce", "note": "姜块膨大期控水"},
         ],
     },
-    # 自定义占位（用户可改名）
-    "Custom-A": {
-        "soil_threshold": 35, "co2_threshold": 900,
-        "water_sec": 8, "nutrient_sec": 6, "ventilate_sec": 30,
-        "nutrient_interval": 259200,
-        "growth_stages": [
-            {"days": (0, 7),   "stage": "seedling",   "fert": "N",   "water_need": "light",  "note": "苗期"},
-            {"days": (8, 60),  "stage": "vegetative",  "fert": "NPK", "water_need": "normal", "note": "生长期"},
-            {"days": (61, 999),"stage": "harvesting",  "fert": "PK",  "water_need": "normal", "note": "采收期"},
-        ],
-    },
-    "Custom-B": {
-        "soil_threshold": 35, "co2_threshold": 900,
-        "water_sec": 8, "nutrient_sec": 6, "ventilate_sec": 30,
-        "nutrient_interval": 259200,
-        "growth_stages": [
-            {"days": (0, 7),   "stage": "seedling",   "fert": "N",   "water_need": "light",  "note": "苗期"},
-            {"days": (8, 60),  "stage": "vegetative",  "fert": "NPK", "water_need": "normal", "note": "生长期"},
-            {"days": (61, 999),"stage": "harvesting",  "fert": "PK",  "water_need": "normal", "note": "采收期"},
-        ],
-    },
 }
 
-# ============ 8位拨码开关编码表 ============
-# 编码: bit0=DIP1, bit1=DIP2, ..., bit7=DIP8
-# 0~15: 预定义植物（见上方 PLANT_DB）
-# 16~255: 自动生成 "Custom-N" 占位，使用通用参数模板
+# ============ 3位拨码开关编码表（0~7） ============
+# 编码: bit0=DIP1, bit1=DIP2, bit2=DIP3
+# 0~7: 预定义植物（见上方 PLANT_DB）
 DIP_ENCODING = {
     0: "生菜",      # 叶菜
     1: "小白菜",    # 叶菜
@@ -290,50 +268,17 @@ DIP_ENCODING = {
     5: "辣椒",      # 果菜
     6: "黄瓜",      # 果菜
     7: "茄子",      # 果菜
-    8: "豆角",      # 瓜豆
-    9: "西葫芦",    # 瓜豆
-    10: "萝卜",     # 根茎
-    11: "大蒜",     # 葱蒜
-    12: "葱",       # 葱蒜
-    13: "生姜",     # 根茎
-    14: "Custom-A", # 自定义
-    15: "Custom-B", # 自定义
-    # 16~255 由 get_plant_name() 自动生成
-}
-
-# 自定义植物通用参数模板（DIP 16~255 使用）
-PLANT_DEFAULT = {
-    "soil_threshold": 35,
-    "co2_threshold": 900,
-    "water_sec": 8,
-    "nutrient_sec": 6,
-    "ventilate_sec": 30,
-    "nutrient_interval": 259200,
-    "growth_stages": [
-        {"days": (0, 7),   "stage": "seedling",   "fert": "N",   "water_need": "light",  "note": "苗期"},
-        {"days": (8, 60),  "stage": "vegetative",  "fert": "NPK", "water_need": "normal", "note": "生长期"},
-        {"days": (61, 999),"stage": "harvesting",  "fert": "PK",  "water_need": "normal", "note": "采收期"},
-    ],
 }
 
 
 def get_plant_name(index):
-    """根据拨码值获取植物名称（支持 0-255）"""
-    name = DIP_ENCODING.get(index)
-    if name:
-        return name
-    return "Custom-{}".format(index)
+    """根据拨码值获取植物名称（支持 0-7，共 8 种）"""
+    return DIP_ENCODING.get(index, "生菜")  # 默认返回生菜
 
 
 def get_plant_info(plant_name):
-    """获取植物参数，自定义植物返回默认模板"""
-    info = PLANT_DB.get(plant_name)
-    if info:
-        return info
-    # 自定义植物使用通用模板
-    default = dict(PLANT_DEFAULT)
-    default["name"] = plant_name
-    return default
+    """获取植物参数（仅支持预定义的 8 种植物）"""
+    return PLANT_DB.get(plant_name, PLANT_DB["生菜"])  # 默认返回生菜参数
 
 
 def get_growth_stage(plant_info, days_since_planting):
