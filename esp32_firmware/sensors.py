@@ -143,7 +143,7 @@ def read_plant_type():
         
     except Exception as e:
         print("[传感器] 拨码读取失败:", e)
-        return "Custom-0"
+        return config.get_plant_name(0)  # 默认返回生菜（拨码0）
 
 
 def read_all():
