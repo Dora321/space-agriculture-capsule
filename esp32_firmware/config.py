@@ -46,10 +46,10 @@ RELAY_WATER_PIN = 5       # 水泵继电器
 RELAY_NUTRIENT_PIN = 18   # 营养液泵继电器
 RELAY_FAN_PIN = 19        # 风扇继电器
 
-# 拨码开关（8位，支持 256 种植物类型）
-# bit0~bit7 对应 DIP 开关的第1~第8位
-# 选用支持内部上拉的 GPIO，避开已占用和仅输入引脚
-DIP_SWITCH_PINS = [13, 12, 14, 15, 25, 32, 33, 2]
+# 拨码开关（3位，支持 8 种植物类型）
+# bit0~bit2 对应 DIP 开关的第1~第3位
+# 使用 PULL_UP 输入：开关 OFF(断开)→1→取反为0, ON(接地)→0→取反为1
+DIP_SWITCH_PINS = [13, 12, 14]
 
 # OLED 显示屏 (I2C)
 OLED_SDA_PIN = 21

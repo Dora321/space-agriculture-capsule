@@ -74,9 +74,10 @@ def read_co2():
     说明: MH-Z19B 红外 CO2 传感器
     """
     try:
-        # 发送读取命令
-        # 格式: 0xFF, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC
-        cmd = bytearray([0xFF, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCC])
+        # 发送读取命令（MH-Z19B 标准读取浓度命令）
+        # 格式: 0xFF, 0x01, 0x86, 0x00×6, checksum
+        # 校验和 = (~(0xFF + 0x01 + 0x86)) & 0xFF = 0x79
+        cmd = bytearray([0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79])
         _co2_uart.write(cmd)
         
         # 等待响应
@@ -131,12 +132,11 @@ def read_plant_type():
     """
     try:
         values = [pin.value() for pin in _dip_pins]
-        # DIP_SWITCH_PINS = [13, 12, 14, 15, 25, 32, 33, 2]
-        # 编码规则: values[0]=bit0(DIP1), values[1]=bit1(DIP2), ..., values[7]=bit7(DIP8)
-        # 与 config.py DIP_ENCODING 注释一致
-        index = 0
-        for i in range(len(values)):
-            index |= (values[i] << i)
+        # PULL_UP 输入取反: OFF(断开)→1→取反为0, ON(接地)→0→取反为1
+        bits = [1 - v for v in values]
+        # DIP_SWITCH_PINS = [13, 12, 14]  (3位，支持8种植物)
+        # 编码规则: bits[0]=bit0(DIP1), bits[1]=bit1(DIP2), bits[2]=bit2(DIP3)
+        index = (bits[2] << 2) | (bits[1] << 1) | bits[0]
         
         plant = config.get_plant_name(index)
         return plant

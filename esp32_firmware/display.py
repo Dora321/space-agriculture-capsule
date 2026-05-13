@@ -240,9 +240,15 @@ def show_graphic():
     # 叶子右
     _oled.line(64, 35, 78, 28, 1)
     _oled.line(78, 28, 83, 35, 1)
-    # 顶部
-    _oled.line(64, 30, 64, 22, 1)
-    _oled.circle(64, 18, 6, 1)
+    # 顶部装饰：手绘简易花朵（替代 ssd1306 不支持的 circle）
+    cx, cy, r = 64, 18, 6
+    # 用四点+交叉线模拟圆形花朵
+    _oled.pixel(cx, cy - r, 1)   # 上
+    _oled.pixel(cx + r, cy, 1)   # 右
+    _oled.pixel(cx, cy + r, 1)   # 下
+    _oled.pixel(cx - r, cy, 1)   # 左
+    _oled.line(cx - 4, cy - 4, cx + 4, cy + 4, 1)  # 对角线
+    _oled.line(cx - 4, cy + 4, cx + 4, cy - 4, 1)  # 对角线
     
     # 文字
     _oled.text("Space Farm", 32, 55)

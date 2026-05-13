@@ -34,6 +34,7 @@ class SystemState:
         self.last_action_time = 0
         self.last_nutrient_time = 0
         self.action_count = 0
+        self.action_count_start = 0  # 当前计数窗口起始时间
         self.error_count = 0
         self.start_time = 0
 
@@ -47,6 +48,7 @@ def init_system():
     print("=" * 50)
     
     state.start_time = time.time()
+    state.action_count_start = time.time()
     
     # 初始化各模块（按依赖顺序：显示→传感器→执行器）
     print("[系统] 初始化 OLED 显示...")
@@ -188,6 +190,8 @@ def execute_decision(decision):
         print("[动作] 待机")
         actuators.all_off()
         display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type)
+        state.last_action = 'idle'
+        state.last_action_time = time.time()
         return
     
     # 执行动作
@@ -234,11 +238,16 @@ def safety_check():
             print(f"[安全] 动作间隔过短({elapsed:.0f}s)，跳过")
             return False
     
-    # 检查动作次数（防止死循环）
+    # 检查动作次数（每小时最多N次）
+    now = time.time()
+    if now - state.action_count_start >= 3600:
+        # 超过1小时，重置计数窗口
+        state.action_count_start = now
+        state.action_count = 0
+
     if state.action_count > config.MAX_ACTIONS_PER_HOUR:
-        print("[安全] 动作次数超限，等待...")
+        print("[安全] 本小时动作次数超限，等待...")
         time.sleep(60)
-        state.action_count = max(0, state.action_count - 10)
         return False
     
     return True
