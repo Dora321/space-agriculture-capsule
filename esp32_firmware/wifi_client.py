@@ -103,6 +103,7 @@ def scan_networks():
     扫描可用的 WiFi 网络
     返回: 网络列表
     """
+    global _wlan
     _wlan = network.WLAN(network.STA_IF)
     _wlan.active(True)
     

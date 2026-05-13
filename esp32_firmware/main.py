@@ -81,7 +81,10 @@ def init_system():
     # CO2传感器预热
     print("[系统] CO2传感器预热中 (30秒)...")
     display.show_text("CO2 Warming...", 20, 40)
-    time.sleep(30)
+    for i in range(30):
+        time.sleep(1)
+        if i % 5 == 0:
+            display.show_text(f"CO2 Warming...{i+1}s", 20, 40)
     
     # 读取初始植物类型
     state.plant_type = sensors.read_plant_type()

@@ -77,8 +77,8 @@ def show_boot():
     
     _oled.fill(0)
     _oled.text("================", 0, 10)
-    _oled.text("  SPACE FARMING", 16, 22)
-    _oled.text("  TK-NYZ v1.0  ", 16, 34)
+    _oled.text("SPACE FARMING", 12, 22)
+    _oled.text(" TK-NYZ v1.0 ", 16, 34)
     _oled.text("================", 0, 46)
     _oled.show()
 

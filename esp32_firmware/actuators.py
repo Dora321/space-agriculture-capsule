@@ -200,8 +200,10 @@ def all_off():
 
 
 def is_any_running():
-    """检查是否有执行器正在运行"""
-    return _water_running or _nutrient_running or _fan_running
+    """检查是否有执行器正在运行（直接读硬件引脚）"""
+    return (_relay_water.value() == 0 or
+            _relay_nutrient.value() == 0 or
+            _relay_fan.value() == 0)
 
 
 def get_status():

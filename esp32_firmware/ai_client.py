@@ -117,6 +117,7 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
     
     payload = _build_payload(plant_type, soil_moisture, co2, temperature, humidity, plant_info, days_since_planting, growth_stage)
     
+    response = None
     try:
         print(f"[AI] 发送请求... plant={plant_type} soil={soil_moisture}% co2={co2}ppm")
         
@@ -131,13 +132,11 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
         status_code = response.status_code
         if status_code != 200:
             body = response.text[:200] if hasattr(response, 'text') else ''
-            response.close()
             print(f"[AI] HTTP 错误: {status_code}, 响应: {body}")
             return None
         
         # 解析 JSON 响应（MicroPython urequests.Response 无 .json() 方法，直接用 ujson.loads）
         result = ujson.loads(response.text)
-        response.close()
         
         # 解析响应
         if 'choices' in result and len(result['choices']) > 0:
@@ -172,6 +171,12 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
     except Exception as e:
         print(f"[AI] 请求失败: {e}")
         return None
+    finally:
+        if response is not None:
+            try:
+                response.close()
+            except:
+                pass
 
 
 def test_api():
@@ -219,7 +224,7 @@ def format_decision_log(decision, soil, co2, temp, plant):
     reason = decision.get('reason', '')
     
     return (
-        f"[{time.localtime()[2]:02d}:{time.localtime()[1]:02d} {time.localtime()[3]:02d}:{time.localtime()[4]:02d}] "
+        f"[{time.localtime()[1]:02d}/{time.localtime()[2]:02d} {time.localtime()[3]:02d}:{time.localtime()[4]:02d}] "
         f"{plant} | 土:{soil}% CO2:{co2}ppm | "
         f"决策:{action_names.get(action, action)} {duration}s | {reason}"
     )

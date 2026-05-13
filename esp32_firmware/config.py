@@ -3,16 +3,28 @@
 修改此文件以适配你的硬件和网络环境
 """
 
+import sys
+
+
+def _load_secret(key, default=""):
+    """从 /secrets/ 目录安全加载密钥（避免明文存储）"""
+    try:
+        with open(f"/secrets/{key}", "r") as f:
+            return f.read().strip()
+    except:
+        return default
+
+
 # ============ WiFi 配置 ============
 WIFI_SSID = "你的WiFi名称"
-WIFI_PASSWORD = "你的WiFi密码"
+WIFI_PASSWORD = _load_secret("wifi_pass", "你的WiFi密码")
 
 # ============ AI API 配置 ============
 # DeepSeek 官方 API（OpenAI 兼容格式）
 # 注册地址: https://platform.deepseek.com/
 # 官方定价: deepseek-chat ¥1/百万tokens（非常便宜）
 AI_API_URL = "https://api.deepseek.com/chat/completions"
-AI_API_KEY = "你的DeepSeek API密钥"
+AI_API_KEY = _load_secret("api_key", "你的DeepSeek API密钥")
 AI_MODEL = "deepseek-chat"   # 可选: deepseek-chat / deepseek-reasoner
 AI_TIMEOUT = 5  # API超时时间（秒）
 
@@ -46,7 +58,7 @@ RELAY_WATER_PIN = 5       # 水泵继电器
 RELAY_NUTRIENT_PIN = 18   # 营养液泵继电器
 RELAY_FAN_PIN = 19        # 风扇继电器
 
-# 拨码开关（3位，支持 8 种植物类型）
+# 拨码开关（3位拨码开关，支持 8 种组合）
 # bit0~bit2 对应 DIP 开关的第1~第3位
 # 使用 PULL_UP 输入：开关 OFF(断开)→1→取反为0, ON(接地)→0→取反为1
 DIP_SWITCH_PINS = [13, 12, 14]

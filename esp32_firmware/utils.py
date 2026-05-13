@@ -198,15 +198,17 @@ def get_free_memory():
     return gc.mem_free()
 
 
-def system_info():
+def system_info(start_time=0):
     """获取系统信息"""
     import sys
+    
+    uptime_seconds = time.time() - start_time if start_time > 0 else 0
     
     info = {
         "platform": sys.platform,
         "python_version": sys.version,
         "free_memory": get_free_memory(),
-        "uptime": format_uptime(time.time()),
+        "uptime": format_uptime(uptime_seconds),
     }
     
     try:
@@ -243,6 +245,7 @@ def dump_pins():
 
 def memory_stats():
     """打印内存统计"""
+    import gc
     gc.collect()
     print(f"=== 内存统计 ===")
     print(f"可用: {gc.mem_free()} bytes")
