@@ -12,8 +12,11 @@ esp32_firmware/
 ├── actuators.py     # 执行器控制模块
 ├── wifi_client.py   # WiFi 连接模块
 ├── ai_client.py     # AI API 客户端
-├── display.py       # OLED 显示模块
+├── display.py       # OLED 显示模块（支持中文）
+├── font_cn.py       # 中文 16x16 点阵字库
 ├── utils.py         # 工具函数
+├── tools/           # PC 端工具
+│   └── gen_font.py  # 中文字库生成器
 └── README.md        # 说明文档
 ```
 
@@ -70,6 +73,7 @@ ampy put actuators.py
 ampy put wifi_client.py
 ampy put ai_client.py
 ampy put display.py
+ampy put font_cn.py
 ampy put utils.py
 ```
 
@@ -168,14 +172,6 @@ AI_API_KEY = "你的密钥"
 AI_MODEL = "glm-4-flash"  # 或 glm-4
 ```
 
-### DeepSeek
-
-```python
-AI_API_URL = "https://api.deepseek.com/chat/completions"
-AI_API_KEY = "你的密钥"
-AI_MODEL = "deepseek-chat"
-```
-
 ### OpenAI
 
 ```python
@@ -224,9 +220,10 @@ minicom -D /dev/ttyUSB0 -b 115200
    - 需要预热 3 分钟
    - 放户外校准（420ppm）
 
-5. **OLED 显示方块/乱码**
-   - SSD1306 默认字库仅支持 ASCII 英文字符，中文会显示为方块
-   - 当前固件已全部使用英文显示，如需中文请自行制作字模（参考 `framebuf` 的 `Framebuffer` 方法）
+5. **OLED 中文显示**
+   - 系统已内置 `font_cn.py` 中文字库，支持显示植物名称和状态
+   - 字库包含约 40 个常用汉字（16×16 点阵），占用约 1.3KB
+   - 如需添加新汉字，在 PC 上运行 `py -3 tools/gen_font.py` 重新生成
 
 6. **传感器离线告警**
    - 传感器读取失败时，系统会返回 None 并触发 LED 红闪 + OLED 显示 "OFFLINE" 告警

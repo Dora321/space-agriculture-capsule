@@ -163,26 +163,34 @@ def run_fan(duration_sec):
 
 def water_pump_on():
     """开启水泵（持续运行，需手动关闭）"""
+    global _water_running
     print("[水泵] 手动开启")
     _relay_on(_relay_water)
+    _water_running = True
 
 
 def water_pump_off():
     """关闭水泵"""
+    global _water_running
     print("[水泵] 手动关闭")
     _relay_off(_relay_water)
+    _water_running = False
 
 
 def fan_on():
     """开启风扇（持续运行，需手动关闭）"""
+    global _fan_running
     print("[风扇] 手动开启")
     _relay_on(_relay_fan)
+    _fan_running = True
 
 
 def fan_off():
     """关闭风扇"""
+    global _fan_running
     print("[风扇] 手动关闭")
     _relay_off(_relay_fan)
+    _fan_running = False
 
 
 def all_off():

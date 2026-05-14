@@ -97,8 +97,14 @@ def read_co2():
             if data and len(data) >= 9:
                 # 校验：字节 0 应为 0xFF，字节 1 应为 0x86
                 if data[0] == 0xFF and data[1] == 0x86:
-                    co2 = (data[2] << 8) + data[3]
-                    return co2
+                    # 校验和验证：所有字节相加（取低8位）应为 0xFF
+                    checksum = sum(data[1:8]) & 0xFF
+                    checksum = (~checksum + 1) & 0xFF
+                    if checksum == data[8]:
+                        co2 = (data[2] << 8) + data[3]
+                        return co2
+                    else:
+                        print("[传感器] CO2 校验和错误")
         
         # 如果读取失败，返回 None 让主循环触发告警
         return None

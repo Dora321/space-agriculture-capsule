@@ -79,9 +79,10 @@ def init_system():
     time.sleep(1)
     
     # CO2传感器预热
-    print("[系统] CO2传感器预热中 (30秒)...")
+    warmup = config.CO2_WARMUP_TIME
+    print(f"[系统] CO2传感器预热中 ({warmup}秒)...")
     display.show_text("CO2 Warming...", 20, 40)
-    for i in range(30):
+    for i in range(warmup):
         time.sleep(1)
         if i % 5 == 0:
             display.show_text(f"CO2 Warming...{i+1}s", 20, 40)
@@ -142,6 +143,8 @@ def read_all_sensors():
         print(f"[传感器] 土壤:{state.soil_moisture}% | CO2:{state.co2_ppm}ppm | 温:{state.temperature}C | 湿:{state.humidity}%")
         print(f"[生长] 第{state.days_since_planting}天 | 阶段:{stage_name} | 推荐肥:{fert}")
         
+        # 成功读取，重置连续错误计数（看门狗只追踪连续错误）
+        state.error_count = 0
         return True
     except Exception as e:
         print("[错误] 传感器读取失败:", e)
