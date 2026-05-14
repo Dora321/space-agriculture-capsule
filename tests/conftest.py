@@ -125,7 +125,7 @@ class MockDHT22:
 dht_mock.DHT22 = MockDHT22
 sys.modules["dht"] = dht_mock
 
-# ============ Mock ssd1306 / framebuf / urequests ============
+# ============ Mock ssd1306 / urequests ============
 ssd1306_mock = types.ModuleType("ssd1306")
 
 
@@ -140,9 +140,6 @@ class MockSSD1306_I2C:
         pass
 
     def text(self, t, x, y, *a):
-        pass
-
-    def blit(self, fb, x, y):
         pass
 
     def line(self, *a):
@@ -160,18 +157,6 @@ class MockSSD1306_I2C:
 
 ssd1306_mock.SSD1306_I2C = MockSSD1306_I2C
 sys.modules["ssd1306"] = ssd1306_mock
-
-framebuf_mock = types.ModuleType("framebuf")
-framebuf_mock.MONO_HMSB = 0
-
-
-class MockFrameBuffer:
-    def __init__(self, *args):
-        pass
-
-
-framebuf_mock.FrameBuffer = MockFrameBuffer
-sys.modules["framebuf"] = framebuf_mock
 
 urequests_mock = types.ModuleType("urequests")
 sys.modules["urequests"] = urequests_mock

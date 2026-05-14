@@ -6,18 +6,17 @@
 
 ```
 esp32_firmware/
-├── main.py          # 主程序入口
-├── config.py        # 配置文件（WiFi、AI API、引脚定义）
-├── sensors.py       # 传感器读取模块
-├── actuators.py     # 执行器控制模块
-├── wifi_client.py   # WiFi 连接模块
-├── ai_client.py     # AI API 客户端
-├── display.py       # OLED 显示模块（支持中文）
-├── font_cn.py       # 中文 16x16 点阵字库
-├── utils.py         # 工具函数
-├── tools/           # PC 端工具
-│   └── gen_font.py  # 中文字库生成器
-└── README.md        # 说明文档
+├── main.py              # 主程序入口
+├── config.py.example    # 配置模板（复制为 config.py 使用）
+├── config.py            # 实际配置（gitignore，含密钥）
+├── plants.json          # 植物数据库（14种植物的养护参数和生长阶段）
+├── sensors.py           # 传感器读取模块
+├── actuators.py         # 执行器控制模块
+├── wifi_client.py       # WiFi 连接模块
+├── ai_client.py         # AI API 客户端
+├── display.py           # OLED 显示模块（英文模式）
+├── utils.py             # 工具函数（LED控制、本地决策、时间格式化）
+└── README.md            # 说明文档
 ```
 
 ## 快速开始
@@ -42,6 +41,12 @@ esp32_firmware/
 
 ### 3. 配置
 
+复制配置模板并修改：
+
+```bash
+cp config.py.example config.py
+```
+
 编辑 `config.py`：
 
 ```python
@@ -52,7 +57,8 @@ WIFI_PASSWORD = "你的WiFi密码"
 # AI API 配置（当前使用 DeepSeek，不配置则只用本地规则）
 AI_API_URL = "https://api.deepseek.com/chat/completions"
 AI_API_KEY = "你的DeepSeek API密钥"
-AI_MODEL = "deepseek-chat"
+AI_MODEL = "deepseek-v4-flash"
+AI_TIMEOUT = 20  # 推理模型需要较长等待
 ```
 
 ### 4. 烧录固件
@@ -64,37 +70,48 @@ esptool.py --chip esp32 --port COM3 erase_flash
 esptool.py --chip esp32 --port COM3 write_flash -z 0x1000 esp32.bin
 ```
 
-3. 使用 Thonny 或 ampy 上传代码：
+3. 安装 mpremote 工具：
 ```bash
-ampy put main.py
-ampy put config.py
-ampy put sensors.py
-ampy put actuators.py
-ampy put wifi_client.py
-ampy put ai_client.py
-ampy put display.py
-ampy put font_cn.py
-ampy put utils.py
+py -m pip install mpremote
 ```
 
-4. 重启 ESP32
+4. 上传代码到 ESP32：
+```bash
+py -m mpremote connect COM3 cp config.py :
+py -m mpremote connect COM3 cp plants.json :
+py -m mpremote connect COM3 cp main.py :
+py -m mpremote connect COM3 cp sensors.py :
+py -m mpremote connect COM3 cp actuators.py :
+py -m mpremote connect COM3 cp wifi_client.py :
+py -m mpremote connect COM3 cp ai_client.py :
+py -m mpremote connect COM3 cp display.py :
+py -m mpremote connect COM3 cp utils.py :
+```
+
+> **注意**：`plants.json` 必须上传，否则 `get_plant_info()` 只能返回 fallback 最小数据。
+
+5. 重启 ESP32
 
 ### 5. 测试
 
-```python
-# 在 REPL 中运行测试
-import sensors
-sensors.test_all()  # 测试所有传感器
+```bash
+# 传感器测试
+py -m mpremote connect COM3 exec "import sensors; sensors.init(); sensors.test_all()"
 
-import actuators
-actuators.test_sequence()  # 测试执行器
+# 执行器测试
+py -m mpremote connect COM3 exec "import actuators; actuators.init(); actuators.test_sequence()"
 
-import wifi_client
-wifi_client.test_connection()  # 测试网络
+# 显示测试
+py -m mpremote connect COM3 exec "import display; display.init(); display.show_boot(); display.show_data(45, 820, 24.5, 65, 'Tomato', 'idle'); display.show_error('CO2 OFFLINE'); display.show_graphic(); print('Display OK')"
 
-import ai_client
-ai_client.test_api()  # 测试AI API
+# WiFi 测试
+py -m mpremote connect COM3 exec "import wifi_client; wifi_client.connect(); wifi_client.test_connection()"
+
+# AI API 测试
+py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 ```
+
+> 如果 ESP32 正在运行 main.py，mpremote 会报 `could not enter raw repl`，先执行 `py -m mpremote connect COM3 soft-reset` 中断程序。
 
 ## 功能说明
 
@@ -103,8 +120,8 @@ ai_client.test_api()  # 测试AI API
 ```
 每5分钟执行一次：
 1. 读取所有传感器
-2. 安全检查
-3. 向AI查询决策（或使用本地规则）
+2. 安全检查（防抖、频率限制）
+3. 向AI查询决策（或使用本地规则兜底）
 4. 执行决策（水泵/营养液/风扇）
 5. 更新OLED显示
 ```
@@ -129,26 +146,40 @@ ai_client.test_api()  # 测试AI API
 - 土壤湿度阈值
 - CO2浓度阈值
 - 浇水/营养液/换气时长
+- 完整的生长阶段模型（苗期→生长期→开花期→结果期→采收期）
 
 ### 本地规则兜底
 
 即使 WiFi 断开，AI 不可用，系统仍能根据本地规则工作：
 
-1. 土壤湿度 < 阈值 → 浇水
-2. CO2 > 阈值 → 换气
-3. 定时补充营养液
-4. 一切正常 → 待机
+1. 土壤湿度 < 阈值-15 → 立即浇水（延长时间）
+2. 土壤湿度 < 阈值 → 浇水
+3. CO2 > 阈值+300 → 换气（延长时间）
+4. CO2 > 阈值 → 换气
+5. 营养液间隔到期 → 补充营养
+6. 一切正常 → 待机
 
 ### OLED 显示
 
-- 启动画面
-- 实时传感器数据
-- 当前动作执行
-- 错误信息
+系统使用英文模式显示（SSD1306 内置 ASCII 5x8 字体）：
+- 启动画面："SPACE FARM v1.0"
+- 实时传感器数据：Soil/CO2/T/H
+- 当前动作：Water/Nutrient/Ventilate/Idle
+- 错误信息：OFFLINE 告警
+
+### 传感器离线降级
+
+| 传感器 | 离线降级值 | 说明 |
+|--------|-----------|------|
+| 土壤湿度 | 0% | 触发安全浇水 |
+| CO2 | 420ppm | 基线值，不触发换气 |
+| DHT22 | 25°C / 60% | 默认舒适值 |
+
+传感器离线时 LED 红闪 + OLED 显示 "OFFLINE: ..." 告警。
 
 ## API 配置
 
-> **当前已配置：DeepSeek deepseek-chat**（¥1/百万tokens，性价比极高）
+> **当前已配置：DeepSeek deepseek-v4-flash**（¥1/百万tokens，性价比极高）
 
 ### DeepSeek（当前配置）
 
@@ -158,8 +189,11 @@ ai_client.test_api()  # 测试AI API
 ```python
 AI_API_URL = "https://api.deepseek.com/chat/completions"
 AI_API_KEY = "你的DeepSeek API密钥"
-AI_MODEL = "deepseek-chat"   # 或 deepseek-reasoner（推理模型）
+AI_MODEL = "deepseek-v4-flash"
+AI_TIMEOUT = 20
 ```
+
+> **注意**：推理模型（如 deepseek-reasoner）思考时间较长，`AI_TIMEOUT` 建议设为 20 秒以上。如果使用非推理模型（如 deepseek-chat），可适当缩短至 10 秒。
 
 ### 火山方舟
 
@@ -169,7 +203,7 @@ AI_MODEL = "deepseek-chat"   # 或 deepseek-reasoner（推理模型）
 ```python
 AI_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 AI_API_KEY = "你的密钥"
-AI_MODEL = "glm-4-flash"  # 或 glm-4
+AI_MODEL = "glm-4-flash"
 ```
 
 ### OpenAI
@@ -193,13 +227,33 @@ PuTTY - Serial - COM3 - 115200
 minicom -D /dev/ttyUSB0 -b 115200
 ```
 
+### mpremote 常用命令
+
+```bash
+# 查看设备
+py -m mpremote devs
+
+# 执行代码
+py -m mpremote connect COM3 exec "import gc; gc.collect(); print(gc.mem_free())"
+
+# 上传文件
+py -m mpremote connect COM3 cp config.py :
+
+# 中断运行中的程序
+py -m mpremote connect COM3 soft-reset
+
+# 进入交互 REPL
+py -m mpremote connect COM3
+```
+
 ### 日志输出
 
 系统启动后会输出：
 ```
-[WiFi] 连接成功! IP: 192.168.1.100
-[传感器] 土壤:45% | CO2:820ppm | 温:24C | 湿:65%
-[AI决策] action=idle duration=0s reason=状态正常
+[WiFi] Connected successfully! IP: 192.168.1.100
+[Sensor] Soil:45% | CO2:820ppm | Temp:24C | Hum:65%
+[Growth] Day 15 | Stage: vegetative | Fert: N
+[AI Decision] action=water duration=10s reason=Soil moisture below threshold
 ```
 
 ## 常见问题
@@ -217,28 +271,35 @@ minicom -D /dev/ttyUSB0 -b 115200
    - 确认 WiFi 2.4GHz（ESP32 不支持 5GHz）
 
 4. **CO2 读数不准**
-   - 需要预热 3 分钟
+   - 需要预热 30 秒（`CO2_WARMUP_TIME` 控制）
    - 放户外校准（420ppm）
 
-5. **OLED 中文显示**
-   - 系统已内置 `font_cn.py` 中文字库，支持显示植物名称和状态
-   - 字库包含约 40 个常用汉字（16×16 点阵），占用约 1.3KB
-   - 如需添加新汉字，在 PC 上运行 `py -3 tools/gen_font.py` 重新生成
+5. **AI API 超时（-116 ETIMEDOUT）**
+   - 推理模型思考时间长，增大 `AI_TIMEOUT`（建议 20 秒）
+   - 非推理模型可缩短至 10 秒
 
-6. **传感器离线告警**
-   - 传感器读取失败时，系统会返回 None 并触发 LED 红闪 + OLED 显示 "OFFLINE" 告警
+6. **AI 返回 `finish_reason: length`**
+   - 推理 token 消耗了 max_tokens 预算，增大 `max_tokens`（当前 1024）
+
+7. **AI 请求体截断 / JSON 解析失败**
+   - MicroPython `urequests` 对中文字符的 Content-Length 计算有 bug
+   - 代码已使用 `.encode('utf-8')` 修复，确保使用最新版 `ai_client.py`
+
+8. **传感器离线告警**
+   - 传感器读取失败时，系统返回 None 并触发 LED 红闪 + OLED 显示 "OFFLINE" 告警
    - 土壤传感器离线 → 降级为 0%（触发安全浇水）
-   - CO2 传感器离线 → 降级为 2000ppm（触发安全换气）
+   - CO2 传感器离线 → 降级为 420ppm（基线值，不触发换气）
+   - DHT22 离线 → 降级为 25°C / 60%
 
 ## 设计限制说明
 
 1. **执行器运行期间主循环阻塞**：水泵/营养液泵/风扇运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
 
-2. **OLED 不支持中文**：SSD1306 的 MicroPython 驱动默认仅含 ASCII 5×8 点阵字库。如需中文显示，需使用 `framebuf.FrameBuffer` 自定义字模，或外挂中文字库芯片（如 GT30L32S4W）。
+2. **OLED 英文模式**：系统使用 SSD1306 内置 ASCII 5x8 字体显示，植物名称和状态以英文显示。如需中文显示，需自行添加 16x16 点阵字库文件。
 
 3. **API 密钥安全**：`config.py` 中 API 密钥为明文存储，这是嵌入式设备的常见做法。但请注意：
-   - **不要将 `config.py` 上传到公开 Git 仓库**
-   - 建议在 `.gitignore` 中添加 `config.py`
+   - **不要将 `config.py` 上传到公开 Git 仓库**（已在 `.gitignore` 中排除）
+   - 建议使用 `/secrets/` 目录存储密钥（`_load_secret()` 函数支持）
    - DeepSeek API 密钥可在 https://platform.deepseek.com/ 随时重置
 
 ## 扩展
@@ -256,16 +317,20 @@ def read_light():
 
 ### 添加更多植物
 
-在 `config.py` 中添加：
+编辑 `plants.json`，在 JSON 中添加新条目：
 
-```python
-PLANT_DB["新植物"] = {
-    "soil_threshold": 35,
-    "co2_threshold": 800,
-    "water_sec": 10,
-    "nutrient_sec": 5,
-    "ventilate_sec": 30,
-    "nutrient_interval": 259200,
+```json
+"新植物": {
+  "soil_threshold": 35,
+  "co2_threshold": 800,
+  "water_sec": 10,
+  "nutrient_sec": 5,
+  "ventilate_sec": 30,
+  "nutrient_interval": 259200,
+  "growth_stages": [
+    {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "苗期"},
+    {"days": [8, 30], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "生长期"}
+  ]
 }
 ```
 
