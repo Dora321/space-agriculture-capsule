@@ -21,9 +21,9 @@ def init_leds():
     try:
         _led_red = Pin(config.LED_RED_PIN, Pin.OUT, value=1)
         _led_green = Pin(config.LED_GREEN_PIN, Pin.OUT, value=1)
-        print("[LED] 状态指示灯初始化完成")
+        print("[LED] Status LED initialized")
     except Exception as e:
-        print(f"[LED] 初始化失败: {e}")
+        print(f"[LED] Initialization failed: {e}")
 
 
 def set_led(color):
@@ -222,13 +222,13 @@ def system_info(start_time=0):
 
 def soft_reset():
     """软重启"""
-    print("[系统] 执行软重启...")
+    print("[System] Performing soft reset...")
     machine.reset()
 
 
 def deep_sleep(seconds):
     """深度睡眠（省电模式）"""
-    print(f"[系统] 进入深度睡眠 {seconds} 秒...")
+    print(f"[System] Entering deep sleep for {seconds}s...")
     machine.deepsleep(seconds * 1000)
 
 
@@ -236,20 +236,20 @@ def deep_sleep(seconds):
 
 def dump_pins():
     """打印所有 GPIO 引脚状态（调试用）"""
-    print("=== GPIO 状态 ===")
+    print("=== GPIO Status ===")
     
     # 可以扩展为读取所有引脚状态
-    print("注意: ESP32 ADC/GPIO 状态检查已简化")
-    print("建议使用 digitalio 模块进行详细检查")
+    print("Note: ESP32 ADC/GPIO check simplified")
+    print("Suggest using digitalio for detailed check")
 
 
 def memory_stats():
     """打印内存统计"""
     import gc
     gc.collect()
-    print(f"=== 内存统计 ===")
-    print(f"可用: {gc.mem_free()} bytes")
-    print(f"已分配: {gc.mem_alloc()} bytes")
+    print(f"=== Memory Stats ===")
+    print(f"Free: {gc.mem_free()} bytes")
+    print(f"Allocated: {gc.mem_alloc()} bytes")
 
 
 def benchmark(func, iterations=100):
@@ -262,7 +262,7 @@ def benchmark(func, iterations=100):
     end = time.ticks_us()
     
     avg_us = time.ticks_diff(end, start) / iterations
-    print(f"[基准] {func.__name__}: {avg_us:.2f}us (平均, {iterations}次)")
+    print(f"[Benchmark] {func.__name__}: {avg_us:.2f}us (avg, {iterations} iterations)")
     return avg_us
 
 
@@ -275,7 +275,7 @@ def save_data(filename, data):
             f.write(str(data))
         return True
     except Exception as e:
-        print(f"[存储] 保存失败: {e}")
+        print(f"[Storage] Save failed: {e}")
         return False
 
 

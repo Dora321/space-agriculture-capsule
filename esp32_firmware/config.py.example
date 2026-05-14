@@ -1,6 +1,9 @@
 """
 配置文件 - 太空农业种植舱
 修改此文件以适配你的硬件和网络环境
+
+使用方法: 复制本文件为 config.py，并填入你的实际配置
+  cp config.py.example config.py
 """
 
 import sys
@@ -17,16 +20,16 @@ def _load_secret(key, default=""):
 
 
 # ============ WiFi 配置 ============
-WIFI_SSID = "你的WiFi名称"
-WIFI_PASSWORD = _load_secret("wifi_pass", "你的WiFi密码")
+WIFI_SSID = "YOUR_WIFI_SSID"
+WIFI_PASSWORD = _load_secret("wifi_pass", "YOUR_WIFI_PASSWORD")
 
 # ============ AI API 配置 ============
 # DeepSeek 官方 API（OpenAI 兼容格式）
 # 注册地址: https://platform.deepseek.com/
 # 官方定价: deepseek-chat ¥1/百万tokens（非常便宜）
 AI_API_URL = "https://api.deepseek.com/chat/completions"
-AI_API_KEY = _load_secret("api_key", "你的DeepSeek API密钥")
-AI_MODEL = "deepseek-chat"   # 可选: deepseek-chat / deepseek-reasoner
+AI_API_KEY = _load_secret("api_key", "YOUR_API_KEY_HERE")
+AI_MODEL = "deepseek-v4-flash"   # 可选：deepseek-v4-flash
 AI_TIMEOUT = 5  # API超时时间（秒）
 
 # ============ 系统参数 ============
@@ -290,12 +293,12 @@ def get_growth_stage(plant_info, days_since_planting):
     stages = plant_info.get("growth_stages", [])
     if not stages:
         return {"stage": "unknown", "fert": "NPK", "water_need": "normal", "note": "无阶段数据"}
-    
+
     for s in stages:
         start_day, end_day = s["days"]
         if start_day <= days_since_planting <= end_day:
             return s
-    
+
     # 超出所有阶段范围，返回最后一个
     return stages[-1]
 
@@ -305,7 +308,7 @@ def calc_days_since_planting():
     import time
     planting = PLANTING_DATE  # (年, 月, 日)
     now = time.localtime()
-    
+
     # 简化计算：用年和天数差估算
     # 更精确的方式需要日历库，但 ESP32 MicroPython 不一定有
     try:

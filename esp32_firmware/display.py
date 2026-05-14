@@ -35,12 +35,12 @@ def init():
         # 检查设备是否存在
         devices = i2c.scan()
         if 0x3C not in devices:
-            print(f"[显示] 未检测到OLED (0x3C)，地址列表: {devices}")
+            print(f"[Display] OLED (0x3C) not detected, addresses: {devices}")
             # 尝试其他地址
             if 0x3D in devices:
-                print("[显示] 找到 OLED (0x3D)")
+                print("[Display] Found OLED (0x3D)")
             else:
-                print("[显示] OLED 未连接")
+                print("[Display] OLED not connected")
                 return False
 
         _oled = ssd1306.SSD1306_I2C(128, 64, i2c)
@@ -50,11 +50,11 @@ def init():
         # 加载中文字库
         _load_cn_font()
 
-        print("[显示] OLED 初始化成功")
+        print("[Display] OLED initialized successfully")
         return True
 
     except Exception as e:
-        print(f"[显示] OLED 初始化失败: {e}")
+        print(f"[Display] OLED initialization failed: {e}")
         return False
 
 
@@ -64,16 +64,16 @@ def _load_cn_font():
     try:
         from font_cn import FONT
         _cn_font = FONT
-        print(f"[显示] 中文字库已加载 ({len(FONT)} 字)")
+        print(f"[Display] CN font loaded ({len(FONT)} chars)")
     except ImportError:
-        print("[显示] 中文字库未安装，使用纯英文模式")
+        print("[Display] CN font not installed, using English mode")
         _cn_font = None
 
 
 def _check_init():
     """检查 OLED 是否已初始化"""
     if _oled is None:
-        print("[显示] OLED 未初始化")
+        print("[Display] OLED not initialized")
         return False
     return True
 

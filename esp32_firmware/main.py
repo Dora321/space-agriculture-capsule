@@ -44,43 +44,43 @@ state = SystemState()
 def init_system():
     """系统初始化"""
     print("=" * 50)
-    print("  太空农业种植舱控制系统 v1.0")
+    print("  Space Agriculture Growth Chamber System v1.0")
     print("=" * 50)
     
     state.start_time = time.time()
     state.action_count_start = time.time()
     
     # 初始化各模块（按依赖顺序：显示→传感器→执行器）
-    print("[系统] 初始化 OLED 显示...")
+    print("[System] Initializing OLED display...")
     display.init()
     
     # 显示启动信息
     display.show_boot()
     
-    print("[系统] 初始化传感器...")
+    print("[System] Initializing sensors...")
     sensors.init()
     
-    print("[系统] 初始化执行器...")
+    print("[System] Initializing actuators...")
     actuators.init()
     
-    print("[系统] 初始化状态LED...")
+    print("[System] Initializing status LEDs...")
     utils.init_leds()
     
     # 连接WiFi
     state.wifi_connected = wifi_client.connect()
     
     if state.wifi_connected:
-        print("[WiFi] 已连接，IP地址:", wifi_client.get_ip())
+        print("[WiFi] Connected, IP:", wifi_client.get_ip())
         display.show_text("WiFi OK!", 20, 40)
     else:
-        print("[WiFi] 连接失败，将使用本地规则")
+        print("[WiFi] Connection failed, using local rules")
         display.show_text("WiFi Failed", 20, 40)
     
     time.sleep(1)
     
     # CO2传感器预热
     warmup = config.CO2_WARMUP_TIME
-    print(f"[系统] CO2传感器预热中 ({warmup}秒)...")
+    print(f"[System] CO2 sensor warming up ({warmup}s)...")
     display.show_text("CO2 Warming...", 20, 40)
     for i in range(warmup):
         time.sleep(1)
@@ -89,9 +89,9 @@ def init_system():
     
     # 读取初始植物类型
     state.plant_type = sensors.read_plant_type()
-    print("[植物] 当前类型:", state.plant_type)
+    print("[Plant] Current type:", state.plant_type)
     
-    print("[系统] 初始化完成，开始主循环")
+    print("[System] Initialization complete, starting main loop")
     print("=" * 50)
     
     return True
@@ -121,7 +121,7 @@ def read_all_sensors():
         # 传感器离线告警
         if sensor_failures:
             fail_msg = "OFFLINE: " + ",".join(sensor_failures)
-            print(f"[告警] 传感器离线: {fail_msg}")
+            print(f"[Alert] Sensor offline: {fail_msg}")
             utils.set_led("red")
             display.show_error(fail_msg)
             time.sleep(2)  # 告警显示 2 秒
@@ -140,14 +140,14 @@ def read_all_sensors():
         
         stage_name = state.growth_stage.get("stage", "unknown")
         fert = state.growth_stage.get("fert", "NPK")
-        print(f"[传感器] 土壤:{state.soil_moisture}% | CO2:{state.co2_ppm}ppm | 温:{state.temperature}C | 湿:{state.humidity}%")
-        print(f"[生长] 第{state.days_since_planting}天 | 阶段:{stage_name} | 推荐肥:{fert}")
+        print(f"[Sensor] Soil:{state.soil_moisture}% | CO2:{state.co2_ppm}ppm | Temp:{state.temperature}C | Hum:{state.humidity}%")
+        print(f"[Growth] Day {state.days_since_planting} | Stage: {stage_name} | Fert: {fert}")
         
         # 成功读取，重置连续错误计数（看门狗只追踪连续错误）
         state.error_count = 0
         return True
     except Exception as e:
-        print("[错误] 传感器读取失败:", e)
+        print("[Error] Sensor read failed:", e)
         state.error_count += 1
         return False
 
@@ -171,11 +171,11 @@ def make_decision():
         )
     
     if ai_result:
-        print(f"[AI决策] action={ai_result['action']} duration={ai_result['duration_sec']}s reason={ai_result['reason']}")
+        print(f"[AI Decision] action={ai_result['action']} duration={ai_result['duration_sec']}s reason={ai_result['reason']}")
         return ai_result
     
     # 本地规则兜底
-    print("[本地规则] 云端超时，使用本地决策")
+    print("[Local Rule] Cloud timeout, using local decision")
     decision = utils.local_fallback_decision(
         soil=state.soil_moisture,
         co2=state.co2_ppm,
@@ -193,7 +193,7 @@ def execute_decision(decision):
     reason = decision.get('reason', '')
     
     if action == 'idle':
-        print("[动作] 待机")
+        print("[Action] Idle")
         actuators.all_off()
         display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type)
         state.last_action = 'idle'
@@ -201,7 +201,7 @@ def execute_decision(decision):
         return
     
     # 执行动作
-    print(f"[动作] 执行: {action} ({duration}秒) 原因: {reason}")
+    print(f"[Action] Executing: {action} ({duration}s) Reason: {reason}")
     
     # 状态LED设为黄色（执行中）
     utils.set_led("yellow")
@@ -234,14 +234,14 @@ def safety_check():
 
     # 检查执行器实际硬件状态（防止状态脱节）
     if actuators.is_any_running():
-        print("[安全] 执行器运行中，跳过")
+        print("[Safety] Actuator running, skipped")
         return False
 
     # 检查距离上次动作是否过短（防抖）
     if state.last_action != "idle":
         elapsed = now - state.last_action_time
         if elapsed < config.MIN_ACTION_INTERVAL:
-            print(f"[安全] 动作间隔过短({elapsed:.0f}s)，跳过")
+            print(f"[Safety] Action interval too short ({elapsed:.0f}s), skipped")
             return False
     
     # 检查动作次数（每小时最多N次）
@@ -252,7 +252,7 @@ def safety_check():
         state.action_count = 0
 
     if state.action_count >= config.MAX_ACTIONS_PER_HOUR:
-        print("[安全] 本小时动作次数超限，等待...")
+        print("[Safety] Hourly action limit exceeded, waiting...")
         time.sleep(60)
         return False
     
@@ -262,7 +262,7 @@ def safety_check():
 def watch_dog():
     """看门狗 - 检测系统异常"""
     if state.error_count > config.MAX_ERRORS:
-        print("[看门狗] 错误次数过多，系统重启")
+        print("[Watchdog] Too many errors, system restarting")
         machine.reset()
 
 
@@ -305,7 +305,7 @@ def main_loop():
                 
                 # 检查是否需要重连WiFi
                 if not wifi_client.is_connected():
-                    print("[WiFi] 断开，尝试重连...")
+                    print("[WiFi] Disconnected, attempting reconnect...")
                     state.wifi_connected = wifi_client.smart_connect()
                 
                 # 释放内存
@@ -315,11 +315,11 @@ def main_loop():
             time.sleep(1)
             
         except KeyboardInterrupt:
-            print("\n[系统] 用户中断，关闭所有执行器")
+            print("\n[System] User interrupted, turning off all actuators")
             actuators.all_off()
             break
         except Exception as e:
-            print("[错误] 主循环异常:", e)
+            print("[Error] Main loop exception:", e)
             state.error_count += 1
             watch_dog()
             time.sleep(5)
@@ -330,7 +330,7 @@ def run():
     if init_system():
         main_loop()
     else:
-        print("[致命] 系统初始化失败")
+        print("[Fatal] System initialization failed")
         machine.reset()
 
 

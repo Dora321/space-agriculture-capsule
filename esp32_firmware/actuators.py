@@ -28,7 +28,7 @@ def init():
     _relay_nutrient = Pin(config.RELAY_NUTRIENT_PIN, Pin.OUT, value=1)
     _relay_fan = Pin(config.RELAY_FAN_PIN, Pin.OUT, value=1)
     
-    print("[执行器] 初始化完成，所有设备已关闭")
+    print("[Actuator] Initialization complete, all devices off")
     return True
 
 
@@ -63,7 +63,7 @@ def run_water_pump(duration_sec):
     if duration == 0:
         return False
     
-    print(f"[水泵] 启动浇水 {duration}秒")
+    print(f"[Water Pump] Starting for {duration}s")
     _water_running = True
     
     try:
@@ -75,14 +75,14 @@ def run_water_pump(duration_sec):
             sleep_time = min(remaining, 1)  # 每秒检测一次
             time.sleep(sleep_time)
             remaining -= sleep_time
-            print(f"[水泵] 剩余 {remaining}秒")
+            print(f"[Water Pump] {remaining}s remaining")
         
         _relay_off(_relay_water)
-        print("[水泵] 浇水完成")
+        print("[Water Pump] Complete")
         return True
         
     except Exception as e:
-        print("[水泵] 运行异常:", e)
+        print("[Water Pump] Exception:", e)
         _relay_off(_relay_water)
         return False
     finally:
@@ -100,7 +100,7 @@ def run_nutrient_pump(duration_sec):
     if duration == 0:
         return False
     
-    print(f"[营养液泵] 启动 {duration}秒")
+    print(f"[Nutrient Pump] Starting for {duration}s")
     _nutrient_running = True
     
     try:
@@ -111,14 +111,14 @@ def run_nutrient_pump(duration_sec):
             sleep_time = min(remaining, 1)
             time.sleep(sleep_time)
             remaining -= sleep_time
-            print(f"[营养液泵] 剩余 {remaining}秒")
+            print(f"[Nutrient Pump] {remaining}s remaining")
         
         _relay_off(_relay_nutrient)
-        print("[营养液泵] 完成")
+        print("[Nutrient Pump] Complete")
         return True
         
     except Exception as e:
-        print("[营养液泵] 运行异常:", e)
+        print("[Nutrient Pump] Exception:", e)
         _relay_off(_relay_nutrient)
         return False
     finally:
@@ -136,7 +136,7 @@ def run_fan(duration_sec):
     if duration == 0:
         return False
     
-    print(f"[风扇] 启动换气 {duration}秒")
+    print(f"[Fan] Starting for {duration}s")
     _fan_running = True
     
     try:
@@ -147,14 +147,14 @@ def run_fan(duration_sec):
             sleep_time = min(remaining, 1)
             time.sleep(sleep_time)
             remaining -= sleep_time
-            print(f"[风扇] 剩余 {remaining}秒")
+            print(f"[Fan] {remaining}s remaining")
         
         _relay_off(_relay_fan)
-        print("[风扇] 换气完成")
+        print("[Fan] Complete")
         return True
         
     except Exception as e:
-        print("[风扇] 运行异常:", e)
+        print("[Fan] Exception:", e)
         _relay_off(_relay_fan)
         return False
     finally:
@@ -164,7 +164,7 @@ def run_fan(duration_sec):
 def water_pump_on():
     """开启水泵（持续运行，需手动关闭）"""
     global _water_running
-    print("[水泵] 手动开启")
+    print("[Water Pump] Manual ON")
     _relay_on(_relay_water)
     _water_running = True
 
@@ -172,7 +172,7 @@ def water_pump_on():
 def water_pump_off():
     """关闭水泵"""
     global _water_running
-    print("[水泵] 手动关闭")
+    print("[Water Pump] Manual OFF")
     _relay_off(_relay_water)
     _water_running = False
 
@@ -180,7 +180,7 @@ def water_pump_off():
 def fan_on():
     """开启风扇（持续运行，需手动关闭）"""
     global _fan_running
-    print("[风扇] 手动开启")
+    print("[Fan] Manual ON")
     _relay_on(_relay_fan)
     _fan_running = True
 
@@ -188,7 +188,7 @@ def fan_on():
 def fan_off():
     """关闭风扇"""
     global _fan_running
-    print("[风扇] 手动关闭")
+    print("[Fan] Manual OFF")
     _relay_off(_relay_fan)
     _fan_running = False
 
@@ -197,7 +197,7 @@ def all_off():
     """关闭所有执行器"""
     global _water_running, _nutrient_running, _fan_running
     
-    print("[执行器] 紧急关闭所有设备")
+    print("[Actuator] Emergency OFF all devices")
     _relay_off(_relay_water)
     _relay_off(_relay_nutrient)
     _relay_off(_relay_fan)
@@ -234,19 +234,19 @@ def get_status():
 
 def test_sequence():
     """执行器测试序列"""
-    print("=== 执行器测试 ===")
+    print("=== Actuator Test ===")
     
-    print("\n[1/3] 测试水泵 (3秒)...")
+    print("\n[1/3] Testing water pump (3s)...")
     run_water_pump(3)
     time.sleep(1)
     
-    print("\n[2/3] 测试营养液泵 (3秒)...")
+    print("\n[2/3] Testing nutrient pump (3s)...")
     run_nutrient_pump(3)
     time.sleep(1)
     
-    print("\n[3/3] 测试风扇 (3秒)...")
+    print("\n[3/3] Testing fan (3s)...")
     run_fan(3)
     time.sleep(1)
     
-    print("\n=== 测试完成 ===")
-    print("确认所有执行器正常工作")
+    print("\n=== Test Complete ===")
+    print("Confirm all actuators working normally")

@@ -9,95 +9,52 @@ import time
 import config
 
 
-# 系统提示词
-SYSTEM_PROMPT = """你是一个专业的太空农业种植助手。
-
-背景：
-- 太空种植舱使用水培系统，资源有限，必须高效管理
-- 你的决策直接影响植物生存和宇航员食物供给
-- 系统需要根据植物生长阶段动态调整养护策略
-
-决策原则：
-1. 生长阶段优先：不同阶段需求不同（苗期少水少肥、生长期多水氮肥、开花期减水补磷钾、结果期多水钾肥）
-2. 安全第一：任何决策都不能导致系统过载或损坏
-3. 资源高效：太空每一滴水都很珍贵，精准灌溉
-4. 预防为主：发现趋势问题提前处理
-5. 简洁执行：每次只执行一个主要动作
-
-动作类型：
-- water: 浇水（土壤干燥时）
-- nutrient: 补充营养液（需要施肥时，AI应结合生长阶段建议肥料类型）
-- ventilate: 换气（CO2浓度过高时）
-- idle: 待机（所有指标正常时）
-
-肥料类型说明（含在reason中告知用户）：
-- N=氮肥（促叶生长，苗期/营养生长期使用）
-- P=磷肥（促根促花，开花期使用）
-- K=钾肥（膨果增甜，结果期使用）
-- PK=磷钾肥（开花期控旺促花）
-- NK=氮钾肥（结果期兼顾生长和产量）
-
-输入数据包含：
-- 当前植物类型和种植天数
-- 当前生长阶段（seedling/vegetative/flowering/fruiting/harvesting）
-- 该阶段推荐肥料类型和需水强度
-- 土壤湿度、CO2浓度、温湿度等实时传感器数据
-- 该植物的阈值参数
-
-输出格式（严格JSON，不要其他内容）：
-{
-  "action": "water|nutrient|ventilate|idle",
-  "duration_sec": 数字（动作执行时长，idle时为0）,
-  "reason": "判断依据（含肥料类型建议，15字以内）"
-}"""
-
+# System Prompt
+SYSTEM_PROMPT = """You are a space agriculture AI.
+Rules:
+1. Stage needs: Seedling=low water/fert; Veg=high water/N; Bloom=low water, high P/K; Fruit=high water/K.
+2. Safety first. Avoid system overload.
+3. Save water.
+4. One action at a time.
+Actions:
+- water: if soil dry
+- nutrient: if fert needed
+- ventilate: if CO2 high
+- idle: if normal
+Fertilizers: N, P, K, PK, NK.
+Output strict JSON:
+{"action":"water|nutrient|ventilate|idle","duration_sec":int,"reason":"short reason"}"""
 
 def _build_payload(plant_type, soil_moisture, co2, temp, humidity, plant_info, days_since_planting=0, growth_stage=None):
-    """构建 API 请求 payload"""
+    """Build API payload"""
     
-    # 生长阶段信息
     stage_info = ""
     if growth_stage:
-        stage_names = {
-            "seedling": "苗期",
-            "vegetative": "营养生长期",
-            "flowering": "开花期",
-            "fruiting": "结果期",
-            "harvesting": "采收期",
-        }
-        stage_cn = stage_names.get(growth_stage.get("stage", ""), growth_stage.get("stage", ""))
         fert = growth_stage.get("fert", "NPK")
         water_need = growth_stage.get("water_need", "normal")
-        note = growth_stage.get("note", "")
         
         stage_info = f"""
-生长阶段信息：
-- 种植天数：第{days_since_planting}天
-- 当前阶段：{stage_cn}
-- 推荐肥料：{fert}
-- 需水强度：{water_need}
-- 养护要点：{note}"""
+Stage: {growth_stage.get('stage', '')} (Day {days_since_planting})
+Fert: {fert}, Water: {water_need}"""
     
-    user_content = f"""传感器数据：
-- 植物类型：{plant_type}
-- 土壤湿度：{soil_moisture}%（阈值：{plant_info['soil_threshold']}%）
-- CO2浓度：{co2}ppm（阈值：{plant_info['co2_threshold']}ppm）
-- 环境温度：{temp}°C
-- 环境湿度：{humidity}%{stage_info}
+    user_content = f"""Data:
+Plant: {plant_type}
+Soil: {soil_moisture}% (thr: {plant_info['soil_threshold']}%)
+CO2: {co2}ppm (thr: {plant_info['co2_threshold']}ppm)
+Temp: {temp}C
+Hum: {humidity}%{stage_info}
 
-请做出决策。"""
+Decision:"""
     
-    payload = {
+    return {
         "model": config.AI_MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content}
         ],
         "temperature": 0.3,
-        "max_tokens": 120,
+        "max_tokens": 1024,
     }
-    
-    return payload
 
 
 def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_info, days_since_planting=0, growth_stage=None):
@@ -106,7 +63,7 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
     返回: dict 或 None（失败时）
     """
     if not config.AI_API_KEY or "你的" in config.AI_API_KEY:
-        print("[AI] API密钥未配置，跳过云端AI")
+        print("[AI] API key not configured, skipping cloud AI")
         return None
     
     url = config.AI_API_URL
@@ -119,11 +76,19 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
     
     response = None
     try:
-        print(f"[AI] 发送请求... plant={plant_type} soil={soil_moisture}% co2={co2}ppm")
+        import gc
+        # Serialize to JSON string early and encode to bytes for correct Content-Length
+        payload_bytes = ujson.dumps(payload).encode('utf-8')
+        # Delete the large dictionary and user_content string
+        del payload
+        # Force garbage collection to free RAM for the TLS handshake
+        gc.collect()
+        
+        print(f"[AI] Sending request... plant={plant_type} soil={soil_moisture}% co2={co2}ppm")
         
         response = urequests.post(
             url,
-            json=payload,
+            data=payload_bytes,
             headers=headers,
             timeout=config.AI_TIMEOUT
         )
@@ -132,13 +97,13 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
         status_code = response.status_code
         if status_code != 200:
             body = response.text[:200] if hasattr(response, 'text') else ''
-            print(f"[AI] HTTP 错误: {status_code}, 响应: {body}")
+            print(f"[AI] HTTP error: {status_code}, Response: {body}")
             return None
         
-        # 安全检查：响应体不应超过 4KB（正常决策 JSON < 200 字节）
+        # 安全检查：响应体不应超过 8KB
         resp_text = response.text
-        if len(resp_text) > 4096:
-            print(f"[AI] 响应过大({len(resp_text)}字节)，丢弃以防内存溢出")
+        if len(resp_text) > 8192:
+            print(f"[AI] Response too large ({len(resp_text)} bytes), dropping")
             return None
         
         # 解析 JSON 响应（MicroPython urequests.Response 无 .json() 方法，直接用 ujson.loads）
@@ -162,20 +127,20 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
                 
                 # 验证必要字段
                 if 'action' in decision and 'duration_sec' in decision:
-                    print(f"[AI] 决策成功: {decision}")
+                    print(f"[AI] Decision success: {decision}")
                     return decision
                 else:
-                    print(f"[AI] 响应格式错误: {decision}")
+                    print(f"[AI] Invalid response format: {decision}")
                     
             except Exception as e:
-                print(f"[AI] JSON解析失败: {e}")
-                print(f"[AI] 原始响应: {content}")
+                print(f"[AI] JSON parse failed: {e}")
+                print(f"[AI] Raw response: {content}")
         
-        print(f"[AI] API响应异常: {result}")
+        print(f"[AI] API response exception: {result}")
         return None
         
     except Exception as e:
-        print(f"[AI] 请求失败: {e}")
+        print(f"[AI] Request failed: {e}")
         return None
     finally:
         if response is not None:
@@ -188,7 +153,7 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
 def test_api():
     """测试 API 连接"""
     if not config.AI_API_KEY or "你的" in config.AI_API_KEY:
-        print("[测试] API密钥未配置")
+        print("[Test] API key not configured")
         return False
     
     plant_info = config.get_plant_info("生菜")
@@ -205,14 +170,14 @@ def test_api():
         "growth_stage": test_stage
     }
     
-    print("[测试] 发送测试请求（生菜第15天，营养生长期）...")
+    print("[Test] Sending test request (Lettuce day 15)...")
     result = query_decision(**test_data)
     
     if result:
-        print(f"[测试] 成功! 决策: {result}")
+        print(f"[Test] Success! Decision: {result}")
         return True
     else:
-        print("[测试] 失败")
+        print("[Test] Failed")
         return False
 
 

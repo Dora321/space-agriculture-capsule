@@ -35,15 +35,15 @@ def init():
     try:
         import dht
         _dht22_sensor = dht.DHT22(Pin(config.DHT22_PIN))
-        print("[传感器] DHT22 初始化成功")
+        print("[Sensor] DHT22 initialized successfully")
     except Exception as e:
-        print(f"[传感器] DHT22 初始化失败: {e}")
+        print(f"[Sensor] DHT22 initialization failed: {e}")
         _dht22_sensor = None
     
     # 拨码开关引脚
     _dip_pins = [Pin(pin, Pin.IN, Pin.PULL_UP) for pin in config.DIP_SWITCH_PINS]
     
-    print("[传感器] 初始化完成")
+    print("[Sensor] Initialization complete")
     return True
 
 
@@ -72,7 +72,7 @@ def read_soil_moisture():
         return moisture
         
     except Exception as e:
-        print("[传感器] 土壤读取失败:", e)
+        print("[Sensor] Soil read failed:", e)
         return None  # 传感器故障，返回 None 让主循环触发告警
 
 
@@ -104,13 +104,13 @@ def read_co2():
                         co2 = (data[2] << 8) + data[3]
                         return co2
                     else:
-                        print("[传感器] CO2 校验和错误")
+                        print("[Sensor] CO2 checksum error")
         
         # 如果读取失败，返回 None 让主循环触发告警
         return None
         
     except Exception as e:
-        print("[传感器] CO2读取失败:", e)
+        print("[Sensor] CO2 read failed:", e)
         return None  # 传感器故障，返回 None 让主循环触发告警
 
 
@@ -121,7 +121,7 @@ def read_dht22():
     """
     try:
         if _dht22_sensor is None:
-            print("[传感器] DHT22 未初始化")
+            print("[Sensor] DHT22 not initialized")
             return (None, None)
         
         _dht22_sensor.measure()
@@ -132,7 +132,7 @@ def read_dht22():
         
     except Exception as e:
         # DHT22 不可用，返回 None 让主循环触发告警
-        print("[传感器] DHT22读取失败:", e)
+        print("[Sensor] DHT22 read failed:", e)
         return (None, None)
 
 
@@ -154,7 +154,7 @@ def read_plant_type():
         return plant
         
     except Exception as e:
-        print("[传感器] 拨码读取失败:", e)
+        print("[Sensor] DIP switch read failed:", e)
         return config.get_plant_name(0)  # 默认返回生菜（拨码0）
 
 
@@ -183,8 +183,8 @@ def calibrate_soil():
     土壤传感器校准
     提示用户将传感器放入干土和湿土中测量
     """
-    print("=== 土壤传感器校准 ===")
-    print("将传感器放入干土中，等待5秒...")
+    print("=== Soil Sensor Calibration ===")
+    print("Place sensor in dry soil, wait 5s...")
     time.sleep(5)
     
     dry_samples = []
@@ -192,9 +192,9 @@ def calibrate_soil():
         dry_samples.append(_soil_adc.read())
         time.sleep(0.5)
     dry_avg = sum(dry_samples) / len(dry_samples)
-    print(f"干土 ADC 平均值: {dry_avg}")
+    print(f"Dry soil ADC average: {dry_avg}")
     
-    print("将传感器放入湿土中，等待5秒...")
+    print("Place sensor in wet soil, wait 5s...")
     time.sleep(5)
     
     wet_samples = []
@@ -202,36 +202,36 @@ def calibrate_soil():
         wet_samples.append(_soil_adc.read())
         time.sleep(0.5)
     wet_avg = sum(wet_samples) / len(wet_samples)
-    print(f"湿土 ADC 平均值: {wet_avg}")
+    print(f"Wet soil ADC average: {wet_avg}")
     
-    print(f"\n校准结果:")
-    print(f"  SOIL_ADC_MAX (干土) = {int(dry_avg)}")
-    print(f"  SOIL_ADC_MIN (湿土) = {int(wet_avg)}")
-    print("请将上述值更新到 config.py 中")
+    print(f"\nCalibration results:")
+    print(f"  SOIL_ADC_MAX (Dry soil) = {int(dry_avg)}")
+    print(f"  SOIL_ADC_MIN (Wet soil) = {int(wet_avg)}")
+    print("Please update these values in config.py")
 
 
 def test_all():
     """测试所有传感器"""
-    print("=== 传感器测试 ===")
+    print("=== Sensor Test ===")
     
-    print("\n[1/4] 测试土壤湿度...")
+    print("\n[1/4] Testing soil moisture...")
     for i in range(3):
         soil = read_soil_moisture()
-        print(f"  土壤湿度: {soil}%")
+        print(f"  Soil moisture: {soil}%")
         time.sleep(0.5)
     
-    print("\n[2/4] 测试CO2...")
+    print("\n[2/4] Testing CO2...")
     for i in range(3):
         co2 = read_co2()
-        print(f"  CO2浓度: {co2}ppm")
+        print(f"  CO2 concentration: {co2}ppm")
         time.sleep(0.5)
     
-    print("\n[3/4] 测试温湿度...")
+    print("\n[3/4] Testing temp & humidity...")
     temp, hum = read_dht22()
-    print(f"  温度: {temp}C, 湿度: {hum}%")
+    print(f"  Temp: {temp}C, Hum: {hum}%")
     
-    print("\n[4/4] 测试拨码开关...")
+    print("\n[4/4] Testing DIP switch...")
     plant = read_plant_type()
-    print(f"  当前植物: {plant}")
+    print(f"  Current plant: {plant}")
     
-    print("\n=== 测试完成 ===")
+    print("\n=== Test Complete ===")

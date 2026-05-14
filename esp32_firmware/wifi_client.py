@@ -22,7 +22,7 @@ def connect(timeout=30):
     _wlan = network.WLAN(network.STA_IF)
     _wlan.active(True)
     
-    print(f"[WiFi] 正在连接 {config.WIFI_SSID}...")
+    print(f"[WiFi] Connecting to {config.WIFI_SSID}...")
     
     _wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
     
@@ -30,14 +30,14 @@ def connect(timeout=30):
     start_time = time.time()
     while not _wlan.isconnected():
         if time.time() - start_time > timeout:
-            print("[WiFi] 连接超时")
+            print("[WiFi] Connection timeout")
             return False
         time.sleep(0.5)
     
-    print(f"[WiFi] 连接成功!")
+    print(f"[WiFi] Connected successfully!")
     print(f"  IP: {get_ip()}")
-    print(f"  子网掩码: {_wlan.ifconfig()[1]}")
-    print(f"  网关: {_wlan.ifconfig()[2]}")
+    print(f"  Subnet mask: {_wlan.ifconfig()[1]}")
+    print(f"  Gateway: {_wlan.ifconfig()[2]}")
     
     return True
 
@@ -48,7 +48,7 @@ def disconnect():
     if _wlan:
         _wlan.disconnect()
         _wlan.active(False)
-        print("[WiFi] 已断开")
+        print("[WiFi] Disconnected")
 
 
 def is_connected():
@@ -88,13 +88,13 @@ def smart_connect():
     最多重试 3 次
     """
     for attempt in range(3):
-        print(f"[WiFi] 连接尝试 {attempt + 1}/3")
+        print(f"[WiFi] Connection attempt {attempt + 1}/3")
         if connect(timeout=20):
             return True
-        print(f"[WiFi] 等待 5 秒后重试...")
+        print(f"[WiFi] Waiting 5s to retry...")
         time.sleep(5)
     
-    print("[WiFi] 所有连接尝试均失败")
+    print("[WiFi] All connection attempts failed")
     return False
 
 
@@ -126,21 +126,21 @@ def scan_networks():
 def test_connection():
     """测试网络连接"""
     if not is_connected():
-        print("[测试] WiFi 未连接")
+        print("[Test] WiFi not connected")
         return False
     
     import socket
     
     try:
-        print("[测试] 尝试连接百度...")
+        print("[Test] Trying to connect to baidu.com...")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5)
         sock.connect(('baidu.com', 80))
         sock.close()
-        print("[测试] 网络连接正常!")
+        print("[Test] Network connection normal!")
         return True
     except Exception as e:
-        print(f"[测试] 网络连接失败: {e}")
+        print(f"[Test] Network connection failed: {e}")
         return False
 
 
