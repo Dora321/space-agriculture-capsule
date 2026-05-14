@@ -15,6 +15,23 @@ _oled = None
 # 显示状态
 _DISPLAY_ON = True
 
+# 植物名称中英文映射（OLED 内置字体不支持中文）
+_PLANT_NAMES = {
+    "生菜": "Lettuce",
+    "小白菜": "BokChoy",
+    "菠菜": "Spinach",
+    "韭菜": "Chives",
+    "番茄": "Tomato",
+    "辣椒": "Pepper",
+    "黄瓜": "Cucumber",
+    "茄子": "Eggplant",
+}
+
+
+def _plant_en(name):
+    """将植物中文名转为 OLED 可显示的英文名"""
+    return _PLANT_NAMES.get(name, name)
+
 
 def init():
     """初始化 OLED 显示屏"""
@@ -111,7 +128,7 @@ def show_data(soil, co2, temp, hum, plant, action):
     _oled.fill(0)
 
     _oled.text("SPACE FARM v1.0", 0, 0)
-    _oled.text(f"Plant:{plant}", 0, 12)
+    _oled.text(f"Plant:{_plant_en(plant)}", 0, 12)
     _oled.text(f"Soil:{soil}%", 0, 24)
     _oled.text(f"CO2:{co2}", 72, 24)
     _oled.text(f"T:{temp}C H:{hum}%", 0, 36)
@@ -158,7 +175,7 @@ def show_idle(soil, co2, plant):
 
     _oled.text("Status: OK", 24, 4)
     _oled.text("================", 0, 18)
-    _oled.text(f"Plant:{plant}", 0, 30)
+    _oled.text(f"Plant:{_plant_en(plant)}", 0, 30)
     _oled.text(f"Soil:{soil}%", 0, 44)
     _oled.text(f"CO2:{co2}", 72, 44)
     _oled.show()
