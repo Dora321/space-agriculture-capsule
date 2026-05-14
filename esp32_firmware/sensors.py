@@ -17,7 +17,7 @@ _dip_pins = None
 
 def init():
     """初始化所有传感器"""
-    global _soil_adc, _co2_uart, _dip_pins
+    global _soil_adc, _co2_uart, _dip_pins, _dht22_sensor
     
     # 土壤湿度 ADC
     _soil_adc = ADC(Pin(config.SOIL_ADC_PIN))
@@ -30,6 +30,15 @@ def init():
         tx=Pin(config.CO2_UART_TX),
         rx=Pin(config.CO2_UART_RX)
     )
+    
+    # DHT22 温湿度传感器
+    try:
+        import dht
+        _dht22_sensor = dht.DHT22(Pin(config.DHT22_PIN))
+        print("[传感器] DHT22 初始化成功")
+    except Exception as e:
+        print(f"[传感器] DHT22 初始化失败: {e}")
+        _dht22_sensor = None
     
     # 拨码开关引脚
     _dip_pins = [Pin(pin, Pin.IN, Pin.PULL_UP) for pin in config.DIP_SWITCH_PINS]
@@ -103,14 +112,11 @@ def read_dht22():
     """
     读取 DHT22 温湿度传感器
     返回: (温度°C, 湿度%)
-    注意: ESP32 上 DHT22 可能需要特殊驱动
     """
     try:
-        import dht
-        
-        global _dht22_sensor
         if _dht22_sensor is None:
-            _dht22_sensor = dht.DHT22(Pin(config.DHT22_PIN))
+            print("[传感器] DHT22 未初始化")
+            return (None, None)
         
         _dht22_sensor.measure()
         temp = _dht22_sensor.temperature()

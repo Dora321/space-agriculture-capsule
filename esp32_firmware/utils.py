@@ -261,7 +261,7 @@ def benchmark(func, iterations=100):
         func()
     end = time.ticks_us()
     
-    avg_us = (end - start) / iterations
+    avg_us = time.ticks_diff(end, start) / iterations
     print(f"[基准] {func.__name__}: {avg_us:.2f}us (平均, {iterations}次)")
     return avg_us
 

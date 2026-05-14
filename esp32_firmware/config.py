@@ -11,7 +11,8 @@ def _load_secret(key, default=""):
     try:
         with open(f"/secrets/{key}", "r") as f:
             return f.read().strip()
-    except:
+    except OSError:
+        # 文件不存在时返回默认值（正常情况，首次使用时密钥文件尚未创建）
         return default
 
 
@@ -313,7 +314,7 @@ def calc_days_since_planting():
         now_sec = time.mktime((now[0], now[1], now[2], 0, 0, 0, 0, 0))
         days = int((now_sec - then_sec) / 86400)
         return max(0, days)
-    except:
-        # 回退：粗略估算
+    except (ValueError, OverflowError):
+        # 回退：粗略估算（mktime 参数异常时使用近似计算）
         days = (now[0] - planting[0]) * 365 + (now[1] - planting[1]) * 30 + (now[2] - planting[2])
         return max(0, days)

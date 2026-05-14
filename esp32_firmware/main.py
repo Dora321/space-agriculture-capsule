@@ -111,7 +111,7 @@ def read_all_sensors():
             soil = 0  # 降级为 0，触发本地规则的安全浇水
         if co2 is None:
             sensor_failures.append("CO2")
-            co2 = config.CO2_DANGER_HIGH  # 降级为高值，触发本地规则的安全换气
+            co2 = config.CO2_NORMAL  # 降级为基线值，跳过换气决策（避免风扇无限运转）
         if temp is None or hum is None:
             sensor_failures.append("DHT22")
             temp = temp if temp is not None else 25.0
@@ -186,7 +186,7 @@ def make_decision():
 def execute_decision(decision):
     """执行决策"""
     action = decision.get('action', 'idle')
-    duration = decision.get('duration_sec', 0)
+    duration = min(decision.get('duration_sec', 0), config.PUMP_MAX_RUN_SEC)  # 安全上限
     reason = decision.get('reason', '')
     
     if action == 'idle':
@@ -248,7 +248,7 @@ def safety_check():
         state.action_count_start = now
         state.action_count = 0
 
-    if state.action_count > config.MAX_ACTIONS_PER_HOUR:
+    if state.action_count >= config.MAX_ACTIONS_PER_HOUR:
         print("[安全] 本小时动作次数超限，等待...")
         time.sleep(60)
         return False
@@ -303,7 +303,7 @@ def main_loop():
                 # 检查是否需要重连WiFi
                 if not wifi_client.is_connected():
                     print("[WiFi] 断开，尝试重连...")
-                    state.wifi_connected = wifi_client.connect()
+                    state.wifi_connected = wifi_client.smart_connect()
                 
                 # 释放内存
                 gc.collect()

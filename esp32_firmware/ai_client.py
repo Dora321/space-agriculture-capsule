@@ -135,8 +135,14 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
             print(f"[AI] HTTP 错误: {status_code}, 响应: {body}")
             return None
         
+        # 安全检查：响应体不应超过 4KB（正常决策 JSON < 200 字节）
+        resp_text = response.text
+        if len(resp_text) > 4096:
+            print(f"[AI] 响应过大({len(resp_text)}字节)，丢弃以防内存溢出")
+            return None
+        
         # 解析 JSON 响应（MicroPython urequests.Response 无 .json() 方法，直接用 ujson.loads）
-        result = ujson.loads(response.text)
+        result = ujson.loads(resp_text)
         
         # 解析响应
         if 'choices' in result and len(result['choices']) > 0:
