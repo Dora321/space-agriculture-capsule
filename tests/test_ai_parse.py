@@ -20,14 +20,6 @@ class TestParseAction:
         d = parse_decision_from_text("补充营养液5秒")
         assert d["action"] == "nutrient"
 
-    def test_parse_ventilate_english(self):
-        d = parse_decision_from_text("need to ventilate 30s")
-        assert d["action"] == "ventilate"
-
-    def test_parse_ventilate_chinese(self):
-        d = parse_decision_from_text("需要换气通风")
-        assert d["action"] == "ventilate"
-
     def test_parse_idle_default(self):
         """无关键词时默认 idle"""
         d = parse_decision_from_text("一切正常无需操作")
@@ -64,6 +56,6 @@ class TestEdgeCases:
         assert d["action"] == "water"
 
     def test_multiple_keywords_first_wins(self):
-        """多个关键词时，优先级：water > nutrient > ventilate"""
-        d = parse_decision_from_text("water and then ventilate")
+        """多个关键词时，优先级：water > nutrient"""
+        d = parse_decision_from_text("water and then nutrient")
         assert d["action"] == "water"

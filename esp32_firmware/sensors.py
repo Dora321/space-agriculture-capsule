@@ -4,32 +4,31 @@
 
 import machine
 import time
-from machine import ADC, Pin, UART
+from machine import ADC, Pin
 import config
 
 
 # ============ 全局传感器对象 ============
 _soil_adc = None
-_co2_uart = None
+_soil_pin = None
 _dht_sensor = None
 _dip_pins = None
 
 
 def init():
     """初始化所有传感器"""
-    global _soil_adc, _co2_uart, _dip_pins, _dht_sensor
+    global _soil_adc, _soil_pin, _dip_pins, _dht_sensor
     
-    # 土壤湿度 ADC
-    _soil_adc = ADC(Pin(config.SOIL_ADC_PIN))
-    _soil_adc.atten(ADC.ATTN_11DB)  # 配置为 0-3.3V 量程
-    
-    # CO2 传感器 UART
-    _co2_uart = UART(
-        config.CO2_UART_NUM,
-        baudrate=config.CO2_UART_BAUD,
-        tx=Pin(config.CO2_UART_TX),
-        rx=Pin(config.CO2_UART_RX)
-    )
+    # 土壤湿度传感器：支持模拟量 ADC 和比较器数字量两种模块
+    if getattr(config, "SOIL_SENSOR_MODE", "adc") == "digital":
+        _soil_pin = Pin(config.SOIL_ADC_PIN, Pin.IN)
+        _soil_adc = None
+        print(f"[Sensor] Soil digital input initialized on GPIO{config.SOIL_ADC_PIN}")
+    else:
+        _soil_adc = ADC(Pin(config.SOIL_ADC_PIN))
+        _soil_adc.atten(ADC.ATTN_11DB)  # 配置为 0-3.3V 量程
+        _soil_pin = None
+        print(f"[Sensor] Soil ADC initialized on GPIO{config.SOIL_ADC_PIN}")
     
     # 温湿度传感器
     try:
@@ -57,6 +56,11 @@ def read_soil_moisture():
     说明: 干土≈4095, 湿土≈1500
     """
     try:
+        if getattr(config, "SOIL_SENSOR_MODE", "adc") == "digital":
+            raw = _soil_pin.value()
+            dry_value = getattr(config, "SOIL_DIGITAL_DRY_VALUE", 1)
+            return 0 if raw == dry_value else 100
+
         # 读取多次取平均
         samples = []
         for _ in range(5):
@@ -76,44 +80,6 @@ def read_soil_moisture():
         
     except Exception as e:
         print("[Sensor] Soil read failed:", e)
-        return None  # 传感器故障，返回 None 让主循环触发告警
-
-
-def read_co2():
-    """
-    读取 CO2 浓度
-    返回: CO2 浓度 (ppm)
-    说明: MH-Z19B 红外 CO2 传感器
-    """
-    try:
-        # 发送读取命令（MH-Z19B 标准读取浓度命令）
-        # 格式: 0xFF, 0x01, 0x86, 0x00×6, checksum
-        # 校验和 = (~(0xFF + 0x01 + 0x86)) & 0xFF = 0x79
-        cmd = bytearray([0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79])
-        _co2_uart.write(cmd)
-        
-        # 等待响应
-        time.sleep_ms(100)
-        
-        if _co2_uart.any() >= 9:
-            data = _co2_uart.read(9)
-            if data and len(data) >= 9:
-                # 校验：字节 0 应为 0xFF，字节 1 应为 0x86
-                if data[0] == 0xFF and data[1] == 0x86:
-                    # 校验和验证：所有字节相加（取低8位）应为 0xFF
-                    checksum = sum(data[1:8]) & 0xFF
-                    checksum = (~checksum + 1) & 0xFF
-                    if checksum == data[8]:
-                        co2 = (data[2] << 8) + data[3]
-                        return co2
-                    else:
-                        print("[Sensor] CO2 checksum error")
-        
-        # 如果读取失败，返回 None 让主循环触发告警
-        return None
-        
-    except Exception as e:
-        print("[Sensor] CO2 read failed:", e)
         return None  # 传感器故障，返回 None 让主循环触发告警
 
 
@@ -170,13 +136,11 @@ def read_all():
     返回: 字典包含所有传感器值
     """
     soil = read_soil_moisture()
-    co2 = read_co2()
     temp, hum = read_dht22()
     plant = read_plant_type()
     
     return {
         "soil_moisture": soil,
-        "co2_ppm": co2,
         "temperature": temp,
         "humidity": hum,
         "plant_type": plant,
@@ -220,23 +184,17 @@ def test_all():
     """测试所有传感器"""
     print("=== Sensor Test ===")
     
-    print("\n[1/4] Testing soil moisture...")
+    print("\n[1/3] Testing soil moisture...")
     for i in range(3):
         soil = read_soil_moisture()
         print(f"  Soil moisture: {soil}%")
         time.sleep(0.5)
     
-    print("\n[2/4] Testing CO2...")
-    for i in range(3):
-        co2 = read_co2()
-        print(f"  CO2 concentration: {co2}ppm")
-        time.sleep(0.5)
-    
-    print("\n[3/4] Testing temp & humidity...")
+    print("\n[2/3] Testing temp & humidity...")
     temp, hum = read_dht22()
     print(f"  Temp: {temp}C, Hum: {hum}%")
     
-    print("\n[4/4] Testing DIP switch...")
+    print("\n[3/3] Testing DIP switch...")
     plant = read_plant_type()
     print(f"  Current plant: {plant}")
     

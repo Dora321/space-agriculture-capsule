@@ -27,7 +27,6 @@ esp32_firmware/
 |------|------|------|
 | 主控板 | ESP32 DevKit v1 | 1 |
 | 土壤湿度 | 电容式 v1.2 | 1 |
-| CO2传感器 | MH-Z19B | 1 |
 | 温湿度 | DHT22 | 1 |
 | 继电器×3 | 5V低电平触发 | 3 |
 | 水泵 | 5V潜水泵 | 1 |
@@ -102,7 +101,7 @@ py -m mpremote connect COM3 exec "import sensors; sensors.init(); sensors.test_a
 py -m mpremote connect COM3 exec "import actuators; actuators.init(); actuators.test_sequence()"
 
 # 显示测试
-py -m mpremote connect COM3 exec "import display; display.init(); display.show_boot(); display.show_data(45, 820, 24.5, 65, 'Tomato', 'idle'); display.show_error('CO2 OFFLINE'); display.show_graphic(); print('Display OK')"
+py -m mpremote connect COM3 exec "import display; display.init(); display.show_boot(); display.show_data(45, 24.5, 65, 'Tomato', 'idle'); display.show_error('DHT OFFLINE'); display.show_graphic(); print('Display OK')"
 
 # WiFi 测试
 py -m mpremote connect COM3 exec "import wifi_client; wifi_client.connect(); wifi_client.test_connection()"
@@ -144,8 +143,7 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 每种植物有独立的：
 - 土壤湿度阈值
-- CO2浓度阈值
-- 浇水/营养液/换气时长
+- 浇水/营养液时长
 - 完整的生长阶段模型（苗期→生长期→开花期→结果期→采收期）
 
 ### 本地规则兜底
@@ -154,17 +152,15 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 1. 土壤湿度 < 阈值-15 → 立即浇水（延长时间）
 2. 土壤湿度 < 阈值 → 浇水
-3. CO2 > 阈值+300 → 换气（延长时间）
-4. CO2 > 阈值 → 换气
-5. 营养液间隔到期 → 补充营养
-6. 一切正常 → 待机
+3. 营养液间隔到期 → 补充营养
+4. 一切正常 → 待机
 
 ### OLED 显示
 
 系统使用英文模式显示（SSD1306 内置 ASCII 5x8 字体）：
 - 启动画面："SPACE FARM v1.0"
-- 实时传感器数据：Soil/CO2/T/H
-- 当前动作：Water/Nutrient/Ventilate/Idle
+- 实时传感器数据：Soil/T/H
+- 当前动作：Water/Nutrient/Idle
 - 错误信息：OFFLINE 告警
 
 ### 传感器离线降级
@@ -172,7 +168,6 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 | 传感器 | 离线降级值 | 说明 |
 |--------|-----------|------|
 | 土壤湿度 | 0% | 触发安全浇水 |
-| CO2 | 420ppm | 基线值，不触发换气 |
 | DHT22 | 25°C / 60% | 默认舒适值 |
 
 传感器离线时 LED 红闪 + OLED 显示 "OFFLINE: ..." 告警。
@@ -251,7 +246,7 @@ py -m mpremote connect COM3
 系统启动后会输出：
 ```
 [WiFi] Connected successfully! IP: 192.168.1.100
-[Sensor] Soil:45% | CO2:820ppm | Temp:24C | Hum:65%
+[Sensor] Soil:45% | Temp:24C | Hum:65%
 [Growth] Day 15 | Stage: vegetative | Fert: N
 [AI Decision] action=water duration=10s reason=Soil moisture below threshold
 ```
@@ -270,25 +265,20 @@ py -m mpremote connect COM3
    - 检查 SSID 和密码
    - 确认 WiFi 2.4GHz（ESP32 不支持 5GHz）
 
-4. **CO2 读数不准**
-   - 需要预热 30 秒（`CO2_WARMUP_TIME` 控制）
-   - 放户外校准（420ppm）
-
-5. **AI API 超时（-116 ETIMEDOUT）**
+4. **AI API 超时（-116 ETIMEDOUT）**
    - 推理模型思考时间长，增大 `AI_TIMEOUT`（建议 20 秒）
    - 非推理模型可缩短至 10 秒
 
-6. **AI 返回 `finish_reason: length`**
+5. **AI 返回 `finish_reason: length`**
    - 推理 token 消耗了 max_tokens 预算，增大 `max_tokens`（当前 1024）
 
-7. **AI 请求体截断 / JSON 解析失败**
+6. **AI 请求体截断 / JSON 解析失败**
    - MicroPython `urequests` 对中文字符的 Content-Length 计算有 bug
    - 代码已使用 `.encode('utf-8')` 修复，确保使用最新版 `ai_client.py`
 
-8. **传感器离线告警**
+7. **传感器离线告警**
    - 传感器读取失败时，系统返回 None 并触发 LED 红闪 + OLED 显示 "OFFLINE" 告警
    - 土壤传感器离线 → 降级为 0%（触发安全浇水）
-   - CO2 传感器离线 → 降级为 420ppm（基线值，不触发换气）
    - DHT22 离线 → 降级为 25°C / 60%
 
 ## 设计限制说明
@@ -322,7 +312,6 @@ def read_light():
 ```json
 "新植物": {
   "soil_threshold": 35,
-  "co2_threshold": 800,
   "water_sec": 10,
   "nutrient_sec": 5,
   "ventilate_sec": 30,

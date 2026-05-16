@@ -30,13 +30,15 @@ AI_API_URL = "https://api.deepseek.com/chat/completions"
 AI_API_KEY = _load_secret("api_key", "YOUR_API_KEY_HERE")
 AI_MODEL = "deepseek-v4-flash"
 AI_TIMEOUT = 20  # API超时时间（秒），推理模型需要较长等待
+AI_MIN_FREE_MEM = 110000  # 低于该空闲内存时跳过云端 AI，避免 ESP32 TLS 握手失败
+AI_PROXY_URL = ""  # 可填局域网代理，例如 "http://192.168.125.2:8787/decision"
+AI_PROXY_TOKEN = ""  # 可选：代理访问令牌，需与云端 AI_PROXY_TOKEN 一致
 
 # ============ 系统参数 ============
-READ_INTERVAL = 30        # 传感器读取间隔（秒），临时测试用 30 秒（正式运行建议 300 秒 = 5 分钟）
+READ_INTERVAL = 60        # 传感器读取间隔（秒），不低于 60 秒（正式运行建议 300 秒 = 5 分钟）
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数
 MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
-CO2_WARMUP_TIME = 30      # CO2传感器预热时间（秒）
 
 # ============ 种植日期 ============
 # 格式: (年, 月, 日)，系统据此计算种植天数和生长阶段
@@ -47,14 +49,9 @@ PLANTING_DATE = (2026, 5, 1)  # 例: 2026年5月1日播种
 # 传感器
 SOIL_ADC_PIN = 34         # 土壤湿度 ADC 引脚
 
-# CO2传感器 UART
-CO2_UART_NUM = 1
-CO2_UART_TX = 16
-CO2_UART_RX = 17
-CO2_UART_BAUD = 9600
-
-# DHT22 温湿度
-DHT22_PIN = 4
+# 温湿度传感器（DHT11 或 DHT22）
+DHT_PIN = 4
+DHT_TYPE = "DHT11"  # 可选: "DHT11" 或 "DHT22"
 
 # 继电器（低电平触发）
 RELAY_WATER_PIN = 5       # 水泵继电器
@@ -76,13 +73,11 @@ LED_RED_PIN = 27
 LED_GREEN_PIN = 26
 
 # ============ 传感器参数 ============
-# 土壤湿度 ADC 参数
+# 土壤湿度参数
+SOIL_SENSOR_MODE = "adc"  # 可选: "adc" 电容式模拟量 / "digital" 比较器数字量
 SOIL_ADC_MAX = 4095       # 干土 ADC 值
 SOIL_ADC_MIN = 1500       # 湿土 ADC 值
-
-# CO2 参数
-CO2_NORMAL = 420          # 户外 CO2 基线值
-CO2_DANGER_HIGH = 2000    # CO2 危险上限
+SOIL_DIGITAL_DRY_VALUE = 1  # 数字土壤传感器干燥时的输出值，请按模块实际输出调整
 
 # ============ 执行器参数 ============
 PUMP_WATER_DEFAULT_SEC = 8     # 默认浇水时长（秒）
@@ -130,7 +125,7 @@ def get_plant_info(plant_name):
         print(f"Error loading plants.json: {e}")
         # Fallback minimal data if file missing or corrupt
         plant_data = {
-            "soil_threshold": 30, "co2_threshold": 1000,
+            "soil_threshold": 30,
             "water_sec": 8, "nutrient_sec": 5, "ventilate_sec": 30,
             "nutrient_interval": 259200,
             "growth_stages": [{"days": [0, 999], "stage": "vegetative", "fert": "NPK", "water_need": "normal", "note": ""}]

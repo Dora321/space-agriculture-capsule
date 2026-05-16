@@ -3,6 +3,7 @@
 """
 import json
 import pathlib
+import re
 import config
 
 
@@ -25,13 +26,12 @@ class TestPlantDatabase:
             name = config.get_plant_name(idx)
             info = config.get_plant_info(name)
             assert "soil_threshold" in info, f"植物 '{name}' 缺少 soil_threshold"
-            assert "co2_threshold" in info, f"植物 '{name}' 缺少 co2_threshold"
             assert "growth_stages" in info, f"植物 '{name}' 缺少 growth_stages"
 
     def test_required_fields(self):
         """每种植物必须包含所有必要字段"""
         required = [
-            "soil_threshold", "co2_threshold",
+            "soil_threshold",
             "water_sec", "nutrient_sec", "ventilate_sec",
             "nutrient_interval", "growth_stages",
         ]
@@ -74,13 +74,6 @@ class TestPlantDatabase:
         for name, info in _PLANT_DB.items():
             t = info["soil_threshold"]
             assert 10 <= t <= 60, f"植物 '{name}' soil_threshold={t} 超出合理范围"
-
-    def test_co2_threshold_range(self):
-        """CO2 阈值应在 600-2000"""
-        for name, info in _PLANT_DB.items():
-            t = info["co2_threshold"]
-            assert 600 <= t <= 2000, f"植物 '{name}' co2_threshold={t} 超出合理范围"
-
 
 class TestGrowthStage:
     """生长阶段查询逻辑测试"""
@@ -153,3 +146,22 @@ class TestSafetyConstants:
 
     def test_read_interval(self):
         assert config.READ_INTERVAL >= 60, "读取间隔不应低于 60 秒"
+
+
+class TestConfigTemplate:
+    """配置模板应覆盖固件实际使用的配置项"""
+
+    def test_example_defines_required_runtime_constants(self):
+        root = pathlib.Path(__file__).resolve().parent.parent
+        fw_dir = root / "esp32_firmware"
+        used = set()
+
+        for path in fw_dir.glob("*.py"):
+            if path.name.startswith("config.py"):
+                continue
+            used.update(re.findall(r"config\.([A-Z][A-Z0-9_]*)", path.read_text(encoding="utf-8")))
+
+        example_text = (fw_dir / "config.py.example").read_text(encoding="utf-8")
+        defined = set(re.findall(r"^([A-Z][A-Z0-9_]*)\s*=", example_text, flags=re.M))
+
+        assert not (used - defined)

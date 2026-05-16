@@ -64,13 +64,12 @@ def blink_led(color, times=3, interval_ms=500):
 
 # ============ 本地决策规则 ============
 
-def local_fallback_decision(soil, co2, plant_info, last_nutrient, current_time):
+def local_fallback_decision(soil, plant_info, last_nutrient, current_time):
     """
     本地备用决策逻辑（云端超时/失败时使用）
     
     参数:
         soil: 土壤湿度百分比
-        co2: CO2浓度 ppm
         plant_info: 植物参数字典
         last_nutrient: 上次营养液时间戳
         current_time: 当前时间戳
@@ -80,10 +79,8 @@ def local_fallback_decision(soil, co2, plant_info, last_nutrient, current_time):
     """
     
     soil_threshold = plant_info['soil_threshold']
-    co2_threshold = plant_info['co2_threshold']
     water_sec = plant_info['water_sec']
     nutrient_sec = plant_info['nutrient_sec']
-    ventilate_sec = plant_info['ventilate_sec']
     nutrient_interval = plant_info.get('nutrient_interval', 259200)  # 默认3天
     
     # 决策优先级
@@ -103,22 +100,7 @@ def local_fallback_decision(soil, co2, plant_info, last_nutrient, current_time):
             "reason": "土壤干燥"
         }
     
-    # 3. CO2 过高 -> 换气
-    if co2 > co2_threshold + 300:
-        return {
-            "action": "ventilate",
-            "duration_sec": ventilate_sec + 15,  # 延长一点
-            "reason": "CO2严重超标"
-        }
-    
-    if co2 > co2_threshold:
-        return {
-            "action": "ventilate",
-            "duration_sec": ventilate_sec,
-            "reason": "CO2偏高"
-        }
-    
-    # 4. 需要补充营养液（定时）
+    # 3. 需要补充营养液（定时）
     time_since_nutrient = current_time - last_nutrient
     if time_since_nutrient > nutrient_interval:
         # 土壤不太干时可以补营养
@@ -129,7 +111,7 @@ def local_fallback_decision(soil, co2, plant_info, last_nutrient, current_time):
                 "reason": "定时补充营养"
             }
     
-    # 5. 一切正常
+    # 4. 一切正常
     return {
         "action": "idle",
         "duration_sec": 0,

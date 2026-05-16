@@ -3,7 +3,6 @@ AI 决策客户端 - 调用云端 AI API 获取养护决策
 支持 DeepSeek / OpenAI 兼容 API（当前配置: DeepSeek deepseek-chat）
 """
 
-import urequests
 import ujson
 import time
 import config
@@ -19,13 +18,12 @@ Rules:
 Actions:
 - water: if soil dry
 - nutrient: if fert needed
-- ventilate: if CO2 high
 - idle: if normal
 Fertilizers: N, P, K, PK, NK.
 Output strict JSON:
-{"action":"water|nutrient|ventilate|idle","duration_sec":int,"reason":"short reason"}"""
+{"action":"water|nutrient|idle","duration_sec":int,"reason":"short reason"}"""
 
-def _build_payload(plant_type, soil_moisture, co2, temp, humidity, plant_info, days_since_planting=0, growth_stage=None):
+def _build_payload(plant_type, soil_moisture, temp, humidity, plant_info, days_since_planting=0, growth_stage=None):
     """Build API payload"""
     
     stage_info = ""
@@ -40,7 +38,6 @@ Fert: {fert}, Water: {water_need}"""
     user_content = f"""Data:
 Plant: {plant_type}
 Soil: {soil_moisture}% (thr: {plant_info['soil_threshold']}%)
-CO2: {co2}ppm (thr: {plant_info['co2_threshold']}ppm)
 Temp: {temp}C
 Hum: {humidity}%{stage_info}
 
@@ -57,22 +54,24 @@ Decision:"""
     }
 
 
-def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_info, days_since_planting=0, growth_stage=None):
+def query_decision(plant_type, soil_moisture, temperature, humidity, plant_info, days_since_planting=0, growth_stage=None):
     """
     向 AI 查询养护决策
     返回: dict 或 None（失败时）
     """
-    if not config.AI_API_KEY or "你的" in config.AI_API_KEY:
+    proxy_url = getattr(config, "AI_PROXY_URL", "")
+    if not proxy_url and (not config.AI_API_KEY or "你的" in config.AI_API_KEY):
         print("[AI] API key not configured, skipping cloud AI")
         return None
     
-    url = config.AI_API_URL
-    headers = {
-        "Authorization": f"Bearer {config.AI_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    url = proxy_url if proxy_url else config.AI_API_URL
+    headers = {"Content-Type": "application/json"}
+    if not proxy_url:
+        headers["Authorization"] = f"Bearer {config.AI_API_KEY}"
+    elif getattr(config, "AI_PROXY_TOKEN", ""):
+        headers["X-Proxy-Token"] = config.AI_PROXY_TOKEN
     
-    payload = _build_payload(plant_type, soil_moisture, co2, temperature, humidity, plant_info, days_since_planting, growth_stage)
+    payload = _build_payload(plant_type, soil_moisture, temperature, humidity, plant_info, days_since_planting, growth_stage)
     
     response = None
     try:
@@ -83,8 +82,12 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
         del payload
         # Force garbage collection to free RAM for the TLS handshake
         gc.collect()
+        import urequests
         
-        print(f"[AI] Sending request... plant={plant_type} soil={soil_moisture}% co2={co2}ppm")
+        if proxy_url:
+            print(f"[AI] Sending proxy request... plant={plant_type} soil={soil_moisture}%")
+        else:
+            print(f"[AI] Sending request... plant={plant_type} soil={soil_moisture}%")
         
         response = urequests.post(
             url,
@@ -108,6 +111,10 @@ def query_decision(plant_type, soil_moisture, co2, temperature, humidity, plant_
         
         # 解析 JSON 响应（MicroPython urequests.Response 无 .json() 方法，直接用 ujson.loads）
         result = ujson.loads(resp_text)
+
+        if 'action' in result and 'duration_sec' in result:
+            print(f"[AI] Decision success: {result}")
+            return result
         
         # 解析响应
         if 'choices' in result and len(result['choices']) > 0:
@@ -162,7 +169,6 @@ def test_api():
     test_data = {
         "plant_type": "生菜",
         "soil_moisture": 25,
-        "co2": 1200,
         "temperature": 24.5,
         "humidity": 65,
         "plant_info": plant_info,
@@ -181,12 +187,11 @@ def test_api():
         return False
 
 
-def format_decision_log(decision, soil, co2, temp, plant):
+def format_decision_log(decision, soil, temp, plant):
     """格式化决策日志"""
     action_names = {
         "water": "浇水",
         "nutrient": "营养液",
-        "ventilate": "换气",
         "idle": "待机"
     }
     
@@ -196,7 +201,7 @@ def format_decision_log(decision, soil, co2, temp, plant):
     
     return (
         f"[{time.localtime()[1]:02d}/{time.localtime()[2]:02d} {time.localtime()[3]:02d}:{time.localtime()[4]:02d}] "
-        f"{plant} | 土:{soil}% CO2:{co2}ppm | "
+        f"{plant} | 土:{soil}% T:{temp}C | "
         f"决策:{action_names.get(action, action)} {duration}s | {reason}"
     )
 
@@ -217,10 +222,6 @@ def parse_decision_from_text(text):
     elif "nutrient" in text or "营养" in text:
         action = "nutrient"
         duration = 5
-    elif "ventilate" in text or "换气" in text or "通风" in text:
-        action = "ventilate"
-        duration = 30
-    
     # 尝试提取时长（用简单字符串操作替代 re，避免 MicroPython re 模块不可用的风险）
     idx = text.find("duration")
     if idx >= 0:

@@ -15,8 +15,6 @@ import config
 import wifi_client
 import sensors
 import actuators
-import display
-import ai_client
 import utils
 
 # 全局状态
@@ -24,7 +22,6 @@ class SystemState:
     def __init__(self):
         self.wifi_connected = False
         self.soil_moisture = 0
-        self.co2_ppm = 0
         self.temperature = 0.0
         self.humidity = 0.0
         self.plant_type = "生菜"
@@ -39,6 +36,46 @@ class SystemState:
         self.start_time = 0
 
 state = SystemState()
+_display_ready = False
+
+
+def _init_display():
+    """按需初始化 OLED，避免显示模块长期占用 AI TLS 所需内存。"""
+    global _display_ready
+    import display
+    _display_ready = display.init()
+    return display
+
+
+def _display():
+    global _display_ready
+    import display
+    if not _display_ready:
+        _display_ready = display.init()
+    return display
+
+
+def _release_display():
+    """AI 请求前释放 OLED 模块和帧缓冲，给 TLS 握手腾出堆内存。"""
+    global _display_ready
+    try:
+        mod = sys.modules.get("display")
+        if mod:
+            try:
+                mod.power_off()
+            except Exception:
+                pass
+            try:
+                mod._oled = None
+            except Exception:
+                pass
+            del sys.modules["display"]
+        if "ssd1306" in sys.modules:
+            del sys.modules["ssd1306"]
+    except Exception as e:
+        print("[Display] Release failed:", e)
+    _display_ready = False
+    gc.collect()
 
 
 def init_system():
@@ -52,10 +89,10 @@ def init_system():
     
     # 初始化各模块（按依赖顺序：显示→传感器→执行器）
     print("[System] Initializing OLED display...")
-    display.init()
+    _init_display()
     
     # 显示启动信息
-    display.show_boot()
+    _display().show_boot()
     
     print("[System] Initializing sensors...")
     sensors.init()
@@ -71,24 +108,14 @@ def init_system():
     
     if state.wifi_connected:
         print("[WiFi] Connected, IP:", wifi_client.get_ip())
-        display.show_text("WiFi OK!", 20, 40)
+        _display().show_text("WiFi OK!", 20, 40)
     else:
         print("[WiFi] Connection failed, using local rules")
-        display.show_text("WiFi Failed", 20, 40)
+        _display().show_text("WiFi Failed", 20, 40)
     
     time.sleep(1)
     
-    # CO2传感器预热
-    warmup = config.CO2_WARMUP_TIME
-    print(f"[System] CO2 sensor warming up ({warmup}s)...")
-    display.show_text("CO2 Warming...", 20, 40)
-    for i in range(warmup):
-        time.sleep(1)
-        if i % 5 == 0:
-            display.show_text(f"CO2 Warming...{i+1}s", 20, 40)
-
-    # 预热结束后立即显示就绪状态，避免用户误以为卡住
-    display.show_text("System Ready!", 20, 40)
+    _display().show_text("System Ready!", 20, 40)
     time.sleep(1)
 
     # 首次完整读取传感器（确保屏幕立刻显示真实数据而非默认0）
@@ -96,7 +123,7 @@ def init_system():
     print("[Plant] Current type:", state.plant_type)
 
     # 显示初始待机画面
-    display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type, state.temperature, state.humidity)
+    _display().show_idle(state.soil_moisture, state.plant_type, state.temperature, state.humidity)
 
     print("[System] Initialization complete, starting main loop")
     print("=" * 50)
@@ -108,7 +135,6 @@ def read_all_sensors():
     """读取所有传感器数据，检测传感器离线"""
     try:
         soil = sensors.read_soil_moisture()
-        co2 = sensors.read_co2()
         temp, hum = sensors.read_dht22()
         plant = sensors.read_plant_type()
         
@@ -117,9 +143,6 @@ def read_all_sensors():
         if soil is None:
             sensor_failures.append("Soil")
             soil = 0  # 降级为 0，触发本地规则的安全浇水
-        if co2 is None:
-            sensor_failures.append("CO2")
-            co2 = config.CO2_NORMAL  # 降级为基线值，跳过换气决策（避免风扇无限运转）
         if temp is None or hum is None:
             sensor_failures.append("DHT")
             temp = temp if temp is not None else 25.0
@@ -130,12 +153,11 @@ def read_all_sensors():
             fail_msg = "OFFLINE: " + ",".join(sensor_failures)
             print(f"[Alert] Sensor offline: {fail_msg}")
             utils.set_led("red")
-            display.show_error(fail_msg)
+            _display().show_error(fail_msg)
             time.sleep(2)  # 告警显示 2 秒
             state.error_count += 1
         
         state.soil_moisture = soil
-        state.co2_ppm = co2
         state.temperature = temp
         state.humidity = hum
         state.plant_type = plant
@@ -147,7 +169,7 @@ def read_all_sensors():
         
         stage_name = state.growth_stage.get("stage", "unknown")
         fert = state.growth_stage.get("fert", "NPK")
-        print(f"[Sensor] Soil:{state.soil_moisture}% | CO2:{state.co2_ppm}ppm | Temp:{state.temperature}C | Hum:{state.humidity}%")
+        print(f"[Sensor] Soil:{state.soil_moisture}% | Temp:{state.temperature}C | Hum:{state.humidity}%")
         print(f"[Growth] Day {state.days_since_planting} | Stage: {stage_name} | Fert: {fert}")
         
         # 成功读取，重置连续错误计数（看门狗只追踪连续错误）
@@ -162,20 +184,33 @@ def read_all_sensors():
 def make_decision():
     """AI决策 + 本地规则兜底"""
     plant_info = config.get_plant_info(state.plant_type)
+    ai_plant_info = {
+        "soil_threshold": plant_info["soil_threshold"],
+    }
     
     # 尝试云端AI
     ai_result = None
     if state.wifi_connected:
-        ai_result = ai_client.query_decision(
-            plant_type=state.plant_type,
-            soil_moisture=state.soil_moisture,
-            co2=state.co2_ppm,
-            temperature=state.temperature,
-            humidity=state.humidity,
-            plant_info=plant_info,
-            days_since_planting=state.days_since_planting,
-            growth_stage=state.growth_stage
-        )
+        plant_info = None
+        use_proxy = bool(getattr(config, "AI_PROXY_URL", ""))
+        if not use_proxy:
+            _release_display()
+        gc.collect()
+        free_mem = gc.mem_free()
+        min_ai_mem = getattr(config, "AI_MIN_FREE_MEM", 110000)
+        if use_proxy or free_mem >= min_ai_mem:
+            import ai_client
+            ai_result = ai_client.query_decision(
+                plant_type=state.plant_type,
+                soil_moisture=state.soil_moisture,
+                temperature=state.temperature,
+                humidity=state.humidity,
+                plant_info=ai_plant_info,
+                days_since_planting=state.days_since_planting,
+                growth_stage=state.growth_stage
+            )
+        else:
+            print(f"[AI] Low memory ({free_mem} bytes), using local rules")
     
     if ai_result:
         print(f"[AI Decision] action={ai_result['action']} duration={ai_result['duration_sec']}s reason={ai_result['reason']}")
@@ -183,9 +218,10 @@ def make_decision():
     
     # 本地规则兜底
     print("[Local Rule] Cloud timeout, using local decision")
+    if plant_info is None:
+        plant_info = config.get_plant_info(state.plant_type)
     decision = utils.local_fallback_decision(
         soil=state.soil_moisture,
-        co2=state.co2_ppm,
         plant_info=plant_info,
         last_nutrient=state.last_nutrient_time,
         current_time=time.time()
@@ -202,7 +238,7 @@ def execute_decision(decision):
     if action == 'idle':
         print("[Action] Idle")
         actuators.all_off()
-        display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type, state.temperature, state.humidity)
+        _display().show_idle(state.soil_moisture, state.plant_type, state.temperature, state.humidity)
         state.last_action = 'idle'
         state.last_action_time = time.time()
         return
@@ -217,9 +253,6 @@ def execute_decision(decision):
         actuators.run_water_pump(duration)
     elif action == "nutrient":
         actuators.run_nutrient_pump(duration)
-    elif action == "ventilate":
-        actuators.run_fan(duration)
-    
     # 更新动作记录
     state.last_action = action
     state.last_action_time = time.time()
@@ -232,7 +265,7 @@ def execute_decision(decision):
     utils.set_led("green")
     
     # 显示执行结果
-    display.show_action(action, duration, reason)
+    _display().show_action(action, duration, reason)
 
 
 def safety_check():
@@ -291,9 +324,9 @@ def main_loop():
                 heartbeat_toggle = not heartbeat_toggle
                 # 在画面右下角显示一个跳动符号，不影响主数据显示
                 if heartbeat_toggle:
-                    display.show_overlay("*", 120, 56)
+                    _display().show_overlay("*", 120, 56)
                 else:
-                    display.show_overlay(" ", 120, 56)
+                    _display().show_overlay(" ", 120, 56)
 
             # 定期读取传感器
             if now - last_read >= interval:
@@ -301,20 +334,19 @@ def main_loop():
                 read_count += 1
 
                 # 读取前提示用户，避免在 DHT 慢速读取时误以为卡死
-                display.show_overlay(f"R{read_count}", 0, 56)
+                _display().show_overlay(f"R{read_count}", 0, 56)
 
                 # 读取传感器
                 read_ok = read_all_sensors()
 
                 if not read_ok:
                     # [DEBUG] 读取失败时显示错误，而不是静默跳过
-                    display.show_overlay("ERR!", 0, 56)
+                    _display().show_overlay("ERR!", 0, 56)
                     print(f"[DEBUG] read_all_sensors failed, count={read_count}")
                     time.sleep(2)
                     # 即使失败也刷新显示（用旧值），让用户看到系统还在跑
-                    display.show_data(
+                    _display().show_data(
                         soil=state.soil_moisture,
-                        co2=state.co2_ppm,
                         temp=state.temperature,
                         hum=state.humidity,
                         plant=state.plant_type,
@@ -324,7 +356,7 @@ def main_loop():
 
                 # 安全检查
                 if not safety_check():
-                    display.show_overlay("SAFE", 0, 56)
+                    _display().show_overlay("SAFE", 0, 56)
                     continue
 
                 # AI决策
@@ -334,9 +366,8 @@ def main_loop():
                 execute_decision(decision)
 
                 # 显示传感器数据
-                display.show_data(
+                _display().show_data(
                     soil=state.soil_moisture,
-                    co2=state.co2_ppm,
                     temp=state.temperature,
                     hum=state.humidity,
                     plant=state.plant_type,

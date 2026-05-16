@@ -123,13 +123,13 @@ def show_overlay(text, x=0, y=0):
     _oled.show()
 
 
-def show_data(soil, co2, temp, hum, plant, action):
+def show_data(soil, temp, hum, plant, action):
     """
     显示传感器数据和状态
     布局 (128x64):
       y=0  : SPACE FARM v1.0     (8px)
       y=12 : Plant:XXXX          (8px)
-      y=24 : Soil:XX% CO2:XXXX  (8px)
+      y=24 : Soil:XX%           (8px)
       y=36 : T:XXC H:XX%         (8px)
       y=48 : Action:XXXX         (8px)
     """
@@ -140,14 +140,12 @@ def show_data(soil, co2, temp, hum, plant, action):
 
     # 安全转换：防止 None 值导致显示异常
     soil_s = "--" if soil is None else str(soil)
-    co2_s = "--" if co2 is None else str(co2)
     temp_s = "--" if temp is None else str(temp)
     hum_s = "--" if hum is None else str(hum)
 
     _oled.text("SPACE FARM v1.0", 0, 0)
     _oled.text(f"Plant:{_plant_en(plant)}", 0, 12)
     _oled.text(f"Soil:{soil_s}%", 0, 24)
-    _oled.text(f"CO2:{co2_s}", 72, 24)
     _oled.text(f"T:{temp_s}C H:{hum_s}%", 0, 36)
 
     action_names = {
@@ -183,13 +181,12 @@ def show_action(action, duration, reason):
     _oled.show()
 
 
-def show_idle(soil, co2, plant, temp=None, hum=None):
+def show_idle(soil, plant, temp=None, hum=None):
     """显示待机状态（含温湿度）"""
     if not _check_init():
         return
 
     soil_s = "--" if soil is None else str(soil)
-    co2_s = "--" if co2 is None else str(co2)
     temp_s = "--" if temp is None else str(temp)
     hum_s = "--" if hum is None else str(hum)
 
@@ -198,7 +195,6 @@ def show_idle(soil, co2, plant, temp=None, hum=None):
     _oled.text("SPACE FARM v1.0", 0, 0)
     _oled.text(f"Plant:{_plant_en(plant)}", 0, 12)
     _oled.text(f"Soil:{soil_s}%", 0, 24)
-    _oled.text(f"CO2:{co2_s}", 72, 24)
     _oled.text(f"T:{temp_s}C H:{hum_s}%", 0, 36)
     _oled.text("Status: IDLE", 0, 48)
     _oled.show()
