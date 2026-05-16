@@ -32,6 +32,7 @@ class TestPlantDatabase:
         """每种植物必须包含所有必要字段"""
         required = [
             "soil_threshold",
+            "light_min", "light_opt", "light_hours",
             "water_sec", "nutrient_sec", "ventilate_sec",
             "nutrient_interval", "growth_stages",
         ]
@@ -74,6 +75,17 @@ class TestPlantDatabase:
         for name, info in _PLANT_DB.items():
             t = info["soil_threshold"]
             assert 10 <= t <= 60, f"植物 '{name}' soil_threshold={t} 超出合理范围"
+
+    def test_light_fields_range(self):
+        """光照阈值和目标时长应在合理范围"""
+        for name, info in _PLANT_DB.items():
+            assert 0 <= info["light_min"] <= info["light_opt"] <= 100, \
+                f"植物 '{name}' 光照阈值不合理"
+            hours = info["light_hours"]
+            assert isinstance(hours, list) and len(hours) == 2, \
+                f"植物 '{name}' light_hours 应为 [min, max]"
+            assert 0 < hours[0] <= hours[1] <= 16, \
+                f"植物 '{name}' light_hours={hours} 超出合理范围"
 
 class TestGrowthStage:
     """生长阶段查询逻辑测试"""

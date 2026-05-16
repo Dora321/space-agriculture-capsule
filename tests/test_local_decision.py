@@ -84,6 +84,19 @@ class TestIdleDecision:
         assert d["action"] == "idle"
         assert d["duration_sec"] == 0
 
+    def test_low_light_idle_hint(self):
+        """土壤正常但光照不足 → 只提示，不自动执行动作"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            light=info["light_min"] - 1,
+            plant_info=info,
+            last_nutrient=100,
+            current_time=100,
+        )
+        assert d["action"] == "idle"
+        assert "light LOW" in d["reason"]
+
 
 class TestPriority:
     """决策优先级测试"""

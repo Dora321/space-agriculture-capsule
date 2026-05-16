@@ -27,11 +27,12 @@ esp32_firmware/
 |------|------|------|
 | 主控板 | ESP32 DevKit v1 | 1 |
 | 土壤湿度 | 电容式 v1.2 | 1 |
-| 温湿度 | DHT22 | 1 |
-| 继电器×3 | 5V低电平触发 | 3 |
+| 环境亮度 | HS-S20L-B 光敏模块 | 1 |
+| 温湿度 | DHT11 | 1 |
+| 继电器×2~3 | 5V低电平触发 | 2~3 |
 | 水泵 | 5V潜水泵 | 1 |
 | 营养液泵 | 12V隔膜泵 | 1 |
-| 风扇 | 12V静音风扇 | 1 |
+| 风扇（可选） | 12V静音风扇 | 0~1 |
 | OLED | SSD1306 I2C | 1 |
 
 ### 2. 接线
@@ -101,7 +102,7 @@ py -m mpremote connect COM3 exec "import sensors; sensors.init(); sensors.test_a
 py -m mpremote connect COM3 exec "import actuators; actuators.init(); actuators.test_sequence()"
 
 # 显示测试
-py -m mpremote connect COM3 exec "import display; display.init(); display.show_boot(); display.show_data(45, 24.5, 65, 'Tomato', 'idle'); display.show_error('DHT OFFLINE'); display.show_graphic(); print('Display OK')"
+py -m mpremote connect COM3 exec "import display; display.init(); display.show_boot(); display.show_data(45, 65, 24.5, 65, 'Tomato', 'idle'); display.show_error('DHT OFFLINE'); display.show_graphic(); print('Display OK')"
 
 # WiFi 测试
 py -m mpremote connect COM3 exec "import wifi_client; wifi_client.connect(); wifi_client.test_connection()"
@@ -117,11 +118,11 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 ### 主循环逻辑
 
 ```
-每5分钟执行一次：
-1. 读取所有传感器
+每60秒执行一次：
+1. 读取所有传感器（土壤湿度、光照、温湿度）
 2. 安全检查（防抖、频率限制）
 3. 向AI查询决策（或使用本地规则兜底）
-4. 执行决策（水泵/营养液/风扇）
+4. 执行决策（水泵/营养液/待机）
 5. 更新OLED显示
 ```
 
@@ -159,7 +160,7 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 系统使用英文模式显示（SSD1306 内置 ASCII 5x8 字体）：
 - 启动画面："SPACE FARM v1.0"
-- 实时传感器数据：Soil/T/H
+- 实时传感器数据：Soil/L(光照)/T/H
 - 当前动作：Water/Nutrient/Idle
 - 错误信息：OFFLINE 告警
 
@@ -168,7 +169,8 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 | 传感器 | 离线降级值 | 说明 |
 |--------|-----------|------|
 | 土壤湿度 | 0% | 触发安全浇水 |
-| DHT22 | 25°C / 60% | 默认舒适值 |
+| 环境亮度 | 0% | 降级为无光照 |
+| DHT11 | 25°C / 60% | 默认舒适值 |
 
 传感器离线时 LED 红闪 + OLED 显示 "OFFLINE: ..." 告警。
 
@@ -246,7 +248,7 @@ py -m mpremote connect COM3
 系统启动后会输出：
 ```
 [WiFi] Connected successfully! IP: 192.168.1.100
-[Sensor] Soil:45% | Temp:24C | Hum:65%
+[Sensor] Soil:45% | Light:65% | Temp:24C | Hum:65%
 [Growth] Day 15 | Stage: vegetative | Fert: N
 [AI Decision] action=water duration=10s reason=Soil moisture below threshold
 ```
@@ -279,11 +281,12 @@ py -m mpremote connect COM3
 7. **传感器离线告警**
    - 传感器读取失败时，系统返回 None 并触发 LED 红闪 + OLED 显示 "OFFLINE" 告警
    - 土壤传感器离线 → 降级为 0%（触发安全浇水）
-   - DHT22 离线 → 降级为 25°C / 60%
+   - 光敏模块离线 → 降级为 0%
+   - DHT11 离线 → 降级为 25°C / 60%
 
 ## 设计限制说明
 
-1. **执行器运行期间主循环阻塞**：水泵/营养液泵/风扇运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
+1. **执行器运行期间主循环阻塞**：水泵/营养液泵运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
 
 2. **OLED 英文模式**：系统使用 SSD1306 内置 ASCII 5x8 字体显示，植物名称和状态以英文显示。如需中文显示，需自行添加 16x16 点阵字库文件。
 
@@ -296,12 +299,12 @@ py -m mpremote connect COM3
 
 ### 添加更多传感器
 
-在 `sensors.py` 中添加新函数：
+在 `sensors.py` 中添加新函数，例如添加 CO2 传感器：
 
 ```python
-def read_light():
-    """读取光照强度"""
-    # 使用光敏电阻或 BH1750
+def read_co2():
+    """读取 CO2 浓度"""
+    # 使用 MH-Z19B 或 MQ-135
     pass
 ```
 

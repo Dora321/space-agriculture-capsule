@@ -64,7 +64,10 @@ def blink_led(color, times=3, interval_ms=500):
 
 # ============ 本地决策规则 ============
 
-def local_fallback_decision(soil, plant_info, last_nutrient, current_time):
+def local_fallback_decision(
+    soil, plant_info, last_nutrient, current_time,
+    light=None, sun_minutes=0, uptime_sec=0
+):
     """
     本地备用决策逻辑（云端超时/失败时使用）
     
@@ -73,6 +76,9 @@ def local_fallback_decision(soil, plant_info, last_nutrient, current_time):
         plant_info: 植物参数字典
         last_nutrient: 上次营养液时间戳
         current_time: 当前时间戳
+        light: 当前光照百分比
+        sun_minutes: 今日累计达标光照分钟数
+        uptime_sec: 系统运行秒数
     
     返回:
         dict: {"action": str, "duration_sec": int, "reason": str}
@@ -89,7 +95,7 @@ def local_fallback_decision(soil, plant_info, last_nutrient, current_time):
         return {
             "action": "water",
             "duration_sec": water_sec + 3,  # 延长一点
-            "reason": "土壤极度干燥"
+            "reason": "soil very dry"
         }
     
     # 2. 土壤干燥 -> 浇水
@@ -97,10 +103,28 @@ def local_fallback_decision(soil, plant_info, last_nutrient, current_time):
         return {
             "action": "water",
             "duration_sec": water_sec,
-            "reason": "土壤干燥"
+            "reason": "soil dry"
         }
+
+    # 3. 光照不足 -> 仅提示用户移位，不自动执行补光
+    if light is not None:
+        light_min = plant_info.get('light_min', 30)
+        light_hours = plant_info.get('light_hours', [6, 8])
+        sun_hours = sun_minutes / 60
+        if light < light_min:
+            return {
+                "action": "idle",
+                "duration_sec": 0,
+                "reason": f"light LOW {light}%<{light_min}%"
+            }
+        if uptime_sec > 43200 and sun_hours < light_hours[0]:
+            return {
+                "action": "idle",
+                "duration_sec": 0,
+                "reason": f"sun LOW {sun_hours:.1f}h/{light_hours[0]}h"
+            }
     
-    # 3. 需要补充营养液（定时）
+    # 4. 需要补充营养液（定时）
     time_since_nutrient = current_time - last_nutrient
     if time_since_nutrient > nutrient_interval:
         # 土壤不太干时可以补营养
@@ -108,14 +132,14 @@ def local_fallback_decision(soil, plant_info, last_nutrient, current_time):
             return {
                 "action": "nutrient",
                 "duration_sec": nutrient_sec,
-                "reason": "定时补充营养"
+                "reason": "nutrient due"
             }
     
-    # 4. 一切正常
+    # 5. 一切正常
     return {
         "action": "idle",
         "duration_sec": 0,
-        "reason": "状态正常"
+        "reason": "status normal"
     }
 
 

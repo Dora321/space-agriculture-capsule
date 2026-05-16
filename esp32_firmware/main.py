@@ -26,18 +26,26 @@ class SystemState:
         self.temperature = 0.0
         self.humidity = 0.0
         self.plant_type = "生菜"
+        self.plant_info = None
         self.days_since_planting = 0   # 种植天数
         self.growth_stage = None       # 当前生长阶段
+        self.sun_minutes_today = 0     # 今日累计达标光照分钟数
+        self.sun_date = ""             # 今日日期字符串，用于零点重置
         self.last_action = "idle"
+        self.last_action_duration = 0
         self.last_action_time = 0
+        self.last_decision_reason = "status normal"
         self.last_nutrient_time = 0
         self.action_count = 0
         self.action_count_start = 0  # 当前计数窗口起始时间
+        self.read_count = 0
         self.error_count = 0
         self.start_time = 0
 
 state = SystemState()
 _display_ready = False
+_page_index = 0
+_last_page_time = 0
 
 
 def _init_display():
@@ -77,6 +85,69 @@ def _release_display():
         print("[Display] Release failed:", e)
     _display_ready = False
     gc.collect()
+
+
+def _format_date():
+    t = time.localtime()
+    return f"{t[0]}-{t[1]}-{t[2]}"
+
+
+def _get_plant_info():
+    if state.plant_info is None:
+        state.plant_info = config.get_plant_info(state.plant_type)
+    return state.plant_info
+
+
+def _ai_enabled():
+    return bool(getattr(config, "AI_PROXY_URL", "") or getattr(config, "AI_API_KEY", ""))
+
+
+def _refresh_display(force=False, reset_page=False):
+    """刷新 OLED 三页轮播。force=True 时立即重绘当前页。"""
+    global _page_index, _last_page_time
+
+    now = time.time()
+    rotate_sec = getattr(config, "PAGE_ROTATE_SEC", 5)
+
+    if reset_page:
+        _page_index = 0
+        _last_page_time = now
+        force = True
+    elif _last_page_time == 0:
+        _last_page_time = now
+        force = True
+    elif now - _last_page_time >= rotate_sec:
+        _page_index = (_page_index + 1) % 3
+        _last_page_time = now
+        force = True
+
+    if not force:
+        return
+
+    plant_info = _get_plant_info()
+    ip = wifi_client.get_ip() if state.wifi_connected else None
+    _display().show_data(
+        soil=state.soil_moisture,
+        light=state.light_level,
+        temp=state.temperature,
+        hum=state.humidity,
+        plant=state.plant_type,
+        action=state.last_action,
+        page_index=_page_index,
+        plant_info=plant_info,
+        growth_stage=state.growth_stage,
+        days_since_planting=state.days_since_planting,
+        sun_minutes_today=state.sun_minutes_today,
+        wifi_connected=state.wifi_connected,
+        ip=ip,
+        ai_enabled=_ai_enabled(),
+        start_time=state.start_time,
+        action_count=state.action_count,
+        read_count=state.read_count,
+        last_action_duration=state.last_action_duration,
+        last_action_time=state.last_action_time,
+        decision_reason=state.last_decision_reason,
+    )
 
 
 def init_system():
@@ -124,7 +195,7 @@ def init_system():
     print("[Plant] Current type:", state.plant_type)
 
     # 显示初始待机画面
-    _display().show_idle(state.soil_moisture, state.light_level, state.plant_type, state.temperature, state.humidity)
+    _refresh_display(force=True, reset_page=True)
 
     print("[System] Initialization complete, starting main loop")
     print("=" * 50)
@@ -170,13 +241,22 @@ def read_all_sensors():
         
         # 计算生长天数和当前阶段
         state.days_since_planting = config.calc_days_since_planting()
-        plant_info = config.get_plant_info(plant)
-        state.growth_stage = config.get_growth_stage(plant_info, state.days_since_planting)
+        state.plant_info = config.get_plant_info(plant)
+        state.growth_stage = config.get_growth_stage(state.plant_info, state.days_since_planting)
+
+        # 累计当日达标光照时长，跨日自动清零
+        today = _format_date()
+        if today != state.sun_date:
+            state.sun_date = today
+            state.sun_minutes_today = 0
+        light_min = state.plant_info.get("light_min", 30)
+        if state.light_level >= light_min:
+            state.sun_minutes_today += int(config.READ_INTERVAL / 60)
         
         stage_name = state.growth_stage.get("stage", "unknown")
         fert = state.growth_stage.get("fert", "NPK")
         print(f"[Sensor] Soil:{state.soil_moisture}% | Light:{state.light_level}% | Temp:{state.temperature}C | Hum:{state.humidity}%")
-        print(f"[Growth] Day {state.days_since_planting} | Stage: {stage_name} | Fert: {fert}")
+        print(f"[Growth] Day {state.days_since_planting} | Stage: {stage_name} | Fert: {fert} | Sun:{state.sun_minutes_today / 60:.1f}h")
         
         # 成功读取，重置连续错误计数（看门狗只追踪连续错误）
         state.error_count = 0
@@ -189,9 +269,12 @@ def read_all_sensors():
 
 def make_decision():
     """AI决策 + 本地规则兜底"""
-    plant_info = config.get_plant_info(state.plant_type)
+    plant_info = _get_plant_info()
     ai_plant_info = {
         "soil_threshold": plant_info["soil_threshold"],
+        "light_min": plant_info.get("light_min", 30),
+        "light_opt": plant_info.get("light_opt", 50),
+        "light_hours": plant_info.get("light_hours", [6, 8]),
     }
     
     # 尝试云端AI
@@ -214,7 +297,8 @@ def make_decision():
                 humidity=state.humidity,
                 plant_info=ai_plant_info,
                 days_since_planting=state.days_since_planting,
-                growth_stage=state.growth_stage
+                growth_stage=state.growth_stage,
+                sun_minutes_today=state.sun_minutes_today
             )
         else:
             print(f"[AI] Low memory ({free_mem} bytes), using local rules")
@@ -226,12 +310,15 @@ def make_decision():
     # 本地规则兜底
     print("[Local Rule] Cloud timeout, using local decision")
     if plant_info is None:
-        plant_info = config.get_plant_info(state.plant_type)
+        plant_info = _get_plant_info()
     decision = utils.local_fallback_decision(
         soil=state.soil_moisture,
         plant_info=plant_info,
         last_nutrient=state.last_nutrient_time,
-        current_time=time.time()
+        current_time=time.time(),
+        light=state.light_level,
+        sun_minutes=state.sun_minutes_today,
+        uptime_sec=time.time() - state.start_time
     )
     return decision
 
@@ -245,9 +332,11 @@ def execute_decision(decision):
     if action == 'idle':
         print("[Action] Idle")
         actuators.all_off()
-        _display().show_idle(state.soil_moisture, state.light_level, state.plant_type, state.temperature, state.humidity)
         state.last_action = 'idle'
+        state.last_action_duration = 0
         state.last_action_time = time.time()
+        state.last_decision_reason = reason
+        _refresh_display(force=True, reset_page=True)
         return
     
     # 执行动作
@@ -255,6 +344,9 @@ def execute_decision(decision):
     
     # 状态LED设为黄色（执行中）
     utils.set_led("yellow")
+
+    # 执行动作期间覆盖轮播，动作完成后恢复
+    _display().show_action(action, duration, reason)
     
     if action == "water":
         actuators.run_water_pump(duration)
@@ -262,7 +354,9 @@ def execute_decision(decision):
         actuators.run_nutrient_pump(duration)
     # 更新动作记录
     state.last_action = action
+    state.last_action_duration = duration
     state.last_action_time = time.time()
+    state.last_decision_reason = reason
     state.action_count += 1
     
     if action == "nutrient":
@@ -271,8 +365,7 @@ def execute_decision(decision):
     # 状态LED设为绿色（完成）
     utils.set_led("green")
     
-    # 显示执行结果
-    _display().show_action(action, duration, reason)
+    _refresh_display(force=True, reset_page=True)
 
 
 def safety_check():
@@ -317,31 +410,21 @@ def main_loop():
     """主循环"""
     interval = config.READ_INTERVAL  # 读取间隔（秒）
     last_read = 0
-    last_heartbeat = 0
-    heartbeat_toggle = False
-    read_count = 0  # [DEBUG] 读取计数器
 
     while True:
         try:
             now = time.time()
 
-            # 每 10 秒刷新一次心跳，证明系统没死且 OLED 没卡住
-            if now - last_heartbeat >= 10:
-                last_heartbeat = now
-                heartbeat_toggle = not heartbeat_toggle
-                # 在画面右下角显示一个跳动符号，不影响主数据显示
-                if heartbeat_toggle:
-                    _display().show_overlay("*", 120, 56)
-                else:
-                    _display().show_overlay(" ", 120, 56)
+            # 空闲时按 PAGE_ROTATE_SEC 轮播 OLED 页面
+            _refresh_display()
 
             # 定期读取传感器
             if now - last_read >= interval:
                 last_read = now
-                read_count += 1
+                state.read_count += 1
 
                 # 读取前提示用户，避免在 DHT 慢速读取时误以为卡死
-                _display().show_overlay(f"R{read_count}", 0, 56)
+                _display().show_overlay(f"R{state.read_count}", 0, 56)
 
                 # 读取传感器
                 read_ok = read_all_sensors()
@@ -349,17 +432,10 @@ def main_loop():
                 if not read_ok:
                     # [DEBUG] 读取失败时显示错误，而不是静默跳过
                     _display().show_overlay("ERR!", 0, 56)
-                    print(f"[DEBUG] read_all_sensors failed, count={read_count}")
+                    print(f"[DEBUG] read_all_sensors failed, count={state.read_count}")
                     time.sleep(2)
                     # 即使失败也刷新显示（用旧值），让用户看到系统还在跑
-                    _display().show_data(
-                        soil=state.soil_moisture,
-                        light=state.light_level,
-                        temp=state.temperature,
-                        hum=state.humidity,
-                        plant=state.plant_type,
-                        action=state.last_action
-                    )
+                    _refresh_display(force=True)
                     continue
 
                 # 安全检查
@@ -374,14 +450,7 @@ def main_loop():
                 execute_decision(decision)
 
                 # 显示传感器数据
-                _display().show_data(
-                    soil=state.soil_moisture,
-                    light=state.light_level,
-                    temp=state.temperature,
-                    hum=state.humidity,
-                    plant=state.plant_type,
-                    action=state.last_action
-                )
+                _refresh_display(force=True, reset_page=True)
 
                 # 检查是否需要重连WiFi
                 if not wifi_client.is_connected():

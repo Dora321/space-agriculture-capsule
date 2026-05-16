@@ -19,11 +19,15 @@ Actions:
 - water: if soil dry
 - nutrient: if fert needed
 - idle: if normal
+- idle with reason if light is low; no light hardware action exists
 Fertilizers: N, P, K, PK, NK.
 Output strict JSON:
 {"action":"water|nutrient|idle","duration_sec":int,"reason":"short reason"}"""
 
-def _build_payload(plant_type, soil_moisture, light_level, temp, humidity, plant_info, days_since_planting=0, growth_stage=None):
+def _build_payload(
+    plant_type, soil_moisture, light_level, temp, humidity, plant_info,
+    days_since_planting=0, growth_stage=None, sun_minutes_today=0
+):
     """Build API payload"""
     
     stage_info = ""
@@ -34,13 +38,24 @@ def _build_payload(plant_type, soil_moisture, light_level, temp, humidity, plant
         stage_info = f"""
 Stage: {growth_stage.get('stage', '')} (Day {days_since_planting})
 Fert: {fert}, Water: {water_need}"""
+
+    light_min = plant_info.get("light_min", 30)
+    light_opt = plant_info.get("light_opt", 50)
+    light_hours = plant_info.get("light_hours", [6, 8])
+    sun_hours = sun_minutes_today / 60
     
     user_content = f"""Data:
 Plant: {plant_type}
 Soil: {soil_moisture}% (thr: {plant_info['soil_threshold']}%)
-Light: {light_level}%
+Light: {light_level}% (min: {light_min}%, opt: {light_opt}%)
+Sun today: {sun_hours:.1f}h / target: {light_hours[0]}-{light_hours[1]}h
 Temp: {temp}C
 Hum: {humidity}%{stage_info}
+
+Light rules:
+- If light < min, suggest moving plant to brighter location; action must stay idle because no light relay exists.
+- If sun today is below target after long uptime, mention low sun in reason.
+- Low light means less evaporation, so avoid unnecessary watering.
 
 Decision:"""
     
@@ -55,7 +70,10 @@ Decision:"""
     }
 
 
-def query_decision(plant_type, soil_moisture, light_level, temperature, humidity, plant_info, days_since_planting=0, growth_stage=None):
+def query_decision(
+    plant_type, soil_moisture, light_level, temperature, humidity, plant_info,
+    days_since_planting=0, growth_stage=None, sun_minutes_today=0
+):
     """
     向 AI 查询养护决策
     返回: dict 或 None（失败时）
@@ -72,7 +90,10 @@ def query_decision(plant_type, soil_moisture, light_level, temperature, humidity
     elif getattr(config, "AI_PROXY_TOKEN", ""):
         headers["X-Proxy-Token"] = config.AI_PROXY_TOKEN
     
-    payload = _build_payload(plant_type, soil_moisture, light_level, temperature, humidity, plant_info, days_since_planting, growth_stage)
+    payload = _build_payload(
+        plant_type, soil_moisture, light_level, temperature, humidity,
+        plant_info, days_since_planting, growth_stage, sun_minutes_today
+    )
     
     response = None
     try:
@@ -175,7 +196,8 @@ def test_api():
         "humidity": 65,
         "plant_info": plant_info,
         "days_since_planting": 15,
-        "growth_stage": test_stage
+        "growth_stage": test_stage,
+        "sun_minutes_today": 360,
     }
     
     print("[Test] Sending test request (Lettuce day 15)...")
