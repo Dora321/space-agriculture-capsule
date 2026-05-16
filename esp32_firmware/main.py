@@ -22,6 +22,7 @@ class SystemState:
     def __init__(self):
         self.wifi_connected = False
         self.soil_moisture = 0
+        self.light_level = 0
         self.temperature = 0.0
         self.humidity = 0.0
         self.plant_type = "生菜"
@@ -123,7 +124,7 @@ def init_system():
     print("[Plant] Current type:", state.plant_type)
 
     # 显示初始待机画面
-    _display().show_idle(state.soil_moisture, state.plant_type, state.temperature, state.humidity)
+    _display().show_idle(state.soil_moisture, state.light_level, state.plant_type, state.temperature, state.humidity)
 
     print("[System] Initialization complete, starting main loop")
     print("=" * 50)
@@ -135,6 +136,7 @@ def read_all_sensors():
     """读取所有传感器数据，检测传感器离线"""
     try:
         soil = sensors.read_soil_moisture()
+        light = sensors.read_light_level()
         temp, hum = sensors.read_dht22()
         plant = sensors.read_plant_type()
         
@@ -143,6 +145,9 @@ def read_all_sensors():
         if soil is None:
             sensor_failures.append("Soil")
             soil = 0  # 降级为 0，触发本地规则的安全浇水
+        if light is None:
+            sensor_failures.append("Light")
+            light = 0
         if temp is None or hum is None:
             sensor_failures.append("DHT")
             temp = temp if temp is not None else 25.0
@@ -158,6 +163,7 @@ def read_all_sensors():
             state.error_count += 1
         
         state.soil_moisture = soil
+        state.light_level = light
         state.temperature = temp
         state.humidity = hum
         state.plant_type = plant
@@ -169,7 +175,7 @@ def read_all_sensors():
         
         stage_name = state.growth_stage.get("stage", "unknown")
         fert = state.growth_stage.get("fert", "NPK")
-        print(f"[Sensor] Soil:{state.soil_moisture}% | Temp:{state.temperature}C | Hum:{state.humidity}%")
+        print(f"[Sensor] Soil:{state.soil_moisture}% | Light:{state.light_level}% | Temp:{state.temperature}C | Hum:{state.humidity}%")
         print(f"[Growth] Day {state.days_since_planting} | Stage: {stage_name} | Fert: {fert}")
         
         # 成功读取，重置连续错误计数（看门狗只追踪连续错误）
@@ -203,6 +209,7 @@ def make_decision():
             ai_result = ai_client.query_decision(
                 plant_type=state.plant_type,
                 soil_moisture=state.soil_moisture,
+                light_level=state.light_level,
                 temperature=state.temperature,
                 humidity=state.humidity,
                 plant_info=ai_plant_info,
@@ -238,7 +245,7 @@ def execute_decision(decision):
     if action == 'idle':
         print("[Action] Idle")
         actuators.all_off()
-        _display().show_idle(state.soil_moisture, state.plant_type, state.temperature, state.humidity)
+        _display().show_idle(state.soil_moisture, state.light_level, state.plant_type, state.temperature, state.humidity)
         state.last_action = 'idle'
         state.last_action_time = time.time()
         return
@@ -347,6 +354,7 @@ def main_loop():
                     # 即使失败也刷新显示（用旧值），让用户看到系统还在跑
                     _display().show_data(
                         soil=state.soil_moisture,
+                        light=state.light_level,
                         temp=state.temperature,
                         hum=state.humidity,
                         plant=state.plant_type,
@@ -368,6 +376,7 @@ def main_loop():
                 # 显示传感器数据
                 _display().show_data(
                     soil=state.soil_moisture,
+                    light=state.light_level,
                     temp=state.temperature,
                     hum=state.humidity,
                     plant=state.plant_type,

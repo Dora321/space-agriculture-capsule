@@ -23,7 +23,7 @@ Fertilizers: N, P, K, PK, NK.
 Output strict JSON:
 {"action":"water|nutrient|idle","duration_sec":int,"reason":"short reason"}"""
 
-def _build_payload(plant_type, soil_moisture, temp, humidity, plant_info, days_since_planting=0, growth_stage=None):
+def _build_payload(plant_type, soil_moisture, light_level, temp, humidity, plant_info, days_since_planting=0, growth_stage=None):
     """Build API payload"""
     
     stage_info = ""
@@ -38,6 +38,7 @@ Fert: {fert}, Water: {water_need}"""
     user_content = f"""Data:
 Plant: {plant_type}
 Soil: {soil_moisture}% (thr: {plant_info['soil_threshold']}%)
+Light: {light_level}%
 Temp: {temp}C
 Hum: {humidity}%{stage_info}
 
@@ -54,7 +55,7 @@ Decision:"""
     }
 
 
-def query_decision(plant_type, soil_moisture, temperature, humidity, plant_info, days_since_planting=0, growth_stage=None):
+def query_decision(plant_type, soil_moisture, light_level, temperature, humidity, plant_info, days_since_planting=0, growth_stage=None):
     """
     向 AI 查询养护决策
     返回: dict 或 None（失败时）
@@ -71,7 +72,7 @@ def query_decision(plant_type, soil_moisture, temperature, humidity, plant_info,
     elif getattr(config, "AI_PROXY_TOKEN", ""):
         headers["X-Proxy-Token"] = config.AI_PROXY_TOKEN
     
-    payload = _build_payload(plant_type, soil_moisture, temperature, humidity, plant_info, days_since_planting, growth_stage)
+    payload = _build_payload(plant_type, soil_moisture, light_level, temperature, humidity, plant_info, days_since_planting, growth_stage)
     
     response = None
     try:
@@ -85,9 +86,9 @@ def query_decision(plant_type, soil_moisture, temperature, humidity, plant_info,
         import urequests
         
         if proxy_url:
-            print(f"[AI] Sending proxy request... plant={plant_type} soil={soil_moisture}%")
+            print(f"[AI] Sending proxy request... plant={plant_type} soil={soil_moisture}% light={light_level}%")
         else:
-            print(f"[AI] Sending request... plant={plant_type} soil={soil_moisture}%")
+            print(f"[AI] Sending request... plant={plant_type} soil={soil_moisture}% light={light_level}%")
         
         response = urequests.post(
             url,
@@ -169,6 +170,7 @@ def test_api():
     test_data = {
         "plant_type": "生菜",
         "soil_moisture": 25,
+        "light_level": 65,
         "temperature": 24.5,
         "humidity": 65,
         "plant_info": plant_info,
@@ -187,7 +189,7 @@ def test_api():
         return False
 
 
-def format_decision_log(decision, soil, temp, plant):
+def format_decision_log(decision, soil, light, temp, plant):
     """格式化决策日志"""
     action_names = {
         "water": "浇水",
@@ -201,7 +203,7 @@ def format_decision_log(decision, soil, temp, plant):
     
     return (
         f"[{time.localtime()[1]:02d}/{time.localtime()[2]:02d} {time.localtime()[3]:02d}:{time.localtime()[4]:02d}] "
-        f"{plant} | 土:{soil}% T:{temp}C | "
+        f"{plant} | 土:{soil}% 光:{light}% T:{temp}C | "
         f"决策:{action_names.get(action, action)} {duration}s | {reason}"
     )
 

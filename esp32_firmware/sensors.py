@@ -11,13 +11,14 @@ import config
 # ============ 全局传感器对象 ============
 _soil_adc = None
 _soil_pin = None
+_light_adc = None
 _dht_sensor = None
 _dip_pins = None
 
 
 def init():
     """初始化所有传感器"""
-    global _soil_adc, _soil_pin, _dip_pins, _dht_sensor
+    global _soil_adc, _soil_pin, _light_adc, _dip_pins, _dht_sensor
     
     # 土壤湿度传感器：支持模拟量 ADC 和比较器数字量两种模块
     if getattr(config, "SOIL_SENSOR_MODE", "adc") == "digital":
@@ -29,6 +30,10 @@ def init():
         _soil_adc.atten(ADC.ATTN_11DB)  # 配置为 0-3.3V 量程
         _soil_pin = None
         print(f"[Sensor] Soil ADC initialized on GPIO{config.SOIL_ADC_PIN}")
+
+    _light_adc = ADC(Pin(config.LIGHT_ADC_PIN))
+    _light_adc.atten(ADC.ATTN_11DB)
+    print(f"[Sensor] Light ADC initialized on GPIO{config.LIGHT_ADC_PIN}")
     
     # 温湿度传感器
     try:
@@ -81,6 +86,34 @@ def read_soil_moisture():
     except Exception as e:
         print("[Sensor] Soil read failed:", e)
         return None  # 传感器故障，返回 None 让主循环触发告警
+
+
+def read_light_level():
+    """
+    读取环境亮度
+    返回: 亮度百分比 (0-100)
+    """
+    try:
+        samples = []
+        for _ in range(5):
+            samples.append(_light_adc.read())
+            time.sleep_ms(5)
+
+        raw_avg = sum(samples) / len(samples)
+        span = config.LIGHT_ADC_MAX - config.LIGHT_ADC_MIN
+        if span <= 0:
+            return None
+
+        if getattr(config, "LIGHT_INVERT", True):
+            light = int((config.LIGHT_ADC_MAX - raw_avg) / span * 100)
+        else:
+            light = int((raw_avg - config.LIGHT_ADC_MIN) / span * 100)
+
+        return max(0, min(100, light))
+
+    except Exception as e:
+        print("[Sensor] Light read failed:", e)
+        return None
 
 
 def read_dht22():
@@ -136,11 +169,13 @@ def read_all():
     返回: 字典包含所有传感器值
     """
     soil = read_soil_moisture()
+    light = read_light_level()
     temp, hum = read_dht22()
     plant = read_plant_type()
     
     return {
         "soil_moisture": soil,
+        "light_level": light,
         "temperature": temp,
         "humidity": hum,
         "plant_type": plant,
@@ -184,17 +219,23 @@ def test_all():
     """测试所有传感器"""
     print("=== Sensor Test ===")
     
-    print("\n[1/3] Testing soil moisture...")
+    print("\n[1/4] Testing soil moisture...")
     for i in range(3):
         soil = read_soil_moisture()
         print(f"  Soil moisture: {soil}%")
         time.sleep(0.5)
     
-    print("\n[2/3] Testing temp & humidity...")
+    print("\n[2/4] Testing light level...")
+    for i in range(3):
+        light = read_light_level()
+        print(f"  Light level: {light}%")
+        time.sleep(0.5)
+
+    print("\n[3/4] Testing temp & humidity...")
     temp, hum = read_dht22()
     print(f"  Temp: {temp}C, Hum: {hum}%")
     
-    print("\n[3/3] Testing DIP switch...")
+    print("\n[4/4] Testing DIP switch...")
     plant = read_plant_type()
     print(f"  Current plant: {plant}")
     
