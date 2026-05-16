@@ -103,11 +103,22 @@ def show_boot():
 
 
 def show_text(text, x=0, y=0):
-    """显示一行文字"""
+    """显示一行文字（会清屏）"""
     if not _check_init():
         return
 
     _oled.fill(0)
+    _oled.text(text, x, y)
+    _oled.show()
+
+
+def show_overlay(text, x=0, y=0):
+    """在当前画面上叠加文字（不清屏）"""
+    if not _check_init():
+        return
+
+    # 先用黑色矩形擦除该区域，再写入新文字
+    _oled.fill_rect(x, y, len(text) * 8, 8, 0)
     _oled.text(text, x, y)
     _oled.show()
 
@@ -127,11 +138,17 @@ def show_data(soil, co2, temp, hum, plant, action):
 
     _oled.fill(0)
 
+    # 安全转换：防止 None 值导致显示异常
+    soil_s = "--" if soil is None else str(soil)
+    co2_s = "--" if co2 is None else str(co2)
+    temp_s = "--" if temp is None else str(temp)
+    hum_s = "--" if hum is None else str(hum)
+
     _oled.text("SPACE FARM v1.0", 0, 0)
     _oled.text(f"Plant:{_plant_en(plant)}", 0, 12)
-    _oled.text(f"Soil:{soil}%", 0, 24)
-    _oled.text(f"CO2:{co2}", 72, 24)
-    _oled.text(f"T:{temp}C H:{hum}%", 0, 36)
+    _oled.text(f"Soil:{soil_s}%", 0, 24)
+    _oled.text(f"CO2:{co2_s}", 72, 24)
+    _oled.text(f"T:{temp_s}C H:{hum_s}%", 0, 36)
 
     action_names = {
         "water": "WATER",
@@ -139,7 +156,7 @@ def show_data(soil, co2, temp, hum, plant, action):
         "ventilate": "FAN",
         "idle": "IDLE"
     }
-    action_en = action_names.get(action, action.upper())
+    action_en = action_names.get(action, "IDLE") if action else "IDLE"
     _oled.text(f"Action:{action_en}", 0, 48)
 
     _oled.show()
@@ -158,7 +175,7 @@ def show_action(action, duration, reason):
         "ventilate": "FAN",
         "idle": "IDLE"
     }
-    action_en = action_names.get(action, action.upper())
+    action_en = action_names.get(action, "IDLE") if action else "IDLE"
 
     _oled.text(f">> {action_en}", 0, 8)
     _oled.text("================", 0, 26)
@@ -166,18 +183,24 @@ def show_action(action, duration, reason):
     _oled.show()
 
 
-def show_idle(soil, co2, plant):
-    """显示待机状态"""
+def show_idle(soil, co2, plant, temp=None, hum=None):
+    """显示待机状态（含温湿度）"""
     if not _check_init():
         return
 
+    soil_s = "--" if soil is None else str(soil)
+    co2_s = "--" if co2 is None else str(co2)
+    temp_s = "--" if temp is None else str(temp)
+    hum_s = "--" if hum is None else str(hum)
+
     _oled.fill(0)
 
-    _oled.text("Status: OK", 24, 4)
-    _oled.text("================", 0, 18)
-    _oled.text(f"Plant:{_plant_en(plant)}", 0, 30)
-    _oled.text(f"Soil:{soil}%", 0, 44)
-    _oled.text(f"CO2:{co2}", 72, 44)
+    _oled.text("SPACE FARM v1.0", 0, 0)
+    _oled.text(f"Plant:{_plant_en(plant)}", 0, 12)
+    _oled.text(f"Soil:{soil_s}%", 0, 24)
+    _oled.text(f"CO2:{co2_s}", 72, 24)
+    _oled.text(f"T:{temp_s}C H:{hum_s}%", 0, 36)
+    _oled.text("Status: IDLE", 0, 48)
     _oled.show()
 
 

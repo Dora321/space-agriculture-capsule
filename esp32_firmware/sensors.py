@@ -11,13 +11,13 @@ import config
 # ============ 全局传感器对象 ============
 _soil_adc = None
 _co2_uart = None
-_dht22_sensor = None
+_dht_sensor = None
 _dip_pins = None
 
 
 def init():
     """初始化所有传感器"""
-    global _soil_adc, _co2_uart, _dip_pins, _dht22_sensor
+    global _soil_adc, _co2_uart, _dip_pins, _dht_sensor
     
     # 土壤湿度 ADC
     _soil_adc = ADC(Pin(config.SOIL_ADC_PIN))
@@ -31,14 +31,17 @@ def init():
         rx=Pin(config.CO2_UART_RX)
     )
     
-    # DHT22 温湿度传感器
+    # 温湿度传感器
     try:
         import dht
-        _dht22_sensor = dht.DHT22(Pin(config.DHT22_PIN))
-        print("[Sensor] DHT22 initialized successfully")
+        if config.DHT_TYPE == "DHT22":
+            _dht_sensor = dht.DHT22(machine.Pin(config.DHT_PIN))
+        else:
+            _dht_sensor = dht.DHT11(machine.Pin(config.DHT_PIN))
+        print(f"[Sensor] {config.DHT_TYPE} initialized on GPIO{config.DHT_PIN}")
     except Exception as e:
-        print(f"[Sensor] DHT22 initialization failed: {e}")
-        _dht22_sensor = None
+        print(f"[Sensor] {config.DHT_TYPE} initialization failed: {e}")
+        _dht_sensor = None
     
     # 拨码开关引脚
     _dip_pins = [Pin(pin, Pin.IN, Pin.PULL_UP) for pin in config.DIP_SWITCH_PINS]
@@ -116,24 +119,27 @@ def read_co2():
 
 def read_dht22():
     """
-    读取 DHT22 温湿度传感器
+    读取温湿度传感器
     返回: (温度°C, 湿度%)
+    DHT11/DHT22 偶尔读取失败属于正常现象，增加重试机制
     """
-    try:
-        if _dht22_sensor is None:
-            print("[Sensor] DHT22 not initialized")
-            return (None, None)
-        
-        _dht22_sensor.measure()
-        temp = _dht22_sensor.temperature()
-        hum = _dht22_sensor.humidity()
-        
-        return (temp, hum)
-        
-    except Exception as e:
-        # DHT22 不可用，返回 None 让主循环触发告警
-        print("[Sensor] DHT22 read failed:", e)
+    if _dht_sensor is None:
+        print("[Sensor] DHT not initialized")
         return (None, None)
+
+    for attempt in range(3):
+        try:
+            _dht_sensor.measure()
+            temp = _dht_sensor.temperature()
+            hum = _dht_sensor.humidity()
+            print(f"[Sensor] DHT OK: T={temp}C H={hum}%")
+            return (temp, hum)
+        except OSError as e:
+            print(f"[Sensor] DHT read failed (attempt {attempt + 1}/3): {e}")
+            time.sleep_ms(800)  # 延长等待，DHT11 需要至少 1s 间隔
+
+    print("[Sensor] DHT all attempts failed")
+    return (None, None)
 
 
 def read_plant_type():

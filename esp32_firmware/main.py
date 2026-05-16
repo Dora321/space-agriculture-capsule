@@ -86,14 +86,21 @@ def init_system():
         time.sleep(1)
         if i % 5 == 0:
             display.show_text(f"CO2 Warming...{i+1}s", 20, 40)
-    
-    # 读取初始植物类型
-    state.plant_type = sensors.read_plant_type()
+
+    # 预热结束后立即显示就绪状态，避免用户误以为卡住
+    display.show_text("System Ready!", 20, 40)
+    time.sleep(1)
+
+    # 首次完整读取传感器（确保屏幕立刻显示真实数据而非默认0）
+    read_all_sensors()
     print("[Plant] Current type:", state.plant_type)
-    
+
+    # 显示初始待机画面
+    display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type, state.temperature, state.humidity)
+
     print("[System] Initialization complete, starting main loop")
     print("=" * 50)
-    
+
     return True
 
 
@@ -114,7 +121,7 @@ def read_all_sensors():
             sensor_failures.append("CO2")
             co2 = config.CO2_NORMAL  # 降级为基线值，跳过换气决策（避免风扇无限运转）
         if temp is None or hum is None:
-            sensor_failures.append("DHT22")
+            sensor_failures.append("DHT")
             temp = temp if temp is not None else 25.0
             hum = hum if hum is not None else 60.0
         
@@ -195,7 +202,7 @@ def execute_decision(decision):
     if action == 'idle':
         print("[Action] Idle")
         actuators.all_off()
-        display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type)
+        display.show_idle(state.soil_moisture, state.co2_ppm, state.plant_type, state.temperature, state.humidity)
         state.last_action = 'idle'
         state.last_action_time = time.time()
         return
@@ -270,29 +277,62 @@ def main_loop():
     """主循环"""
     interval = config.READ_INTERVAL  # 读取间隔（秒）
     last_read = 0
-    
+    last_heartbeat = 0
+    heartbeat_toggle = False
+    read_count = 0  # [DEBUG] 读取计数器
+
     while True:
         try:
             now = time.time()
-            
+
+            # 每 10 秒刷新一次心跳，证明系统没死且 OLED 没卡住
+            if now - last_heartbeat >= 10:
+                last_heartbeat = now
+                heartbeat_toggle = not heartbeat_toggle
+                # 在画面右下角显示一个跳动符号，不影响主数据显示
+                if heartbeat_toggle:
+                    display.show_overlay("*", 120, 56)
+                else:
+                    display.show_overlay(" ", 120, 56)
+
             # 定期读取传感器
             if now - last_read >= interval:
                 last_read = now
-                
+                read_count += 1
+
+                # 读取前提示用户，避免在 DHT 慢速读取时误以为卡死
+                display.show_overlay(f"R{read_count}", 0, 56)
+
                 # 读取传感器
-                if not read_all_sensors():
+                read_ok = read_all_sensors()
+
+                if not read_ok:
+                    # [DEBUG] 读取失败时显示错误，而不是静默跳过
+                    display.show_overlay("ERR!", 0, 56)
+                    print(f"[DEBUG] read_all_sensors failed, count={read_count}")
+                    time.sleep(2)
+                    # 即使失败也刷新显示（用旧值），让用户看到系统还在跑
+                    display.show_data(
+                        soil=state.soil_moisture,
+                        co2=state.co2_ppm,
+                        temp=state.temperature,
+                        hum=state.humidity,
+                        plant=state.plant_type,
+                        action=state.last_action
+                    )
                     continue
-                
+
                 # 安全检查
                 if not safety_check():
+                    display.show_overlay("SAFE", 0, 56)
                     continue
-                
+
                 # AI决策
                 decision = make_decision()
-                
+
                 # 执行决策
                 execute_decision(decision)
-                
+
                 # 显示传感器数据
                 display.show_data(
                     soil=state.soil_moisture,
@@ -302,18 +342,18 @@ def main_loop():
                     plant=state.plant_type,
                     action=state.last_action
                 )
-                
+
                 # 检查是否需要重连WiFi
                 if not wifi_client.is_connected():
                     print("[WiFi] Disconnected, attempting reconnect...")
                     state.wifi_connected = wifi_client.smart_connect()
-                
+
                 # 释放内存
                 gc.collect()
-            
+
             # 空闲时短暂休眠
             time.sleep(1)
-            
+
         except KeyboardInterrupt:
             print("\n[System] User interrupted, turning off all actuators")
             actuators.all_off()

@@ -32,7 +32,7 @@ AI_MODEL = "deepseek-v4-flash"
 AI_TIMEOUT = 20  # API超时时间（秒），推理模型需要较长等待
 
 # ============ 系统参数 ============
-READ_INTERVAL = 300       # 传感器读取间隔（秒），默认5分钟
+READ_INTERVAL = 30        # 传感器读取间隔（秒），临时测试用 30 秒（正式运行建议 300 秒 = 5 分钟）
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数
 MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
