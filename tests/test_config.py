@@ -33,7 +33,7 @@ class TestPlantDatabase:
         required = [
             "soil_threshold",
             "light_min", "light_opt", "light_hours",
-            "water_sec", "nutrient_sec", "ventilate_sec",
+            "water_sec", "nutrient_sec",
             "nutrient_interval", "growth_stages",
         ]
         for name, info in _PLANT_DB.items():

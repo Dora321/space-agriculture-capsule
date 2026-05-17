@@ -328,6 +328,13 @@ def execute_decision(decision):
     action = decision.get('action', 'idle')
     duration = min(decision.get('duration_sec', 0), config.PUMP_MAX_RUN_SEC)  # 安全上限
     reason = decision.get('reason', '')
+    valid_actions = ("water", "nutrient", "idle")
+
+    if action not in valid_actions:
+        print(f"[Action] Unknown action '{action}', forcing idle")
+        action = "idle"
+        duration = 0
+        reason = "unknown action"
     
     if action == 'idle':
         print("[Action] Idle")

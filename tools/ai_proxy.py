@@ -50,6 +50,7 @@ API_KEY = _config_value("AI_API_KEY")
 API_MODEL = _config_value("AI_MODEL", "deepseek-v4-flash")
 API_TIMEOUT = int(_config_value("AI_TIMEOUT", "20"))
 PROXY_TOKEN = _config_value("AI_PROXY_TOKEN")
+MAX_REQUEST_BYTES = int(os.getenv("AI_PROXY_MAX_REQUEST_BYTES", "8192"))
 
 
 def _strip_code_fence(text: str) -> str:
@@ -81,7 +82,7 @@ def _validate_decision(decision: dict) -> dict:
 
 
 def request_decision(payload: dict) -> dict:
-    if not API_KEY or "YOUR_API_KEY" in API_KEY or "你的" in API_KEY:
+    if not API_KEY or "YOUR_" in API_KEY or "API_KEY_HERE" in API_KEY or "你的" in API_KEY:
         raise RuntimeError("AI_API_KEY is not configured")
 
     payload = dict(payload)
@@ -124,6 +125,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0:
+                self._json_response({"error": "empty request body"}, status=400)
+                return
+            if length > MAX_REQUEST_BYTES:
+                self._json_response({"error": "request body too large"}, status=413)
+                return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             decision = request_decision(payload)
             self._json_response(decision)
@@ -144,7 +151,11 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument(
+        "--host",
+        default=os.getenv("AI_PROXY_HOST", "127.0.0.1"),
+        help="Bind address. Use 0.0.0.0 only on a trusted LAN or behind HTTPS.",
+    )
     parser.add_argument("--port", type=int, default=8787)
     args = parser.parse_args()
 

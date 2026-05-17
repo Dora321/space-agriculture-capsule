@@ -44,7 +44,6 @@ _STAGE_CODES = {
 _ACTION_NAMES = {
     "water": "WATER",
     "nutrient": "NUTRIENT",
-    "ventilate": "FAN",
     "idle": "IDLE",
 }
 

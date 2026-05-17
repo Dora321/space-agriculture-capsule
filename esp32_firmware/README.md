@@ -29,10 +29,9 @@ esp32_firmware/
 | 土壤湿度 | 电容式 v1.2 | 1 |
 | 环境亮度 | HS-S20L-B 光敏模块 | 1 |
 | 温湿度 | DHT11 | 1 |
-| 继电器×2~3 | 5V低电平触发 | 2~3 |
+| 继电器×2 | 5V低电平触发 | 2 |
 | 水泵 | 5V潜水泵 | 1 |
 | 营养液泵 | 12V隔膜泵 | 1 |
-| 风扇（可选） | 12V静音风扇 | 0~1 |
 | OLED | SSD1306 I2C | 1 |
 
 ### 2. 接线
@@ -317,7 +316,6 @@ def read_co2():
   "soil_threshold": 35,
   "water_sec": 10,
   "nutrient_sec": 5,
-  "ventilate_sec": 30,
   "nutrient_interval": 259200,
   "growth_stages": [
     {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "苗期"},

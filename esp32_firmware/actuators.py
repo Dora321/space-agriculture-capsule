@@ -1,5 +1,5 @@
 """
-执行器模块 - 控制水泵、营养液泵、风扇
+执行器模块 - 控制水泵、营养液泵
 """
 
 import machine
@@ -11,22 +11,19 @@ import config
 # ============ 全局继电器对象 ============
 _relay_water = None
 _relay_nutrient = None
-_relay_fan = None
 
 # ============ 执行状态 ============
 _water_running = False
 _nutrient_running = False
-_fan_running = False
 
 
 def init():
     """初始化所有执行器"""
-    global _relay_water, _relay_nutrient, _relay_fan
+    global _relay_water, _relay_nutrient
     
     # 初始化继电器引脚（低电平触发）
     _relay_water = Pin(config.RELAY_WATER_PIN, Pin.OUT, value=1)  # 默认关闭
     _relay_nutrient = Pin(config.RELAY_NUTRIENT_PIN, Pin.OUT, value=1)
-    _relay_fan = Pin(config.RELAY_FAN_PIN, Pin.OUT, value=1)
     
     print("[Actuator] Initialization complete, all devices off")
     return True
@@ -125,42 +122,6 @@ def run_nutrient_pump(duration_sec):
         _nutrient_running = False
 
 
-def run_fan(duration_sec):
-    """
-    运行换气风扇
-    duration_sec: 运行时长（秒）
-    """
-    global _fan_running
-    
-    duration = _validate_duration(duration_sec)
-    if duration == 0:
-        return False
-    
-    print(f"[Fan] Starting for {duration}s")
-    _fan_running = True
-    
-    try:
-        _relay_on(_relay_fan)
-        
-        remaining = duration
-        while remaining > 0:
-            sleep_time = min(remaining, 1)
-            time.sleep(sleep_time)
-            remaining -= sleep_time
-            print(f"[Fan] {remaining}s remaining")
-        
-        _relay_off(_relay_fan)
-        print("[Fan] Complete")
-        return True
-        
-    except Exception as e:
-        print("[Fan] Exception:", e)
-        _relay_off(_relay_fan)
-        return False
-    finally:
-        _fan_running = False
-
-
 def water_pump_on():
     """开启水泵（持续运行，需手动关闭）"""
     global _water_running
@@ -177,41 +138,22 @@ def water_pump_off():
     _water_running = False
 
 
-def fan_on():
-    """开启风扇（持续运行，需手动关闭）"""
-    global _fan_running
-    print("[Fan] Manual ON")
-    _relay_on(_relay_fan)
-    _fan_running = True
-
-
-def fan_off():
-    """关闭风扇"""
-    global _fan_running
-    print("[Fan] Manual OFF")
-    _relay_off(_relay_fan)
-    _fan_running = False
-
-
 def all_off():
     """关闭所有执行器"""
-    global _water_running, _nutrient_running, _fan_running
+    global _water_running, _nutrient_running
     
     print("[Actuator] Emergency OFF all devices")
     _relay_off(_relay_water)
     _relay_off(_relay_nutrient)
-    _relay_off(_relay_fan)
     
     _water_running = False
     _nutrient_running = False
-    _fan_running = False
 
 
 def is_any_running():
     """检查是否有执行器正在运行（直接读硬件引脚）"""
     return (_relay_water.value() == 0 or
-            _relay_nutrient.value() == 0 or
-            _relay_fan.value() == 0)
+            _relay_nutrient.value() == 0)
 
 
 def get_status():
@@ -224,10 +166,6 @@ def get_status():
         "nutrient": {
             "running": _nutrient_running,
             "relay_state": "on" if _relay_nutrient.value() == 0 else "off"
-        },
-        "fan": {
-            "running": _fan_running,
-            "relay_state": "on" if _relay_fan.value() == 0 else "off"
         }
     }
 
@@ -236,16 +174,12 @@ def test_sequence():
     """执行器测试序列"""
     print("=== Actuator Test ===")
     
-    print("\n[1/3] Testing water pump (3s)...")
+    print("\n[1/2] Testing water pump (3s)...")
     run_water_pump(3)
     time.sleep(1)
     
-    print("\n[2/3] Testing nutrient pump (3s)...")
+    print("\n[2/2] Testing nutrient pump (3s)...")
     run_nutrient_pump(3)
-    time.sleep(1)
-    
-    print("\n[3/3] Testing fan (3s)...")
-    run_fan(3)
     time.sleep(1)
     
     print("\n=== Test Complete ===")

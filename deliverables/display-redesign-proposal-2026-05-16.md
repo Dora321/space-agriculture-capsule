@@ -210,7 +210,7 @@ y=56 : [ ][ ][#]  (pixel dots)
     "light_min": 30,       // 最低光照阈值（%），低于此值触发"光照不足"告警
     "light_opt": 50,       // 最适光照（%），达到此值为最佳状态
     "light_hours": [6, 8], // 每日目标日照时长范围（小时），[min, max]
-    "water_sec": 8, "nutrient_sec": 5, "ventilate_sec": 30,
+    "water_sec": 8, "nutrient_sec": 5,
     "nutrient_interval": 259200,
     "growth_stages": [...]
   }
@@ -407,7 +407,7 @@ Light rules:
 
 ### 5.3 光照不足为什么不自动补光？
 
-- **当前硬件无补光灯**，只有水泵/营养液泵/风扇
+- **当前硬件无补光灯**，只有水泵/营养液泵
 - 补光灯需要额外GPIO + 继电器通道
 - 设计为**提示用户**移动种植舱位置
 - 未来可扩展: 增加 `RELAY_LIGHT_PIN` + `"action": "supplement_light"`

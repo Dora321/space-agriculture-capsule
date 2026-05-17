@@ -24,6 +24,18 @@ Fertilizers: N, P, K, PK, NK.
 Output strict JSON:
 {"action":"water|nutrient|idle","duration_sec":int,"reason":"short reason"}"""
 
+
+def _is_placeholder_key(value):
+    """Return True when an API key is blank or still a template placeholder."""
+    if not value:
+        return True
+    text = str(value).strip()
+    placeholders = ("你的", "YOUR_API_KEY", "YOUR_", "API_KEY_HERE")
+    for marker in placeholders:
+        if marker in text:
+            return True
+    return False
+
 def _build_payload(
     plant_type, soil_moisture, light_level, temp, humidity, plant_info,
     days_since_planting=0, growth_stage=None, sun_minutes_today=0
@@ -79,7 +91,7 @@ def query_decision(
     返回: dict 或 None（失败时）
     """
     proxy_url = getattr(config, "AI_PROXY_URL", "")
-    if not proxy_url and (not config.AI_API_KEY or "你的" in config.AI_API_KEY):
+    if not proxy_url and _is_placeholder_key(config.AI_API_KEY):
         print("[AI] API key not configured, skipping cloud AI")
         return None
     
@@ -181,7 +193,8 @@ def query_decision(
 
 def test_api():
     """测试 API 连接"""
-    if not config.AI_API_KEY or "你的" in config.AI_API_KEY:
+    proxy_url = getattr(config, "AI_PROXY_URL", "")
+    if not proxy_url and _is_placeholder_key(config.AI_API_KEY):
         print("[Test] API key not configured")
         return False
     

@@ -5,6 +5,7 @@ import sys
 import types
 import os
 import pathlib
+import importlib.util
 
 
 # ============ Mock machine 模块 ============
@@ -123,6 +124,7 @@ class MockDHT22:
 
 
 dht_mock.DHT22 = MockDHT22
+dht_mock.DHT11 = MockDHT22
 sys.modules["dht"] = dht_mock
 
 # ============ Mock ssd1306 / urequests ============
@@ -146,6 +148,9 @@ class MockSSD1306_I2C:
         pass
 
     def pixel(self, *a):
+        pass
+
+    def fill_rect(self, *a):
         pass
 
     def poweroff(self):
@@ -175,6 +180,15 @@ sys.modules["gc"] = gc_mock
 fw_dir = str(pathlib.Path(__file__).resolve().parent.parent / "esp32_firmware")
 if fw_dir not in sys.path:
     sys.path.insert(0, fw_dir)
+
+config_path = pathlib.Path(fw_dir) / "config.py"
+config_example_path = pathlib.Path(fw_dir) / "config.py.example"
+if "config" not in sys.modules and not config_path.exists() and config_example_path.exists():
+    spec = importlib.util.spec_from_file_location("config", str(config_example_path))
+    if spec is not None and spec.loader is not None:
+        config_module = importlib.util.module_from_spec(spec)
+        sys.modules["config"] = config_module
+        spec.loader.exec_module(config_module)
 
 # ============ Monkey-patch open() 让 plants.json 可被找到 ============
 # config.py 用 open('plants.json') 打开文件，CWD 可能不是 esp32_firmware/
