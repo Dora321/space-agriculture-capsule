@@ -47,6 +47,12 @@ _ACTION_NAMES = {
     "idle": "IDLE",
 }
 
+_OLED_WIDTH = 128
+_OLED_HEIGHT = 64
+_CHAR_WIDTH = 8
+_CHAR_HEIGHT = 8
+_MAX_COLS = _OLED_WIDTH // _CHAR_WIDTH
+
 
 def _plant_en(name):
     """将植物中文名转为 OLED 可显示的英文名"""
@@ -66,6 +72,42 @@ def _clip(text, width=16):
         else:
             clean += " "
     return clean[:width]
+
+
+def _cols_from_x(x):
+    if x < 0:
+        x = 0
+    if x >= _OLED_WIDTH:
+        return 0
+    return (_OLED_WIDTH - x) // _CHAR_WIDTH
+
+
+def _draw_text(text, x=0, y=0):
+    """Draw ASCII text clipped to the visible OLED area."""
+    if y < 0 or y > _OLED_HEIGHT - _CHAR_HEIGHT:
+        return
+    if x < 0:
+        x = 0
+    cols = _cols_from_x(x)
+    if cols <= 0:
+        return
+    _oled.text(_clip(text, cols), x, y)
+
+
+def _draw_centered(text, y):
+    text = _clip(text, _MAX_COLS)
+    x = max(0, int((_OLED_WIDTH - len(text) * _CHAR_WIDTH) / 2))
+    _draw_text(text, x, y)
+
+
+def _clear_text_area(text, x=0, y=0):
+    if y < 0 or y >= _OLED_HEIGHT or x >= _OLED_WIDTH:
+        return
+    if x < 0:
+        x = 0
+    width = min(len(_clip(text, _cols_from_x(x))) * _CHAR_WIDTH, _OLED_WIDTH - x)
+    if width > 0:
+        _oled.fill_rect(x, y, width, min(_CHAR_HEIGHT, _OLED_HEIGHT - y), 0)
 
 
 def _safe_num(value, default="--"):
@@ -226,10 +268,10 @@ def show_boot():
         return
 
     _oled.fill(0)
-    _oled.text("================", 0, 0)
-    _oled.text("  SPACE FARM    ", 16, 16)
-    _oled.text("  TK-NYZ v1.0   ", 16, 28)
-    _oled.text("================", 0, 44)
+    _draw_text("================", 0, 0)
+    _draw_centered("SPACE FARM", 16)
+    _draw_centered("TK-NYZ v1.0", 28)
+    _draw_text("================", 0, 44)
     _oled.show()
 
 
@@ -239,7 +281,7 @@ def show_text(text, x=0, y=0):
         return
 
     _oled.fill(0)
-    _oled.text(text, x, y)
+    _draw_text(text, x, y)
     _oled.show()
 
 
@@ -249,8 +291,8 @@ def show_overlay(text, x=0, y=0):
         return
 
     # 先用黑色矩形擦除该区域，再写入新文字
-    _oled.fill_rect(x, y, len(text) * 8, 8, 0)
-    _oled.text(text, x, y)
+    _clear_text_area(text, x, y)
+    _draw_text(text, x, y)
     _oled.show()
 
 
@@ -279,11 +321,11 @@ def show_page1(
     if not reason:
         reason = action_s.lower()
 
-    _oled.text(_clip(f"{_plant_short(plant)} D{days_since_planting} {stage_s} {wifi_s}"), 0, 0)
-    _oled.text(_clip(f"Soil:{soil_s}% {soil_cmp}{soil_threshold}%"), 0, 10)
-    _oled.text(_clip(f"L:{light_s}% {light_cmp} {_sun_hours_text(sun_minutes_today)}"), 0, 20)
-    _oled.text(_clip(f"T:{temp_s}C H:{hum_s}%"), 0, 30)
-    _oled.text(_clip(f"{action_s}:{reason}"), 0, 40)
+    _draw_text(f"{_plant_short(plant)} D{days_since_planting} {stage_s} {wifi_s}", 0, 0)
+    _draw_text(f"Soil:{soil_s}% {soil_cmp}{soil_threshold}%", 0, 10)
+    _draw_text(f"L:{light_s}% {light_cmp} {_sun_hours_text(sun_minutes_today)}", 0, 20)
+    _draw_text(f"T:{temp_s}C H:{hum_s}%", 0, 30)
+    _draw_text(f"{action_s}:{reason}", 0, 40)
     _draw_page_dots(0)
     _oled.show()
 
@@ -310,15 +352,15 @@ def show_page2(
     sun_hours = sun_minutes_today / 60
     sun_status = "OK" if sun_hours >= light_hours[0] else "LOW"
 
-    _oled.text(_clip(f"{_plant_short(plant, 8)} D{days_since_planting} {stage_s}"), 0, 0)
-    _oled.text(_clip(f"Stg:[{bar}]{pct}%"), 0, 10)
-    _oled.text(_clip(f"Fert:{fert} W:{water_need}"), 0, 20)
-    _oled.text(_clip(f"Sun:{sun_hours:.1f}/{light_hours[0]}h {sun_status}"), 0, 30)
+    _draw_text(f"{_plant_short(plant, 8)} D{days_since_planting} {stage_s}", 0, 0)
+    _draw_text(f"Stg:[{bar}]{pct}%", 0, 10)
+    _draw_text(f"Fert:{fert} W:{water_need}", 0, 20)
+    _draw_text(f"Sun:{sun_hours:.1f}/{light_hours[0]}h {sun_status}", 0, 30)
     if next_stage:
         next_code = _STAGE_CODES.get(next_stage.get("stage", ""), "---")
-        _oled.text(_clip(f"Next:{next_code} D{next_start} {days_left}d"), 0, 40)
+        _draw_text(f"Next:{next_code} D{next_start} {days_left}d", 0, 40)
     else:
-        _oled.text("Final stage", 0, 40)
+        _draw_text("Final stage", 0, 40)
     _draw_page_dots(1)
     _oled.show()
 
@@ -347,11 +389,11 @@ def show_page3(
     up_h = int(uptime / 3600)
     up_m = int((uptime % 3600) / 60)
 
-    _oled.text(_clip(f"WiFi:{wifi_s} {ip_s}"), 0, 0)
-    _oled.text(_clip(f"AI:DeepSeek {ai_s}"), 0, 10)
-    _oled.text(_clip(f"Mem:{mem_kb}KB Up:{up_h}h{up_m}m"), 0, 20)
-    _oled.text(_clip(f"Acts:{action_count}/h R{read_count}"), 0, 30)
-    _oled.text(_clip(_last_action_text(last_action, last_action_duration, last_action_time)), 0, 40)
+    _draw_text(f"WiFi:{wifi_s} {ip_s}", 0, 0)
+    _draw_text(f"AI:DeepSeek {ai_s}", 0, 10)
+    _draw_text(f"Mem:{mem_kb}KB Up:{up_h}h{up_m}m", 0, 20)
+    _draw_text(f"Acts:{action_count}/h R{read_count}", 0, 30)
+    _draw_text(_last_action_text(last_action, last_action_duration, last_action_time), 0, 40)
     _draw_page_dots(2)
     _oled.show()
 
@@ -392,9 +434,9 @@ def show_action(action, duration, reason):
 
     action_en = _action_en(action)
 
-    _oled.text(f">> {action_en}", 0, 8)
-    _oled.text("================", 0, 26)
-    _oled.text(f"  {duration}s  ", 40, 38)
+    _draw_text(f">> {action_en}", 0, 8)
+    _draw_text("================", 0, 26)
+    _draw_centered(f"{duration}s", 38)
     _oled.show()
 
 
@@ -409,15 +451,16 @@ def show_error(message):
         return
 
     _oled.fill(0)
-    _oled.text("!! ERROR !!", 24, 4)
-    _oled.text("================", 0, 18)
+    _draw_centered("!! ERROR !!", 4)
+    _draw_text("================", 0, 18)
 
     # 截断过长的消息（16 ASCII 字符/行）
-    if len(message) > 16:
-        _oled.text(message[:16], 0, 34)
-        _oled.text(message[16:32], 0, 46)
+    message = _clip(message, 32)
+    if len(message) > _MAX_COLS:
+        _draw_text(message[:_MAX_COLS], 0, 34)
+        _draw_text(message[_MAX_COLS:_MAX_COLS * 2], 0, 46)
     else:
-        _oled.text(message, 0, 38)
+        _draw_text(message, 0, 38)
 
     _oled.show()
 
@@ -430,12 +473,12 @@ def show_wifi_status(connected, ip=None):
     _oled.fill(0)
 
     if connected:
-        _oled.text("WiFi: OK", 0, 20)
+        _draw_text("WiFi: OK", 0, 20)
         if ip:
-            _oled.text(f"IP:{ip}", 0, 36)
+            _draw_text(f"IP:{ip}", 0, 36)
     else:
-        _oled.text("WiFi: FAIL", 0, 20)
-        _oled.text("Local rules", 0, 40)
+        _draw_text("WiFi: FAIL", 0, 20)
+        _draw_text("Local rules", 0, 40)
 
     _oled.show()
     time.sleep(2)
@@ -487,7 +530,7 @@ def show_graphic():
     _oled.line(cx - 4, cy + 4, cx + 4, cy - 4, 1)
 
     # 文字
-    _oled.text("SPACE FARM", 28, 55)
+    _draw_centered("SPACE FARM", 55)
 
     _oled.show()
 

@@ -84,6 +84,7 @@ py -m mpremote connect COM3 cp actuators.py :
 py -m mpremote connect COM3 cp wifi_client.py :
 py -m mpremote connect COM3 cp ai_client.py :
 py -m mpremote connect COM3 cp display.py :
+py -m mpremote connect COM3 cp telemetry.py :
 py -m mpremote connect COM3 cp utils.py :
 ```
 

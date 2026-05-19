@@ -34,12 +34,33 @@ AI_MIN_FREE_MEM = 110000  # 低于该空闲内存时跳过云端 AI，避免 ESP
 AI_PROXY_URL = ""  # 可填局域网代理，例如 "http://192.168.125.2:8787/decision"
 AI_PROXY_TOKEN = ""  # 可选：代理访问令牌，需与云端 AI_PROXY_TOKEN 一致
 
+# ============ Realtime Dashboard ============
+# Run on the computer: py tools/dashboard_server.py --host 0.0.0.0 --port 8790
+# Then set this to the computer LAN IP, for example:
+# DASHBOARD_URL = "http://192.168.1.20:8790/api/state"
+DASHBOARD_URL = ""
+DASHBOARD_TOKEN = ""
+DASHBOARD_TIMEOUT = 2
+
 # ============ 系统参数 ============
 READ_INTERVAL = 60        # 传感器读取间隔（秒），不低于 60 秒（正式运行建议 300 秒 = 5 分钟）
 PAGE_ROTATE_SEC = 5       # OLED 多页轮播间隔（秒）
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数
 MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
+
+# ============ 参赛演示模式 ============
+# DEMO_MODE=True 时不读取真实传感器，而是用模拟数据快速展示：
+# 正常 -> 土壤变干 -> 自动浇水 -> 湿度恢复。
+DEMO_MODE = False
+DEMO_READ_INTERVAL = 5
+DEMO_PLANT_TYPE = "生菜"
+DEMO_START_SOIL = 42
+DEMO_SOIL_DROP = 7
+DEMO_RECOVER_SOIL = 55
+DEMO_LIGHT_LEVEL = 72
+DEMO_TEMPERATURE = 24.5
+DEMO_HUMIDITY = 62
 
 # ============ 种植日期 ============
 # 格式: (年, 月, 日)，系统据此计算种植天数和生长阶段

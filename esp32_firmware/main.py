@@ -35,12 +35,14 @@ class SystemState:
         self.last_action_duration = 0
         self.last_action_time = 0
         self.last_decision_reason = "status normal"
+        self.last_decision_source = "local"
         self.last_nutrient_time = 0
         self.action_count = 0
         self.action_count_start = 0  # 当前计数窗口起始时间
         self.read_count = 0
         self.error_count = 0
         self.start_time = 0
+        self.demo_soil_moisture = None
 
 state = SystemState()
 _display_ready = False
@@ -102,6 +104,24 @@ def _ai_enabled():
     return bool(getattr(config, "AI_PROXY_URL", "") or getattr(config, "AI_API_KEY", ""))
 
 
+def _demo_enabled():
+    return bool(getattr(config, "DEMO_MODE", False))
+
+
+def _demo_value(name, default):
+    return getattr(config, name, default)
+
+
+def _send_telemetry():
+    if not getattr(config, "DASHBOARD_URL", ""):
+        return
+    try:
+        import telemetry
+        telemetry.send_state(state, ai_enabled=_ai_enabled())
+    except Exception as e:
+        print("[Telemetry] skipped:", e)
+
+
 def _refresh_display(force=False, reset_page=False):
     """刷新 OLED 三页轮播。force=True 时立即重绘当前页。"""
     global _page_index, _last_page_time
@@ -153,6 +173,8 @@ def _refresh_display(force=False, reset_page=False):
 def init_system():
     """系统初始化"""
     print("=" * 50)
+    if _demo_enabled():
+        print("[Demo] DEMO_MODE enabled: using simulated contest data")
     print("  Space Agriculture Growth Chamber System v1.0")
     print("=" * 50)
     
@@ -196,6 +218,7 @@ def init_system():
 
     # 显示初始待机画面
     _refresh_display(force=True, reset_page=True)
+    _send_telemetry()
 
     print("[System] Initialization complete, starting main loop")
     print("=" * 50)
@@ -205,6 +228,9 @@ def init_system():
 
 def read_all_sensors():
     """读取所有传感器数据，检测传感器离线"""
+    if _demo_enabled():
+        return read_demo_sensors()
+
     try:
         soil = sensors.read_soil_moisture()
         light = sensors.read_light_level()
@@ -267,6 +293,44 @@ def read_all_sensors():
         return False
 
 
+def read_demo_sensors():
+    """Generate fast-changing contest demo data without physical sensor changes."""
+    try:
+        plant = _demo_value("DEMO_PLANT_TYPE", "生菜")
+        if state.demo_soil_moisture is None:
+            state.demo_soil_moisture = _demo_value("DEMO_START_SOIL", 42)
+        else:
+            drop = _demo_value("DEMO_SOIL_DROP", 7)
+            state.demo_soil_moisture = max(0, state.demo_soil_moisture - drop)
+
+        state.soil_moisture = int(state.demo_soil_moisture)
+        state.light_level = _demo_value("DEMO_LIGHT_LEVEL", 72)
+        state.temperature = _demo_value("DEMO_TEMPERATURE", 24.5)
+        state.humidity = _demo_value("DEMO_HUMIDITY", 62)
+        state.plant_type = plant
+        state.days_since_planting = max(0, state.read_count + 6)
+        state.plant_info = config.get_plant_info(plant)
+        state.growth_stage = config.get_growth_stage(state.plant_info, state.days_since_planting)
+
+        today = _format_date()
+        if today != state.sun_date:
+            state.sun_date = today
+            state.sun_minutes_today = 0
+        state.sun_minutes_today += int(_demo_value("DEMO_READ_INTERVAL", 5))
+
+        stage_name = state.growth_stage.get("stage", "unknown")
+        print(
+            f"[Demo Sensor] Soil:{state.soil_moisture}% | Light:{state.light_level}% | "
+            f"Temp:{state.temperature}C | Hum:{state.humidity}% | Stage:{stage_name}"
+        )
+        state.error_count = 0
+        return True
+    except Exception as e:
+        print("[Demo] Sensor simulation failed:", e)
+        state.error_count += 1
+        return False
+
+
 def make_decision():
     """AI决策 + 本地规则兜底"""
     plant_info = _get_plant_info()
@@ -276,7 +340,19 @@ def make_decision():
         "light_opt": plant_info.get("light_opt", 50),
         "light_hours": plant_info.get("light_hours", [6, 8]),
     }
-    
+    if _demo_enabled():
+        print("[Demo Decision] Using local rules for deterministic showcase")
+        state.last_decision_source = "local"
+        return utils.local_fallback_decision(
+            soil=state.soil_moisture,
+            plant_info=plant_info,
+            last_nutrient=time.time(),
+            current_time=time.time(),
+            light=state.light_level,
+            sun_minutes=state.sun_minutes_today,
+            uptime_sec=time.time() - state.start_time
+        )
+
     # 尝试云端AI
     ai_result = None
     if state.wifi_connected:
@@ -304,11 +380,13 @@ def make_decision():
             print(f"[AI] Low memory ({free_mem} bytes), using local rules")
     
     if ai_result:
+        state.last_decision_source = "cloud"
         print(f"[AI Decision] action={ai_result['action']} duration={ai_result['duration_sec']}s reason={ai_result['reason']}")
         return ai_result
     
     # 本地规则兜底
     print("[Local Rule] Cloud timeout, using local decision")
+    state.last_decision_source = "local"
     if plant_info is None:
         plant_info = _get_plant_info()
     decision = utils.local_fallback_decision(
@@ -357,6 +435,9 @@ def execute_decision(decision):
     
     if action == "water":
         actuators.run_water_pump(duration)
+        if _demo_enabled():
+            state.demo_soil_moisture = _demo_value("DEMO_RECOVER_SOIL", 55)
+            state.soil_moisture = int(state.demo_soil_moisture)
     elif action == "nutrient":
         actuators.run_nutrient_pump(duration)
     # 更新动作记录
@@ -383,6 +464,9 @@ def safety_check():
     if actuators.is_any_running():
         print("[Safety] Actuator running, skipped")
         return False
+
+    if _demo_enabled():
+        return True
 
     # 检查距离上次动作是否过短（防抖）
     if state.last_action != "idle":
@@ -415,7 +499,7 @@ def watch_dog():
 
 def main_loop():
     """主循环"""
-    interval = config.READ_INTERVAL  # 读取间隔（秒）
+    interval = _demo_value("DEMO_READ_INTERVAL", config.READ_INTERVAL) if _demo_enabled() else config.READ_INTERVAL
     last_read = 0
 
     while True:
@@ -455,9 +539,11 @@ def main_loop():
 
                 # 执行决策
                 execute_decision(decision)
+                _send_telemetry()
 
                 # 显示传感器数据
                 _refresh_display(force=True, reset_page=True)
+                _send_telemetry()
 
                 # 检查是否需要重连WiFi
                 if not wifi_client.is_connected():

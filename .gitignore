@@ -5,6 +5,7 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+deliverables/*preview*.png
 
 # Secrets / API keys
 esp32_firmware/config.py
