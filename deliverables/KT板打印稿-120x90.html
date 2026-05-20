@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>太空农业智能种植舱 KT板打印稿</title>
+  <style>
+    @page {
+      size: 1200mm 900mm;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #d9e2dc;
+      font-family: "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif;
+      color: #10201c;
+    }
+
+    .board {
+      width: 1200mm;
+      height: 900mm;
+      margin: 0 auto;
+      background: #f7fbf7;
+      display: grid;
+      grid-template-rows: 112mm 268mm 214mm 248mm 58mm;
+      gap: 14mm;
+      padding: 24mm;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 9% 8%, rgba(255,255,255,.4) 0 1mm, transparent 1.3mm),
+        radial-gradient(circle at 28% 4%, rgba(255,255,255,.25) 0 .8mm, transparent 1.1mm),
+        radial-gradient(circle at 74% 7%, rgba(255,255,255,.35) 0 1mm, transparent 1.3mm),
+        linear-gradient(180deg, rgba(7,17,15,.94) 0 112mm, transparent 112mm);
+      pointer-events: none;
+    }
+
+    .hero,
+    .architecture,
+    .middle,
+    .showcase,
+    .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      color: #edf7f3;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18mm;
+      align-items: center;
+      padding: 8mm 10mm 12mm;
+      background: linear-gradient(135deg, #07110f 0%, #10201c 100%);
+      border-radius: 8mm;
+      border: 1.2mm solid rgba(85, 217, 141, .36);
+    }
+
+    .kicker {
+      margin: 0 0 5mm;
+      font-size: 15mm;
+      line-height: 1;
+      letter-spacing: 0;
+      color: #a8c3ba;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 36mm;
+      line-height: 1.04;
+      letter-spacing: 0;
+      font-weight: 900;
+    }
+
+    .subtitle {
+      margin: 7mm 0 0;
+      font-size: 12mm;
+      line-height: 1.35;
+      color: #d9f1e8;
+      font-weight: 600;
+    }
+
+    .tags {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: 5mm;
+    }
+
+    .tag {
+      padding: 4mm 7mm;
+      border-radius: 100mm;
+      border: .8mm solid rgba(88,199,232,.45);
+      color: #edf7f3;
+      font-size: 7mm;
+      font-weight: 800;
+      white-space: nowrap;
+      background: rgba(16, 32, 28, .7);
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10mm;
+      background: #ffffff;
+      border: .6mm solid #bad5c8;
+      border-radius: 8mm;
+      padding: 14mm;
+    }
+
+    .section-title {
+      margin: 0;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10mm;
+      font-size: 15mm;
+      line-height: 1;
+      font-weight: 900;
+      color: #07110f;
+    }
+
+    .section-title span {
+      font-size: 7mm;
+      font-weight: 700;
+      color: #5f736d;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr 32mm 1fr 32mm 1fr 32mm 1fr;
+      align-items: stretch;
+      gap: 0;
+      min-height: 195mm;
+    }
+
+    .node {
+      border-radius: 8mm;
+      padding: 10mm;
+      border: 1mm solid;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .node h3 {
+      margin: 0 0 7mm;
+      font-size: 12mm;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .node ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 5mm;
+      font-size: 7.2mm;
+      line-height: 1.25;
+      font-weight: 650;
+    }
+
+    .note {
+      margin-top: 7mm;
+      padding: 4mm 5mm;
+      border-radius: 5mm;
+      background: rgba(255,255,255,.65);
+      font-size: 6mm;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+
+    .sense {
+      background: #e9e7ff;
+      border-color: #7f77dd;
+      color: #312b78;
+    }
+
+    .think {
+      background: #ffeaf2;
+      border-color: #d4537e;
+      color: #72243e;
+    }
+
+    .act {
+      background: #eaf6df;
+      border-color: #639922;
+      color: #27500a;
+    }
+
+    .display {
+      background: #e8f8ff;
+      border-color: #58c7e8;
+      color: #07384b;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #55746a;
+      font-size: 18mm;
+      font-weight: 900;
+    }
+
+    .middle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14mm;
+    }
+
+    .panel {
+      background: #ffffff;
+      border-radius: 8mm;
+      border: .6mm solid #bad5c8;
+      padding: 14mm;
+      overflow: hidden;
+    }
+
+    .highlights {
+      background: #edf7ff;
+      border-color: #9bc9f3;
+    }
+
+    .crops {
+      background: #fff1eb;
+      border-color: #f0a27d;
+    }
+
+    .highlight-grid {
+      margin-top: 10mm;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8mm;
+    }
+
+    .highlight {
+      border-left: 2.2mm solid #55d98d;
+      padding: 0 0 0 6mm;
+    }
+
+    .highlight:nth-child(2) { border-color: #c790ff; }
+    .highlight:nth-child(3) { border-color: #58c7e8; }
+    .highlight:nth-child(4) { border-color: #f2bf5b; }
+    .highlight:nth-child(5) { border-color: #ef6f6c; grid-column: span 2; }
+
+    .highlight h3 {
+      margin: 0 0 3mm;
+      font-size: 8.2mm;
+      line-height: 1.12;
+      color: #082d47;
+    }
+
+    .highlight p {
+      margin: 0;
+      font-size: 5.8mm;
+      line-height: 1.35;
+      color: #275067;
+      font-weight: 650;
+    }
+
+    .crop-strip {
+      margin-top: 9mm;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5mm;
+    }
+
+    .crop {
+      padding: 5mm 3mm;
+      border-radius: 5mm;
+      background: #ffffff;
+      border: .5mm solid #efb092;
+      text-align: center;
+      font-size: 6.2mm;
+      line-height: 1.1;
+      font-weight: 850;
+      color: #6d2b14;
+    }
+
+    .crop small {
+      display: block;
+      margin-top: 2mm;
+      font-size: 4.5mm;
+      color: #a65a38;
+      font-weight: 700;
+    }
+
+    .crop-caption {
+      margin: 8mm 0 0;
+      font-size: 6.2mm;
+      line-height: 1.4;
+      font-weight: 700;
+      color: #6d2b14;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8mm;
+      background: #fffdfb;
+      font-size: 5.2mm;
+      line-height: 1.18;
+      overflow: hidden;
+      border-radius: 5mm;
+    }
+
+    th,
+    td {
+      padding: 3.5mm 4mm;
+      border-bottom: .35mm solid #f1c2ac;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #4a1b0c;
+      background: #f8d8c9;
+      font-size: 5.5mm;
+      font-weight: 900;
+    }
+
+    .showcase {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10mm;
+      background: #ffffff;
+      border: .6mm solid #bad5c8;
+      border-radius: 8mm;
+      padding: 14mm;
+    }
+
+    .show-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.4fr 1fr;
+      gap: 10mm;
+      min-height: 176mm;
+    }
+
+    .media-card {
+      border-radius: 7mm;
+      overflow: hidden;
+      background: #f1f6f3;
+      border: .5mm solid #c8ded3;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-width: 0;
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10mm;
+      color: #55746a;
+      font-size: 7mm;
+      line-height: 1.35;
+      font-weight: 800;
+      background:
+        linear-gradient(135deg, rgba(85,217,141,.12), rgba(88,199,232,.12)),
+        repeating-linear-gradient(45deg, transparent 0 8mm, rgba(16,32,28,.04) 8mm 10mm);
+    }
+
+    .media-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .media-caption {
+      padding: 5mm 6mm;
+      background: #10201c;
+      color: #edf7f3;
+      font-size: 5.6mm;
+      line-height: 1.3;
+      font-weight: 800;
+      min-height: 24mm;
+    }
+
+    .log {
+      margin: 0;
+      height: 100%;
+      padding: 9mm;
+      background: #17211f;
+      color: #d6f3e8;
+      font-family: Consolas, "JetBrains Mono", monospace;
+      font-size: 5.2mm;
+      line-height: 1.42;
+      white-space: pre-wrap;
+      overflow: hidden;
+    }
+
+    .footer {
+      background: #07110f;
+      border-radius: 8mm;
+      color: #a8c3ba;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16mm;
+      font-size: 7mm;
+      line-height: 1.2;
+      font-weight: 750;
+    }
+
+    .footer strong {
+      color: #edf7f3;
+      font-size: 8mm;
+    }
+
+    @media screen {
+      body {
+        padding: 16px;
+      }
+
+      .board {
+        transform-origin: top left;
+        transform: scale(.16);
+        margin-bottom: -756mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <section class="hero">
+      <div>
+        <p class="kicker">Space Agriculture Smart Planting Cabin</p>
+        <h1>太空农业智能种植舱</h1>
+        <p class="subtitle">基于 ESP32、MicroPython、云端 AI 与本地规则兜底的无人值守植物养护系统</p>
+      </div>
+      <div class="tags">
+        <div class="tag">环境感知</div>
+        <div class="tag">生长阶段判断</div>
+        <div class="tag">自动浇水施肥</div>
+        <div class="tag">实时Web大屏</div>
+        <div class="tag">OLED三页轮播</div>
+        <div class="tag">离线安全运行</div>
+      </div>
+    </section>
+
+    <section class="architecture">
+      <h2 class="section-title">系统链路 <span>感知 SENSE -> 决策 THINK -> 执行 ACT -> 展示 DISPLAY</span></h2>
+      <div class="flow">
+        <article class="node sense">
+          <div>
+            <h3>感知层 SENSE</h3>
+            <ul>
+              <li>土壤湿度 ADC</li>
+              <li>环境光照 ADC</li>
+              <li>DHT11/DHT22 温湿度</li>
+              <li>3位拨码开关选择作物</li>
+            </ul>
+          </div>
+          <div class="note">现场 8 种核心作物可一键切换</div>
+        </article>
+        <div class="arrow">-></div>
+        <article class="node think">
+          <div>
+            <h3>决策层 THINK</h3>
+            <ul>
+              <li>ESP32 + MicroPython 主控循环</li>
+              <li>本地规则常驻兜底</li>
+              <li>DeepSeek API 或 AI 代理</li>
+              <li>按种植日期判断生长阶段</li>
+            </ul>
+          </div>
+          <div class="note">阈值事件、明显变化或定时复核时请求 AI</div>
+        </article>
+        <div class="arrow">-></div>
+        <article class="node act">
+          <div>
+            <h3>执行层 ACT</h3>
+            <ul>
+              <li>水泵继电器自动浇水</li>
+              <li>营养液泵按周期补充</li>
+              <li>红黄绿 LED 状态指示</li>
+              <li>单次 60 秒上限，12 次/小时限频</li>
+            </ul>
+          </div>
+          <div class="note">异常动作强制 idle，传感器离线降级</div>
+        </article>
+        <div class="arrow">-></div>
+        <article class="node display">
+          <div>
+            <h3>展示层 DISPLAY</h3>
+            <ul>
+              <li>OLED 三页轮播</li>
+              <li>动作执行覆盖提示</li>
+              <li>ESP32 POST 实时遥测</li>
+              <li>Web 大屏 LIVE/DEMO 自动切换</li>
+            </ul>
+          </div>
+          <div class="note">120 秒无实时数据时自动回到演示状态</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="middle">
+      <article class="panel highlights">
+        <h2 class="section-title">核心亮点 <span>从原型到可演示系统</span></h2>
+        <div class="highlight-grid">
+          <div class="highlight">
+            <h3>AI + 本地规则双决策</h3>
+            <p>云端 AI 做综合判断，本地规则保证离线可用；网络或 API 失败时仍可自动养护。</p>
+          </div>
+          <div class="highlight">
+            <h3>14 种作物参数库</h3>
+            <p>每种作物包含湿度阈值、浇水时长、营养液周期与生长阶段表。</p>
+          </div>
+          <div class="highlight">
+            <h3>生长阶段自适应</h3>
+            <p>根据种植日期判断苗期、营养期、花期、果期或采收期，动态调整水肥策略。</p>
+          </div>
+          <div class="highlight">
+            <h3>实时数据大屏</h3>
+            <p>仪表盘、趋势曲线、动态植物、当前决策和系统状态同步展示。</p>
+          </div>
+          <div class="highlight">
+            <h3>全链路安全保护</h3>
+            <p>动作限频、时长上限、传感器离线降级、错误计数和看门狗重启，面向长期无人值守。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel crops">
+        <h2 class="section-title">作物数据库 <span>库内14种，现场拨码8种</span></h2>
+        <div class="crop-strip">
+          <div class="crop">生菜<small>&lt;30%</small></div>
+          <div class="crop">小白菜<small>&lt;28%</small></div>
+          <div class="crop">菠菜<small>&lt;32%</small></div>
+          <div class="crop">韭菜<small>&lt;30%</small></div>
+          <div class="crop">番茄<small>&lt;35%</small></div>
+          <div class="crop">辣椒<small>&lt;40%</small></div>
+          <div class="crop">黄瓜<small>&lt;38%</small></div>
+        </div>
+        <p class="crop-caption">拨码现场切换：生菜、小白菜、菠菜、韭菜、番茄、辣椒、黄瓜、茄子。数据库另含豆角、西葫芦、萝卜、大蒜、葱、生姜。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>样例作物</th>
+              <th>浇水</th>
+              <th>营养液</th>
+              <th>阶段策略</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>生菜</td>
+              <td>8秒</td>
+              <td>3天</td>
+              <td>苗期少水，营养期氮肥促叶，后期可采收。</td>
+            </tr>
+            <tr>
+              <td>番茄</td>
+              <td>12秒</td>
+              <td>2天</td>
+              <td>花期减水补磷钾，果期补钾促进膨果。</td>
+            </tr>
+            <tr>
+              <td>黄瓜</td>
+              <td>15秒</td>
+              <td>2天</td>
+              <td>果期需大量水分和钾肥，策略更积极。</td>
+            </tr>
+            <tr>
+              <td>生姜</td>
+              <td>10秒</td>
+              <td>3天</td>
+              <td>避强光保湿，姜块膨大期适当控水。</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+
+    <section class="showcase">
+      <h2 class="section-title">现场展示 <span>实物、OLED、大屏和运行日志形成完整证据链</span></h2>
+      <div class="show-grid">
+        <article class="media-card">
+          <div class="placeholder">放置硬件实物照片<br>ESP32 / 传感器 / 继电器 / 水泵 / 营养液泵</div>
+          <div class="media-caption">硬件原型：从传感器采集到执行器控制，全链路由 ESP32 运行。</div>
+        </article>
+        <article class="media-card">
+          <div class="placeholder">放置 OLED 实拍<br>传感器页 / 生长页 / 系统页</div>
+          <div class="media-caption">OLED 三页轮播：小屏展示实时数据、阶段进度和系统状态。</div>
+        </article>
+        <article class="media-card">
+          <img src="threshold-dashboard-preview.png" alt="Web实时大屏截图">
+          <div class="media-caption">Web 实时大屏：仪表盘、趋势曲线、动态植物与决策原因同步展示。</div>
+        </article>
+        <article class="media-card">
+          <pre class="log">[Sensor] Soil:35% | Light:72% | Temp:24.5C | Hum:62%
+[Growth] Day 18 | Stage:vegetative | Fert:N | Sun:6.2h
+[AI] Skipped: stable, using local rules
+[Action] Executing: water (8s) Reason: soil dry
+[Telemetry] POST /api/state -> LIVE dashboard</pre>
+          <div class="media-caption">运行日志：采样、生长阶段、决策、执行和遥测均可追踪。</div>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div><strong>团队信息</strong>：学校 / 指导老师 / 团队成员</div>
+      <div>ESP32 · MicroPython · DeepSeek AI · 14种作物参数库 · MIT 开源</div>
+    </footer>
+  </main>
+</body>
+</html>
