@@ -1,7 +1,7 @@
 """
 DHT 传感器诊断脚本
 直接在 OLED 上显示实时读取结果，无需看串口
-用法: py -m mpremote connect COM3 run debug_dht.py
+用法: py -m mpremote connect COM3 run esp32_firmware/diagnostics/debug_dht.py
 """
 import machine
 import dht

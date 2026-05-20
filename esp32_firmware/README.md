@@ -15,7 +15,9 @@ esp32_firmware/
 ├── wifi_client.py       # WiFi 连接模块
 ├── ai_client.py         # AI API 客户端
 ├── display.py           # OLED 显示模块（英文模式）
+├── telemetry.py         # 实时大屏遥测上报
 ├── utils.py             # 工具函数（LED控制、本地决策、时间格式化）
+├── diagnostics/         # 设备端诊断脚本，不属于生产启动链路
 └── README.md            # 说明文档
 ```
 
@@ -118,13 +120,25 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 ### 主循环逻辑
 
 ```
-每60秒执行一次：
-1. 读取所有传感器（土壤湿度、光照、温湿度）
-2. 安全检查（防抖、频率限制）
-3. 向AI查询决策（或使用本地规则兜底）
-4. 执行决策（水泵/营养液/待机）
-5. 更新OLED显示
+每 READ_INTERVAL 秒采样一次：
+1. 读取所有传感器（土壤湿度、光照、温湿度、拨码作物）
+2. 更新 OLED 轮播页面和 Web 大屏遥测
+
+每 DECISION_INTERVAL 秒决策一次：
+1. 安全检查（动作防抖、每小时动作上限、传感器离线）
+2. 先生成本地规则决策
+3. 仅在阈值事件、环境明显变化或周期复核时请求云端 AI
+4. AI 不可用、内存不足或请求被限频时，继续使用本地规则
+5. 执行动作（水泵/营养液/待机）并上报执行记录
 ```
+
+默认配置下 `READ_INTERVAL = 60`、`DECISION_INTERVAL = 60`。云端 AI 另有请求门控：
+
+- `AI_MIN_REQUEST_INTERVAL`：两次云端 AI 请求的最小间隔
+- `AI_FORCE_REQUEST_INTERVAL`：稳定状态下的周期复核间隔
+- `AI_SOIL_DELTA` / `AI_LIGHT_DELTA` / `AI_TEMP_DELTA` / `AI_HUM_DELTA`：环境明显变化阈值
+
+这意味着系统每分钟仍会执行本地安全判断，但不会在环境稳定时每分钟都请求云端 AI。
 
 ### 植物类型选择
 
@@ -173,6 +187,25 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 | DHT11 | 25°C / 60% | 默认舒适值 |
 
 传感器离线时 LED 红闪 + OLED 显示 "OFFLINE: ..." 告警。
+
+### 诊断脚本
+
+`diagnostics/` 下的脚本用于现场排查硬件问题，不属于生产固件启动链路：
+
+```bash
+# DHT/OLED 组合诊断
+py -m mpremote connect COM3 run diagnostics/debug_dht.py
+
+# 轻量 DHT 读数检查
+py -m mpremote connect COM3 run diagnostics/dht_check.py
+```
+
+如果设备端尚未创建 `diagnostics/` 目录，也可以临时上传到根目录运行：
+
+```bash
+py -m mpremote connect COM3 cp diagnostics/debug_dht.py :debug_dht.py
+py -m mpremote connect COM3 run debug_dht.py
+```
 
 ## API 配置
 
