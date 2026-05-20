@@ -89,6 +89,23 @@
       white-space: nowrap;
     }
 
+    .pill::before {
+      content: attr(data-icon);
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      color: var(--green);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .pill.warn::before,
+    .pill.warn strong {
+      color: var(--amber);
+    }
+
     .pill strong { color: var(--green); }
     .pill.source-local strong { color: var(--green); }
     .pill.source-cloud strong { color: var(--blue); }
@@ -118,6 +135,13 @@
       padding: 14px;
     }
 
+    .right-col > .panel {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 28px),
+        linear-gradient(180deg, rgba(16, 32, 28, 0.95), rgba(9, 20, 17, 0.96));
+      box-shadow: inset 0 1px 0 rgba(237, 247, 243, 0.035);
+    }
+
     .panel h2 {
       margin: 0 0 12px;
       font-size: 18px;
@@ -134,6 +158,19 @@
     .metric {
       padding: 14px;
       min-height: 176px;
+      transition: border-color 240ms ease, box-shadow 240ms ease, background 240ms ease;
+    }
+
+    .metric.alert {
+      border-color: rgba(239, 111, 108, 0.92);
+      box-shadow: 0 0 0 1px rgba(239, 111, 108, 0.24), 0 0 26px rgba(239, 111, 108, 0.12);
+      background: linear-gradient(180deg, rgba(42, 22, 20, 0.96), rgba(14, 19, 16, 0.96));
+    }
+
+    .metric.warn {
+      border-color: rgba(242, 191, 91, 0.92);
+      box-shadow: 0 0 0 1px rgba(242, 191, 91, 0.24), 0 0 26px rgba(242, 191, 91, 0.12);
+      background: linear-gradient(180deg, rgba(42, 34, 18, 0.96), rgba(14, 19, 16, 0.96));
     }
 
     .metric-head {
@@ -194,7 +231,7 @@
     }
 
     .hint {
-      color: var(--muted);
+      color: #c4d8d1;
       font-size: 13px;
       line-height: 1.55;
     }
@@ -225,32 +262,143 @@
       font-size: 14px;
     }
 
+    .chamber-insights {
+      position: absolute;
+      top: 58px;
+      left: 18px;
+      right: 18px;
+      display: grid;
+      grid-template-columns: minmax(170px, 1.1fr) repeat(2, minmax(150px, 1fr));
+      gap: 10px;
+      z-index: 2;
+    }
+
+    .insight-card {
+      border: 1px solid rgba(40, 67, 58, 0.82);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(7, 18, 15, 0.72);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+    }
+
+    .insight-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .insight-value {
+      margin-top: 5px;
+      font-size: 18px;
+      font-weight: 850;
+    }
+
+    .progress-track {
+      height: 8px;
+      margin-top: 9px;
+      border-radius: 999px;
+      background: rgba(6, 16, 14, 0.88);
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      width: 5%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--amber));
+      transition: width 360ms ease;
+    }
+
+    .status-chip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 26px;
+      border: 1px solid rgba(85, 217, 141, 0.42);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--green);
+      background: rgba(7, 18, 15, 0.72);
+      font-size: 12px;
+      line-height: 1.35;
+      text-align: center;
+    }
+
+    .status-chip.warn {
+      border-color: rgba(242, 191, 91, 0.55);
+      color: var(--amber);
+    }
+
     .plant-svg {
       position: absolute;
       left: 50%;
-      bottom: 58px;
-      width: min(440px, 72%);
-      height: 260px;
+      bottom: 54px;
+      width: min(500px, 78%);
+      height: 286px;
       transform: translateX(-50%);
       overflow: visible;
     }
 
     .plant-svg .stem {
-      stroke: var(--green);
-      stroke-width: 10;
+      stroke: #55d98d;
+      stroke-width: 9;
       stroke-linecap: round;
       fill: none;
     }
 
+    .plant-svg .stem.main {
+      filter: drop-shadow(0 0 10px rgba(85, 217, 141, 0.18));
+    }
+
+    .plant-svg .petiole {
+      stroke: #55d98d;
+      stroke-width: 5;
+      stroke-linecap: round;
+      fill: none;
+      opacity: 0.95;
+    }
+
+    .plant-svg.stage-seedling .stem.main {
+      stroke-dasharray: 118 260;
+      stroke-dashoffset: 92;
+    }
+
+    .plant-svg.stage-seedling .petiole.large,
+    .plant-svg.stage-seedling .branch-top {
+      opacity: 0;
+    }
+
     .plant-svg .leaf {
-      fill: var(--green);
+      fill: url(#leafGradient);
+      stroke: rgba(191, 255, 213, 0.28);
+      stroke-width: 1.2;
       transform-origin: center;
     }
 
-    .plant-svg .flower { fill: #f8d66d; opacity: 0; }
-    .plant-svg .fruit { fill: #ff756d; opacity: 0; }
+    .plant-svg .leaf-vein {
+      stroke: rgba(12, 72, 48, 0.48);
+      stroke-width: 2;
+      stroke-linecap: round;
+      fill: none;
+    }
+
+    .plant-svg .flower {
+      fill: #f8d66d;
+      opacity: 0;
+      filter: drop-shadow(0 0 8px rgba(248, 214, 109, 0.4));
+    }
+
+    .plant-svg .fruit {
+      fill: #ff756d;
+      opacity: 0;
+      filter: drop-shadow(0 0 7px rgba(255, 117, 109, 0.4));
+    }
 
     .plant-svg.stage-seedling .leaf.large,
+    .plant-svg.stage-seedling .leaf-vein.large,
     .plant-svg.stage-seedling .flower,
     .plant-svg.stage-seedling .fruit { opacity: 0; }
 
@@ -260,14 +408,25 @@
     .plant-svg.stage-fruiting .fruit,
     .plant-svg.stage-harvesting .fruit { opacity: 1; }
 
-    .soil-bed {
+    .soil-back,
+    .soil-front {
       position: absolute;
       left: 10%;
       right: 10%;
-      bottom: 38px;
-      height: 42px;
+      height: 48px;
       border-radius: 50%;
-      background: #3b2f25;
+    }
+
+    .soil-back {
+      bottom: 43px;
+      background: #2c261e;
+      opacity: 0.98;
+    }
+
+    .soil-front {
+      bottom: 31px;
+      background: linear-gradient(180deg, #4a382a, #2f251d);
+      box-shadow: inset 0 10px 18px rgba(255, 255, 255, 0.03);
     }
 
     .water-drop {
@@ -308,12 +467,29 @@
       padding: 12px;
       color: var(--muted);
       background: rgba(7, 18, 15, 0.72);
+      transition: border-color 240ms ease, background 240ms ease, color 240ms ease, opacity 240ms ease;
     }
 
     .flow-step.active {
       color: var(--text);
       border-color: rgba(242, 191, 91, 0.95);
       box-shadow: 0 0 0 1px rgba(242, 191, 91, 0.28);
+    }
+
+    .flow-step.done {
+      color: #d9f3e7;
+      border-color: rgba(85, 217, 141, 0.62);
+      background: rgba(15, 43, 31, 0.72);
+    }
+
+    .flow-step.pending {
+      opacity: 0.62;
+      border-style: dashed;
+    }
+
+    .flow-step.next {
+      opacity: 0.88;
+      border-color: rgba(168, 195, 186, 0.46);
     }
 
     .flow-step.active::after {
@@ -344,11 +520,24 @@
       color: #08110f;
       border-color: var(--amber);
       font-weight: 850;
+      animation: stepBeat 1.15s ease-in-out infinite;
+    }
+
+    .flow-step.done .flow-num {
+      background: var(--green);
+      color: #06100e;
+      border-color: var(--green);
+      font-weight: 850;
     }
 
     @keyframes pulse {
       0% { opacity: 0.9; transform: scale(1); }
       100% { opacity: 0; transform: scale(1.035); }
+    }
+
+    @keyframes stepBeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.12); }
     }
 
     .trend-canvas {
@@ -400,22 +589,90 @@
     }
 
     .source {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 7px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(168, 195, 186, 0.32);
+      border-radius: 999px;
+      padding: 5px 9px;
       color: var(--text);
-      font-size: 13px;
+      font-size: 12px;
       white-space: nowrap;
-      background: rgba(7, 18, 15, 0.72);
+      background: transparent;
     }
 
-    .source.local { border-color: rgba(85, 217, 141, 0.62); color: var(--green); }
-    .source.cloud { border-color: rgba(98, 168, 255, 0.68); color: var(--blue); }
+    .source::before {
+      content: "⚙";
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .source.local { border-color: rgba(85, 217, 141, 0.52); color: var(--green); }
+    .source.cloud { border-color: rgba(98, 168, 255, 0.56); color: var(--blue); }
+    .source.cloud::before { content: "✦"; }
 
     .reason {
       color: var(--muted);
       line-height: 1.68;
       font-size: 15px;
+    }
+
+    .decision-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .decision-actions {
+      display: grid;
+      gap: 6px;
+      justify-items: start;
+    }
+
+    .demo-button {
+      min-height: 34px;
+      border: 1px solid rgba(242, 191, 91, 0.64);
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: #ffe1a3;
+      background: rgba(242, 191, 91, 0.08);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .demo-button:hover {
+      background: rgba(242, 191, 91, 0.14);
+    }
+
+    .demo-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .demo-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .decision-stat {
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: rgba(7, 18, 15, 0.62);
+    }
+
+    .decision-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .decision-stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 16px;
     }
 
     .facts {
@@ -458,6 +715,16 @@
       background: var(--panel-deep);
     }
 
+    .log .repeat {
+      color: #d5e9e1;
+      border-left: 3px solid rgba(85, 217, 141, 0.72);
+    }
+
+    .log .warn {
+      color: #ffe4aa;
+      border-left: 3px solid rgba(242, 191, 91, 0.8);
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -479,6 +746,12 @@
       h1 { font-size: 28px; }
       .metric-grid, .facts, .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .panel, .metric { margin-top: 12px; }
+      .chamber-insights {
+        position: static;
+        grid-template-columns: 1fr;
+        width: auto;
+        margin-top: 44px;
+      }
     }
 
     @media (max-width: 520px) {
@@ -496,18 +769,18 @@
         <div class="subtitle" id="subtitle">参赛演示模式：环境感知、智能决策、自动执行、安全兜底</div>
       </div>
       <nav class="pills" aria-label="系统摘要">
-        <div class="pill" tabindex="0">网络 <strong id="wifi">正常</strong></div>
-        <div class="pill" tabindex="0">智能决策 <strong id="ai">启用</strong></div>
-        <div class="pill" tabindex="0">模式 <strong id="mode">演示</strong></div>
-        <div class="pill" tabindex="0">运行 <strong id="uptime">0 分钟</strong></div>
-        <div class="pill" tabindex="0">种植 <strong id="daysPill">0 天</strong></div>
+        <div class="pill" id="wifiPill" data-icon="●" tabindex="0">网络 <strong id="wifi">正常</strong></div>
+        <div class="pill" id="aiPill" data-icon="⚡" tabindex="0">智能决策 <strong id="ai">启用</strong></div>
+        <div class="pill" id="modePill" data-icon="▶" tabindex="0">模式 <strong id="mode">演示</strong></div>
+        <div class="pill" data-icon="◷" tabindex="0">运行 <strong id="uptime">0 分钟</strong></div>
+        <div class="pill" data-icon="✦" tabindex="0">种植 <strong id="daysPill">第 1 天</strong></div>
       </nav>
     </header>
 
     <main role="main">
       <section class="col" aria-label="实时传感器">
         <div class="metric-grid">
-          <article class="metric" tabindex="0" aria-label="土壤湿度">
+          <article class="metric" id="soilMetric" tabindex="0" aria-label="土壤湿度">
             <div class="ring-row">
               <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
                 <circle class="track" cx="50" cy="50" r="40"></circle>
@@ -523,7 +796,7 @@
             <canvas id="soilSpark" aria-label="土壤湿度迷你趋势"></canvas>
           </article>
 
-          <article class="metric" tabindex="0" aria-label="光照强度">
+          <article class="metric" id="lightMetric" tabindex="0" aria-label="光照强度">
             <div class="ring-row">
               <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
                 <circle class="track" cx="50" cy="50" r="40"></circle>
@@ -539,7 +812,7 @@
             <canvas id="lightSpark" aria-label="光照迷你趋势"></canvas>
           </article>
 
-          <article class="metric" tabindex="0" aria-label="温度">
+          <article class="metric" id="tempMetric" tabindex="0" aria-label="温度">
             <div class="ring-row">
               <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
                 <circle class="track" cx="50" cy="50" r="40"></circle>
@@ -555,7 +828,7 @@
             <canvas id="tempSpark" aria-label="温度迷你趋势"></canvas>
           </article>
 
-          <article class="metric" tabindex="0" aria-label="空气湿度">
+          <article class="metric" id="humMetric" tabindex="0" aria-label="空气湿度">
             <div class="ring-row">
               <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
                 <circle class="track" cx="50" cy="50" r="40"></circle>
@@ -587,22 +860,50 @@
         <section class="panel chamber" id="chamber" tabindex="0" aria-label="种植舱动态示意">
           <div class="lamp"></div>
           <div class="plant-stage-label" id="plantStageFloating">幼苗期</div>
+          <div class="chamber-insights" aria-label="种植舱关键状态">
+            <div class="insight-card">
+              <div class="insight-top"><span>生长进度</span><span id="growthPct">0%</span></div>
+              <div class="insight-value" id="growthStage">幼苗期</div>
+              <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="growthBar"></div></div>
+            </div>
+            <div class="status-chip" id="thresholdChip">土壤湿度高于阈值 12%</div>
+            <div class="status-chip warn" id="lightChip">今日光照 0.0 / 6 小时</div>
+          </div>
           <div class="water-drop"></div>
           <div class="water-drop"></div>
           <div class="water-drop"></div>
           <svg id="plantSvg" class="plant-svg stage-seedling" viewBox="0 0 360 260" aria-label="动态植物">
-            <path class="stem" d="M180 230 C180 190 180 150 180 105"></path>
-            <ellipse class="leaf small" cx="142" cy="151" rx="44" ry="21" transform="rotate(-30 142 151)"></ellipse>
-            <ellipse class="leaf small" cx="218" cy="132" rx="43" ry="20" transform="rotate(28 218 132)"></ellipse>
-            <ellipse class="leaf large" cx="126" cy="101" rx="58" ry="24" transform="rotate(-24 126 101)"></ellipse>
-            <ellipse class="leaf large" cx="238" cy="86" rx="58" ry="24" transform="rotate(24 238 86)"></ellipse>
-            <circle class="flower" cx="180" cy="82" r="14"></circle>
-            <circle class="flower" cx="151" cy="96" r="10"></circle>
-            <circle class="flower" cx="211" cy="94" r="10"></circle>
-            <circle class="fruit" cx="158" cy="113" r="15"></circle>
-            <circle class="fruit" cx="207" cy="117" r="17"></circle>
+            <defs>
+              <linearGradient id="leafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#83efad"></stop>
+                <stop offset="58%" stop-color="#56d98d"></stop>
+                <stop offset="100%" stop-color="#2fb873"></stop>
+              </linearGradient>
+            </defs>
+            <path class="stem main" d="M181 230 C176 198 178 166 184 137 C189 111 188 92 178 74"></path>
+            <path class="petiole" d="M181 184 C154 169 132 154 110 136"></path>
+            <path class="petiole" d="M181 160 C210 141 236 126 265 115"></path>
+            <path class="petiole large branch-top" d="M181 131 C151 108 123 91 92 80"></path>
+            <path class="petiole large branch-top" d="M182 112 C215 90 247 75 280 66"></path>
+
+            <path class="leaf small" d="M78 126 C107 94 157 109 164 145 C132 166 91 160 78 126Z"></path>
+            <path class="leaf-vein small" d="M95 130 C116 128 139 137 157 145"></path>
+            <path class="leaf small" d="M241 92 C281 79 315 104 316 142 C276 151 247 131 241 92Z"></path>
+            <path class="leaf-vein small" d="M257 103 C278 112 295 126 310 140"></path>
+
+            <path class="leaf large" d="M46 64 C88 20 151 41 163 92 C119 121 67 109 46 64Z"></path>
+            <path class="leaf-vein large" d="M67 69 C94 66 128 77 156 91"></path>
+            <path class="leaf large" d="M239 42 C289 8 344 39 350 91 C301 112 258 88 239 42Z"></path>
+            <path class="leaf-vein large" d="M260 50 C289 58 316 75 344 89"></path>
+
+            <circle class="flower" cx="176" cy="66" r="10"></circle>
+            <circle class="flower" cx="164" cy="76" r="8"></circle>
+            <circle class="flower" cx="190" cy="78" r="8"></circle>
+            <circle class="fruit" cx="151" cy="111" r="13"></circle>
+            <circle class="fruit" cx="221" cy="101" r="15"></circle>
           </svg>
-          <div class="soil-bed"></div>
+          <div class="soil-back"></div>
+          <div class="soil-front"></div>
         </section>
 
         <section class="panel" aria-label="最近三十次采样趋势">
@@ -627,6 +928,14 @@
             <div class="source cloud" id="sourceTag">云端智能</div>
           </div>
           <div class="reason" id="reason">环境正常，系统保持待机。</div>
+          <div class="decision-stats" aria-label="决策历史摘要">
+            <div class="decision-stat"><span>上次触发</span><strong id="lastActionAt">暂无</strong></div>
+            <div class="decision-stat"><span>连续待机</span><strong id="idleStreak">0 次</strong></div>
+          </div>
+          <div class="decision-actions">
+            <button class="demo-button" id="manualWater" type="button">演示浇水</button>
+            <div class="demo-note" id="manualWaterNote">仅在演示模式下触发动画，不控制真实水泵。</div>
+          </div>
         </section>
 
         <section class="panel" tabindex="0" aria-label="植物状态">
@@ -634,10 +943,12 @@
           <div class="facts">
             <div class="fact"><div class="fact-label">作物</div><div class="fact-value" id="plantName">生菜</div></div>
             <div class="fact"><div class="fact-label">生长阶段</div><div class="fact-value" id="stageName">幼苗期</div></div>
-            <div class="fact"><div class="fact-label">种植天数</div><div class="fact-value"><span id="daysFact">0</span> 天</div></div>
+            <div class="fact"><div class="fact-label">种植天数</div><div class="fact-value" id="daysFact">第 1 天</div></div>
             <div class="fact"><div class="fact-label">施肥方案</div><div class="fact-value" id="fertPlan">少量氮肥</div></div>
-            <div class="fact"><div class="fact-label">目标土壤湿度</div><div class="fact-value">≥ <span id="soilTarget">30</span>%</div></div>
-            <div class="fact"><div class="fact-label">今日达标光照</div><div class="fact-value"><span id="sun">0.0</span> 小时</div></div>
+            <div class="fact"><div class="fact-label">浇水触发阈值</div><div class="fact-value">&lt; <span id="soilTarget">30</span>%</div></div>
+            <div class="fact"><div class="fact-label">光照达标阈值</div><div class="fact-value">≥ <span id="lightTarget">30</span>%</div></div>
+            <div class="fact"><div class="fact-label">理想光照</div><div class="fact-value">≥ <span id="lightOpt">50</span>%</div></div>
+            <div class="fact"><div class="fact-label">今日有效光照时长</div><div class="fact-value"><span id="sun">0.0</span> 小时</div></div>
           </div>
         </section>
 
@@ -669,16 +980,26 @@
       sun: 0,
       phase: 0,
       live: false,
+      wifi: true,
+      ai: true,
       lastReadCount: 0,
       lastLiveAt: 0,
       startedAt: Date.now(),
       days: 0,
+      hasReportedDays: false,
       action: "idle",
       source: "cloud",
       actionCount: 0,
       readCount: 0,
       errorCount: 0,
       lastDuration: 0,
+      lastActionAt: null,
+      idleStreak: 0,
+      todayWaterCount: 0,
+      soilThreshold: 30,
+      lightMin: 30,
+      lightOpt: 50,
+      lightHours: [6, 8],
       logs: [],
       history: []
     };
@@ -703,6 +1024,10 @@
       return Math.max(min, Math.min(max, Number(value) || 0));
     }
 
+    function clampSunHours(value) {
+      return clamp(value, 0, 24);
+    }
+
     function fmtTime(ms) {
       const seconds = Math.max(0, Math.floor(ms / 1000));
       const h = Math.floor(seconds / 3600);
@@ -711,15 +1036,56 @@
       return `${m} 分钟`;
     }
 
-    function log(text) {
+    function plantingDayLabel(days) {
+      return `第 ${Math.max(1, Math.floor(Number(days || 0)) + 1)} 天`;
+    }
+
+    function displayPlantingDays() {
+      const reportedDays = Math.max(0, Math.floor(Number(state.days || 0)));
+      const uptimeDays = Math.floor(Math.max(0, Date.now() - state.startedAt) / 86400000);
+      return Math.max(reportedDays, uptimeDays);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function renderLogs() {
+      document.getElementById("log").innerHTML = state.logs.map(item => {
+        const repeat = item.count > 1 ? ` <strong>连续 ${item.count} 次</strong>` : "";
+        return `<div class="${item.level || ""}">${escapeHtml(item.time)} ${escapeHtml(item.text)}${repeat}</div>`;
+      }).join("");
+    }
+
+    function log(text, options = {}) {
       const now = new Date();
-      state.logs.unshift(`${now.toLocaleTimeString()} ${text}`);
+      const key = options.key || text;
+      if (state.logs[0] && state.logs[0].key === key) {
+        state.logs[0].count += 1;
+        state.logs[0].time = now.toLocaleTimeString();
+        state.logs[0].text = text;
+        state.logs[0].level = options.level || state.logs[0].level || "repeat";
+        renderLogs();
+        return;
+      }
+      state.logs.unshift({
+        key,
+        text,
+        time: now.toLocaleTimeString(),
+        count: 1,
+        level: options.level || ""
+      });
       state.logs = state.logs.slice(0, 6);
-      document.getElementById("log").innerHTML = state.logs.map(item => `<div>${item}</div>`).join("");
+      renderLogs();
     }
 
     function pushHistory() {
       state.history.push({
+        ts: Date.now(),
         soil: state.soil,
         light: state.light,
         temp: state.temp,
@@ -786,16 +1152,44 @@
         canvas.height = h;
       }
       ctx.clearRect(0, 0, w, h);
-      const pad = 30 * dpr;
+      const leftPad = 52 * dpr;
+      const rightPad = 44 * dpr;
+      const topPad = 24 * dpr;
+      const bottomPad = 42 * dpr;
+      const plotW = w - leftPad - rightPad;
+      const plotH = h - topPad - bottomPad;
+      ctx.font = `${12 * dpr}px "Microsoft YaHei", Arial, sans-serif`;
+      ctx.textBaseline = "middle";
       ctx.strokeStyle = "rgba(168, 195, 186, 0.18)";
       ctx.lineWidth = 1 * dpr;
       for (let i = 0; i <= 4; i += 1) {
-        const y = pad + (h - pad * 2) * i / 4;
+        const y = topPad + plotH * i / 4;
         ctx.beginPath();
-        ctx.moveTo(pad, y);
-        ctx.lineTo(w - pad, y);
+        ctx.moveTo(leftPad, y);
+        ctx.lineTo(w - rightPad, y);
         ctx.stroke();
+        const percent = 100 - i * 25;
+        const temp = 45 - i * 11.25;
+        ctx.fillStyle = "rgba(196, 216, 209, 0.82)";
+        ctx.textAlign = "right";
+        ctx.fillText(`${percent}%`, leftPad - 10 * dpr, y);
+        ctx.textAlign = "left";
+        ctx.fillText(`${Math.round(temp)}℃`, w - rightPad + 10 * dpr, y);
       }
+      ctx.fillStyle = "rgba(168, 195, 186, 0.78)";
+      ctx.textAlign = "left";
+      ctx.fillText("湿度 / 光照", leftPad, 12 * dpr);
+      ctx.textAlign = "right";
+      ctx.fillText("温度", w - rightPad, 12 * dpr);
+
+      const labels = ["30次前", "15次前", "当前"];
+      ctx.textBaseline = "top";
+      labels.forEach((label, index) => {
+        const x = leftPad + plotW * index / 2;
+        ctx.textAlign = index === 0 ? "left" : index === 2 ? "right" : "center";
+        ctx.fillText(label, x, h - bottomPad + 14 * dpr);
+      });
+
       const draw = (key, color, min, max) => {
         const values = state.history.map(p => p[key]);
         if (values.length < 2) return;
@@ -803,8 +1197,8 @@
         ctx.lineWidth = 2.2 * dpr;
         ctx.beginPath();
         values.forEach((value, index) => {
-          const x = pad + (w - pad * 2) * index / (MAX_POINTS - 1);
-          const y = h - pad - (h - pad * 2) * ((value - min) / Math.max(1, max - min));
+          const x = leftPad + plotW * index / (values.length - 1);
+          const y = topPad + plotH - plotH * ((value - min) / Math.max(1, max - min));
           if (index === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         });
@@ -878,7 +1272,7 @@
       if (text.includes("soil dry") || text.includes("dry")) return `土壤湿度 ${Math.round(soil)}%，低于阈值，执行浇水。`;
       if (text.includes("nutrient")) return "已到营养液补充周期，执行营养液补充。";
       if (text.includes("light low") || text.includes("low light")) return `当前光照 ${Math.round(light)}%，建议移动到更明亮的位置。`;
-      if (text.includes("low sun") || text.includes("minimal sun")) return `今日达标光照 ${Number(sun || 0).toFixed(1)} 小时，请关注补光或摆放位置。`;
+      if (text.includes("low sun") || text.includes("minimal sun")) return `今日有效光照 ${Number(sun || 0).toFixed(1)} 小时，请关注补光或摆放位置。`;
       if (text.includes("moist") || text.includes("adequate") || text.includes("status normal") || text.includes("normal")) return "土壤和光照状态正常，系统保持待机。";
       if (action === "water") return `土壤湿度 ${Math.round(soil)}%，执行浇水。`;
       if (action === "nutrient") return "执行营养液补充。";
@@ -890,19 +1284,104 @@
 
     function setPhase(action, soil) {
       if (action === "water") return 3;
-      if (soil < 30) return 2;
+      if (soil < state.soilThreshold) return 2;
       return 0;
     }
 
     function updateFlow() {
       for (let i = 0; i < 4; i += 1) {
-        document.getElementById(`step${i}`).classList.toggle("active", i === state.phase);
+        const step = document.getElementById(`step${i}`);
+        const done = i < state.phase;
+        const pending = i > state.phase;
+        step.classList.toggle("done", done);
+        step.classList.toggle("active", i === state.phase);
+        step.classList.toggle("pending", pending);
+        step.classList.toggle("next", i === state.phase + 1);
+        step.querySelector(".flow-num").textContent = done ? "✓" : String(i + 1);
       }
     }
 
+    function setMetricState(id, level) {
+      const metric = document.getElementById(id);
+      metric.classList.toggle("alert", level === "alert");
+      metric.classList.toggle("warn", level === "warn");
+    }
+
+    function updateStatusPills() {
+      const wifiPill = document.getElementById("wifiPill");
+      const aiPill = document.getElementById("aiPill");
+      const modePill = document.getElementById("modePill");
+      const wifiOk = state.wifi !== false;
+      const aiOk = state.ai !== false;
+
+      wifiPill.dataset.icon = wifiOk ? "●" : "!";
+      wifiPill.classList.toggle("warn", !wifiOk);
+      aiPill.dataset.icon = aiOk ? "⚡" : "✓";
+      aiPill.classList.toggle("warn", !aiOk);
+      modePill.dataset.icon = state.live ? "●" : "▶";
+    }
+
+    function stageProgress(stage, days) {
+      const ranges = {
+        seedling: [0, 7],
+        vegetative: [8, 21],
+        flowering: [22, 35],
+        fruiting: [36, 55],
+        harvesting: [56, 70]
+      };
+      const [start, end] = ranges[String(stage || "seedling").toLowerCase()] || ranges.seedling;
+      return clamp((Number(days || 0) - start) / Math.max(1, end - start) * 100, 0, 100);
+    }
+
+    function updateDecisionStats() {
+      document.getElementById("lastActionAt").textContent = state.lastActionAt
+        ? `${state.lastActionAt.toLocaleTimeString()} / 今日 ${state.todayWaterCount} 次`
+        : "暂无 / 今日 0 次";
+      document.getElementById("idleStreak").textContent = `${state.idleStreak} 次`;
+    }
+
+    function updateChamberInsights(stage) {
+      const displayDays = displayPlantingDays();
+      const progress = stageProgress(stage, displayDays);
+      const visibleProgress = progress <= 0 ? 5 : progress;
+      const soilGap = Math.round(state.soil - state.soilThreshold);
+      const lightNeed = Math.max(1, Number(state.lightHours[0] || 6));
+      const sunHours = clampSunHours(state.sun);
+      const lightPct = clamp(sunHours / lightNeed * 100, 0, 100);
+      const thresholdChip = document.getElementById("thresholdChip");
+      const lightChip = document.getElementById("lightChip");
+
+      document.getElementById("growthPct").textContent = displayDays <= 0 ? "第 1 天" : `${Math.round(progress)}%`;
+      document.getElementById("growthStage").textContent = displayDays <= 0 ? "播种中" : stageLabel(stage);
+      document.getElementById("growthBar").style.width = `${visibleProgress}%`;
+
+      thresholdChip.textContent = soilGap >= 0
+        ? `土壤湿度高于阈值 ${soilGap}%`
+        : `土壤湿度低于阈值 ${Math.abs(soilGap)}%`;
+      thresholdChip.classList.toggle("warn", soilGap < 4);
+
+      lightChip.textContent = `有效光照 ${sunHours.toFixed(1)} / ${lightNeed} 小时`;
+      lightChip.classList.toggle("warn", lightPct < 80);
+    }
+
+    function triggerDemoWater() {
+      if (state.live) return;
+      state.action = "water";
+      state.phase = 3;
+      state.lastDuration = 8;
+      state.actionCount += 1;
+      state.todayWaterCount += 1;
+      state.lastActionAt = new Date();
+      state.idleStreak = 0;
+      document.getElementById("reason").textContent = "演示触发：手动启动一次浇水闭环，观察水泵执行和湿度恢复。";
+      log("演示手动浇水", { level: "warn" });
+      pushHistory();
+      render();
+    }
+
     function render() {
-      const dry = state.soil < 30;
-      const lightLow = state.light < 30;
+      const dry = state.soil < state.soilThreshold;
+      const lightLow = state.light < state.lightMin;
       setRing("soilRing", "soilRingText", state.soil, `${Math.round(state.soil)}%`, dry ? colors.red : colors.soil);
       setRing("lightRing", "lightRingText", state.light, `${Math.round(state.light)}%`, lightLow ? colors.red : colors.light);
       setRing("tempRing", "tempRingText", clamp(state.temp / 45 * 100, 0, 100), state.temp.toFixed(1), colors.temp);
@@ -916,6 +1395,11 @@
       document.getElementById("lightStatus").textContent = lightLow ? "不足" : "良好";
       document.getElementById("tempStatus").textContent = state.temp < 15 || state.temp > 34 ? "关注" : "舒适";
       document.getElementById("humStatus").textContent = state.hum < 35 || state.hum > 85 ? "关注" : "适宜";
+      setMetricState("soilMetric", dry ? "alert" : "");
+      setMetricState("lightMetric", state.light <= 5 ? "alert" : lightLow ? "warn" : "");
+      setMetricState("tempMetric", state.temp < 15 || state.temp > 34 ? "warn" : "");
+      setMetricState("humMetric", state.hum < 35 || state.hum > 85 ? "warn" : "");
+      updateStatusPills();
 
       document.getElementById("mode").textContent = state.live ? "实时" : "演示";
       document.getElementById("subtitle").textContent = state.live
@@ -923,14 +1407,27 @@
         : "参赛演示模式：环境感知、智能决策、自动执行、安全兜底";
       document.getElementById("chamber").classList.toggle("watering", state.phase === 3);
       document.getElementById("uptime").textContent = fmtTime(Date.now() - state.startedAt);
-      document.getElementById("daysPill").textContent = `${state.days} 天`;
+      const displayDays = displayPlantingDays();
+      document.getElementById("daysPill").textContent = plantingDayLabel(displayDays);
       document.getElementById("action").textContent = actionLabel(state.action);
+      const manualWater = document.getElementById("manualWater");
+      const manualWaterNote = document.getElementById("manualWaterNote");
+      manualWater.disabled = state.live;
+      manualWater.textContent = state.live ? "实时数据中" : "演示浇水";
+      manualWaterNote.textContent = state.live
+        ? "正在接收设备数据，此处只展示状态，不提供手动演示。"
+        : "仅触发看板动画和日志，不控制真实水泵。";
       document.getElementById("actionCount").textContent = state.actionCount;
       document.getElementById("readCount").textContent = state.readCount;
       document.getElementById("errorCount").textContent = state.errorCount;
       document.getElementById("lastDuration").textContent = state.lastDuration;
-      document.getElementById("sun").textContent = Number(state.sun || 0).toFixed(1);
-      document.getElementById("daysFact").textContent = state.days;
+      document.getElementById("soilTarget").textContent = state.soilThreshold;
+      document.getElementById("lightTarget").textContent = state.lightMin;
+      document.getElementById("lightOpt").textContent = state.lightOpt;
+      document.getElementById("sun").textContent = clampSunHours(state.sun).toFixed(1);
+      document.getElementById("daysFact").textContent = plantingDayLabel(displayDays);
+      updateDecisionStats();
+      updateChamberInsights(document.getElementById("plantSvg").className.baseVal.replace("plant-svg stage-", ""));
 
       drawSpark("soilSpark", "soil", dry ? colors.red : colors.soil);
       drawSpark("lightSpark", "light", colors.light);
@@ -958,17 +1455,31 @@
       state.light = clamp(data.light, 0, 100);
       state.temp = Number(data.temperature || 0);
       state.hum = clamp(data.humidity, 0, 100);
-      state.sun = Number(data.sun_hours || 0);
+      state.sun = clampSunHours(data.sun_hours || 0);
+      state.hasReportedDays = data.days !== undefined || data.days_since_planting !== undefined;
       state.days = Number(data.days || data.days_since_planting || 0);
       state.action = String(data.action || "idle").toLowerCase();
+      state.wifi = data.wifi !== false;
+      state.ai = data.ai !== false;
       state.actionCount = Number(data.action_count || 0);
       state.readCount = readCount;
       state.errorCount = Number(data.error_count || 0);
       state.lastDuration = Number(data.duration || data.duration_sec || 0);
+      state.soilThreshold = Number(data.soil_threshold || 30);
+      state.lightMin = Number(data.light_min || 30);
+      state.lightOpt = Number(data.light_opt || 50);
+      state.lightHours = Array.isArray(data.light_hours) ? data.light_hours : [6, 8];
       if (Number(data.uptime_sec || 0) > 0) {
         state.startedAt = Date.now() - Number(data.uptime_sec) * 1000;
       }
       state.phase = setPhase(state.action, state.soil);
+      if (state.action === "water") {
+        state.lastActionAt = new Date();
+        state.todayWaterCount = Math.max(state.todayWaterCount, state.actionCount);
+        state.idleStreak = 0;
+      } else if (state.action === "idle" && readCount !== state.lastReadCount) {
+        state.idleStreak += 1;
+      }
 
       const [sourceText, sourceKind] = sourceLabel(data);
       const sourceTag = document.getElementById("sourceTag");
@@ -987,7 +1498,10 @@
       if (firstLive) {
         log("已连接设备实时数据");
       } else if (readCount !== state.lastReadCount) {
-        log(`实时刷新 #${readCount}: ${actionLabel(state.action)} ${Math.round(state.soil)}%`);
+        log(`第 ${readCount} 次采样：${actionLabel(state.action)}，土壤湿度 ${Math.round(state.soil)}%`, {
+          key: `${state.action}-${Math.round(state.soil)}`,
+          level: state.action === "idle" ? "repeat" : "warn"
+        });
       }
       state.lastReadCount = readCount;
       pushHistory();
@@ -1011,30 +1525,36 @@
 
     function tickDemo() {
       if (state.live) return;
-      state.sun += 0.1;
+      const lightNeed = Math.max(1, Number(state.lightHours[0] || 6));
+      state.sun = state.sun >= lightNeed ? 0 : clampSunHours(state.sun + 0.1);
       state.readCount += 1;
 
       if (state.phase === 0) {
         state.soil -= 4;
         state.action = "idle";
+        state.idleStreak += 1;
         document.getElementById("reason").textContent = "环境数据持续采集，土壤湿度正在模拟下降。";
-        if (state.soil < 32) {
+        if (state.soil < state.soilThreshold + 2) {
           state.phase = 1;
-          log("检测到土壤湿度接近阈值");
+          log("检测到土壤湿度接近阈值", { level: "warn" });
         }
       } else if (state.phase === 1) {
         state.soil -= 5;
         state.action = "check";
+        state.idleStreak = 0;
         document.getElementById("reason").textContent = "土壤湿度低于 30%，进入决策阶段。";
         state.phase = 2;
-        log("触发缺水判断");
+        log("触发缺水判断", { level: "warn" });
       } else if (state.phase === 2) {
         state.action = "water";
         state.lastDuration = 8;
         state.actionCount += 1;
+        state.todayWaterCount += 1;
+        state.lastActionAt = new Date();
+        state.idleStreak = 0;
         document.getElementById("reason").textContent = "决策原因：土壤偏干，执行水泵浇水 8 秒。";
         state.phase = 3;
-        log("生成浇水决策");
+        log("生成浇水决策", { level: "warn" });
       } else {
         state.soil += 18;
         state.action = "water";
@@ -1052,6 +1572,7 @@
 
     for (let i = 0; i < 18; i += 1) {
       state.history.push({
+        ts: Date.now() - (18 - i) * 1800,
         soil: 42 + Math.sin(i / 2) * 4,
         light: 68 + Math.cos(i / 3) * 8,
         temp: 24 + Math.sin(i / 4) * 1.5,
@@ -1060,6 +1581,7 @@
     }
     log("演示模式启动");
     render();
+    document.getElementById("manualWater").addEventListener("click", triggerDemoWater);
     pollLive();
     setInterval(pollLive, 1000);
     setInterval(tickDemo, 1800);
