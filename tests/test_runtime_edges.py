@@ -132,6 +132,94 @@ class TestDemoMode:
         assert main.state.last_action == "water"
 
 
+class TestAiRequestGating:
+    def setup_method(self):
+        main.state.wifi_connected = True
+        main.state.plant_type = "test"
+        main.state.plant_info = {
+            "soil_threshold": 30,
+            "light_min": 30,
+            "light_opt": 50,
+            "light_hours": [6, 8],
+            "water_sec": 8,
+            "nutrient_sec": 5,
+            "nutrient_interval": 259200,
+        }
+        main.state.growth_stage = {"stage": "seedling"}
+        main.state.soil_moisture = 55
+        main.state.light_level = 70
+        main.state.temperature = 25
+        main.state.humidity = 60
+        main.state.sun_minutes_today = 60
+        main.state.last_nutrient_time = 0
+        main.state.start_time = 0
+        main.state.last_ai_request_time = 0
+        main.state.last_ai_snapshot = None
+        main.state.last_decision_source = "local"
+
+    def _enable_cloud(self, monkeypatch):
+        monkeypatch.setattr(main.config, "DEMO_MODE", False, raising=False)
+        monkeypatch.setattr(main.config, "AI_PROXY_URL", "http://proxy/decision", raising=False)
+        monkeypatch.setattr(main.config, "AI_MIN_REQUEST_INTERVAL", 900, raising=False)
+        monkeypatch.setattr(main.config, "AI_FORCE_REQUEST_INTERVAL", 3600, raising=False)
+        monkeypatch.setattr(main.gc, "mem_free", lambda: 200000, raising=False)
+
+    def test_stable_normal_state_skips_cloud_ai(self, monkeypatch):
+        self._enable_cloud(monkeypatch)
+        calls = []
+
+        def fake_query_decision(**kwargs):
+            calls.append(kwargs)
+            return {"action": "idle", "duration_sec": 0, "reason": "cloud"}
+
+        monkeypatch.setattr(ai_client, "query_decision", fake_query_decision)
+
+        decision = main.make_decision()
+
+        assert calls == []
+        assert decision["action"] == "idle"
+        assert main.state.last_decision_source == "local"
+
+    def test_threshold_event_allows_cloud_ai(self, monkeypatch):
+        self._enable_cloud(monkeypatch)
+        calls = []
+        main.state.soil_moisture = 20
+
+        def fake_query_decision(**kwargs):
+            calls.append(kwargs)
+            return {"action": "water", "duration_sec": 8, "reason": "cloud dry"}
+
+        monkeypatch.setattr(ai_client, "query_decision", fake_query_decision)
+
+        decision = main.make_decision()
+
+        assert len(calls) == 1
+        assert decision["action"] == "water"
+        assert main.state.last_decision_source == "cloud"
+        assert main.state.last_ai_snapshot["soil"] == 20
+
+    def test_minimum_interval_keeps_threshold_event_local(self, monkeypatch):
+        self._enable_cloud(monkeypatch)
+        calls = []
+        main.state.soil_moisture = 20
+        main.state.last_ai_request_time = 1000
+        monkeypatch.setattr(main.time, "time", lambda: 1100)
+        monkeypatch.setattr(ai_client, "query_decision", lambda **kwargs: calls.append(kwargs))
+
+        decision = main.make_decision()
+
+        assert calls == []
+        assert decision["action"] == "water"
+        assert main.state.last_decision_source == "local"
+
+
+class TestDecisionCadence:
+    def test_local_decision_runs_each_minute_by_default(self):
+        assert main.config.READ_INTERVAL == 60
+        assert main.config.DECISION_INTERVAL == 60
+        assert main.config.AI_MIN_REQUEST_INTERVAL > main.config.DECISION_INTERVAL
+
+
 class TestTelemetry:
     def test_telemetry_posts_compact_state(self, monkeypatch):
         calls = []
@@ -172,3 +260,5 @@ class TestTelemetry:
         assert calls[0]["url"].endswith("/api/state")
         assert calls[0]["headers"]["X-Dashboard-Token"] == "token"
         assert b'"soil": 41' in calls[0]["data"]
+        assert b'"soil_threshold"' in calls[0]["data"]
+        assert b'"light_min"' in calls[0]["data"]

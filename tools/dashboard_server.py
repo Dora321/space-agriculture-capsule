@@ -51,6 +51,10 @@ def _validate_state(data: dict) -> dict:
         "error_count": int(data.get("error_count", 0)),
         "uptime_sec": int(data.get("uptime_sec", data.get("uptime", 0))),
         "decision_source": str(data.get("decision_source", data.get("source", "")))[:24],
+        "soil_threshold": int(data.get("soil_threshold", 30)),
+        "light_min": int(data.get("light_min", 30)),
+        "light_opt": int(data.get("light_opt", 50)),
+        "light_hours": data.get("light_hours", [6, 8]),
     }
     state["soil"] = max(0, min(100, state["soil"]))
     state["light"] = max(0, min(100, state["light"]))

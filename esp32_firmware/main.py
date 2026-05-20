@@ -36,6 +36,8 @@ class SystemState:
         self.last_action_time = 0
         self.last_decision_reason = "status normal"
         self.last_decision_source = "local"
+        self.last_ai_request_time = 0
+        self.last_ai_snapshot = None
         self.last_nutrient_time = 0
         self.action_count = 0
         self.action_count_start = 0  # 当前计数窗口起始时间
@@ -331,6 +333,73 @@ def read_demo_sensors():
         return False
 
 
+def _sensor_snapshot():
+    stage = state.growth_stage or {}
+    return {
+        "soil": state.soil_moisture,
+        "light": state.light_level,
+        "temp": state.temperature,
+        "hum": state.humidity,
+        "plant": state.plant_type,
+        "stage": stage.get("stage", ""),
+    }
+
+
+def _abs_delta(snapshot, prev, key, default=0):
+    return abs(snapshot.get(key, default) - prev.get(key, snapshot.get(key, default)))
+
+
+def _ai_input_changed(snapshot):
+    prev = state.last_ai_snapshot
+    if not prev:
+        return False
+    if snapshot["plant"] != prev.get("plant") or snapshot["stage"] != prev.get("stage"):
+        return True
+    return (
+        _abs_delta(snapshot, prev, "soil") >= getattr(config, "AI_SOIL_DELTA", 8)
+        or _abs_delta(snapshot, prev, "light") >= getattr(config, "AI_LIGHT_DELTA", 20)
+        or _abs_delta(snapshot, prev, "temp") >= getattr(config, "AI_TEMP_DELTA", 3)
+        or _abs_delta(snapshot, prev, "hum") >= getattr(config, "AI_HUM_DELTA", 12)
+    )
+
+
+def _should_request_ai(local_decision, plant_info):
+    now = time.time()
+    snapshot = _sensor_snapshot()
+    last_ai = state.last_ai_request_time
+    min_interval = getattr(config, "AI_MIN_REQUEST_INTERVAL", 900)
+    force_interval = getattr(config, "AI_FORCE_REQUEST_INTERVAL", 3600)
+    soil_threshold = plant_info.get("soil_threshold", 30)
+    light_min = plant_info.get("light_min", 30)
+
+    threshold_event = (
+        state.soil_moisture < soil_threshold
+        or state.light_level < light_min
+        or local_decision.get("action") in ("water", "nutrient")
+    )
+    changed = _ai_input_changed(snapshot)
+    forced = last_ai > 0 and now - last_ai >= force_interval
+
+    if not (threshold_event or changed or forced):
+        return False, "stable", snapshot
+    if last_ai > 0 and now - last_ai < min_interval:
+        remain = int(min_interval - (now - last_ai))
+        return False, f"rate limited {remain}s", snapshot
+    return True, "threshold" if threshold_event else ("changed" if changed else "periodic"), snapshot
+
+
+def _local_decision(plant_info):
+    return utils.local_fallback_decision(
+        soil=state.soil_moisture,
+        plant_info=plant_info,
+        last_nutrient=state.last_nutrient_time,
+        current_time=time.time(),
+        light=state.light_level,
+        sun_minutes=state.sun_minutes_today,
+        uptime_sec=time.time() - state.start_time
+    )
+
+
 def make_decision():
     """AI决策 + 本地规则兜底"""
     plant_info = _get_plant_info()
@@ -340,23 +409,21 @@ def make_decision():
         "light_opt": plant_info.get("light_opt", 50),
         "light_hours": plant_info.get("light_hours", [6, 8]),
     }
+    local_decision = _local_decision(plant_info)
     if _demo_enabled():
         print("[Demo Decision] Using local rules for deterministic showcase")
         state.last_decision_source = "local"
-        return utils.local_fallback_decision(
-            soil=state.soil_moisture,
-            plant_info=plant_info,
-            last_nutrient=time.time(),
-            current_time=time.time(),
-            light=state.light_level,
-            sun_minutes=state.sun_minutes_today,
-            uptime_sec=time.time() - state.start_time
-        )
+        return local_decision
 
     # 尝试云端AI
     ai_result = None
     if state.wifi_connected:
-        plant_info = None
+        should_ai, skip_reason, snapshot = _should_request_ai(local_decision, plant_info)
+        if not should_ai:
+            print(f"[AI] Skipped: {skip_reason}, using local rules")
+            state.last_decision_source = "local"
+            return local_decision
+
         use_proxy = bool(getattr(config, "AI_PROXY_URL", ""))
         if not use_proxy:
             _release_display()
@@ -376,6 +443,8 @@ def make_decision():
                 growth_stage=state.growth_stage,
                 sun_minutes_today=state.sun_minutes_today
             )
+            state.last_ai_request_time = time.time()
+            state.last_ai_snapshot = snapshot
         else:
             print(f"[AI] Low memory ({free_mem} bytes), using local rules")
     
@@ -387,18 +456,7 @@ def make_decision():
     # 本地规则兜底
     print("[Local Rule] Cloud timeout, using local decision")
     state.last_decision_source = "local"
-    if plant_info is None:
-        plant_info = _get_plant_info()
-    decision = utils.local_fallback_decision(
-        soil=state.soil_moisture,
-        plant_info=plant_info,
-        last_nutrient=state.last_nutrient_time,
-        current_time=time.time(),
-        light=state.light_level,
-        sun_minutes=state.sun_minutes_today,
-        uptime_sec=time.time() - state.start_time
-    )
-    return decision
+    return local_decision
 
 
 def execute_decision(decision):
@@ -501,6 +559,7 @@ def main_loop():
     """主循环"""
     interval = _demo_value("DEMO_READ_INTERVAL", config.READ_INTERVAL) if _demo_enabled() else config.READ_INTERVAL
     last_read = 0
+    last_decision = 0
 
     while True:
         try:
@@ -529,17 +588,26 @@ def main_loop():
                     _refresh_display(force=True)
                     continue
 
-                # 安全检查
-                if not safety_check():
-                    _display().show_overlay("SAFE", 0, 56)
-                    continue
+                decision_interval = _demo_value("DEMO_READ_INTERVAL", getattr(config, "DECISION_INTERVAL", 300)) if _demo_enabled() else getattr(config, "DECISION_INTERVAL", 300)
+                if now - last_decision >= decision_interval:
+                    last_decision = now
 
-                # AI决策
-                decision = make_decision()
+                    # 安全检查
+                    if not safety_check():
+                        _display().show_overlay("SAFE", 0, 56)
+                        _send_telemetry()
+                        continue
 
-                # 执行决策
-                execute_decision(decision)
-                _send_telemetry()
+                    # AI决策
+                    decision = make_decision()
+
+                    # 执行决策
+                    execute_decision(decision)
+                    _send_telemetry()
+                else:
+                    remain = int(decision_interval - (now - last_decision))
+                    print(f"[Decision] Next decision in {remain}s")
+                    _send_telemetry()
 
                 # 显示传感器数据
                 _refresh_display(force=True, reset_page=True)

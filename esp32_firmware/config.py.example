@@ -33,6 +33,12 @@ AI_TIMEOUT = 20  # API超时时间（秒），推理模型需要较长等待
 AI_MIN_FREE_MEM = 110000  # 低于该空闲内存时跳过云端 AI，避免 ESP32 TLS 握手失败
 AI_PROXY_URL = ""  # 可填局域网代理，例如 "http://192.168.125.2:8787/decision"
 AI_PROXY_TOKEN = ""  # 可选：代理访问令牌，需与云端 AI_PROXY_TOKEN 一致
+AI_MIN_REQUEST_INTERVAL = 900   # 云端 AI 最小请求间隔（秒），避免频繁请求
+AI_FORCE_REQUEST_INTERVAL = 3600 # 即使稳定，也每小时让 AI 复核一次
+AI_SOIL_DELTA = 8               # 土壤湿度变化超过该百分比才认为明显变化
+AI_LIGHT_DELTA = 20             # 光照变化超过该百分比才认为明显变化
+AI_TEMP_DELTA = 3               # 温度变化超过该值才认为明显变化
+AI_HUM_DELTA = 12               # 湿度变化超过该百分比才认为明显变化
 
 # ============ Realtime Dashboard ============
 # Run on the computer: py tools/dashboard_server.py --host 0.0.0.0 --port 8790
@@ -44,6 +50,7 @@ DASHBOARD_TIMEOUT = 2
 
 # ============ 系统参数 ============
 READ_INTERVAL = 60        # 传感器读取间隔（秒），不低于 60 秒（正式运行建议 300 秒 = 5 分钟）
+DECISION_INTERVAL = 60    # 本地动作决策间隔（秒），默认每分钟随采样判断一次；云端 AI 另有请求门控
 PAGE_ROTATE_SEC = 5       # OLED 多页轮播间隔（秒）
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数

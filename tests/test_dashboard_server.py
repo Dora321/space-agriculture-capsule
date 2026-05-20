@@ -22,6 +22,12 @@ def test_validate_state_clamps_values_and_normalizes_action():
         "stage": "seedling",
         "action": "unknown",
         "reason": "status normal",
+        "soil_threshold": 35,
+        "light_min": 50,
+        "light_opt": 70,
+        "light_hours": [8, 12],
+        "uptime_sec": 300,
+        "decision_source": "cloud",
     })
 
     assert state["live"] is True
@@ -29,3 +35,9 @@ def test_validate_state_clamps_values_and_normalizes_action():
     assert state["light"] == 0
     assert state["humidity"] == 100
     assert state["action"] == "idle"
+    assert state["soil_threshold"] == 35
+    assert state["light_min"] == 50
+    assert state["light_opt"] == 70
+    assert state["light_hours"] == [8, 12]
+    assert state["uptime_sec"] == 300
+    assert state["decision_source"] == "cloud"
