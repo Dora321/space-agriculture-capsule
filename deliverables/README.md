@@ -9,6 +9,7 @@
 | `contest-demo-dashboard.html` | 当前实时/演示大屏，部署在 Dashboard 服务首页 |
 | `realtime-dashboard-guide.md` | 大屏本地运行、云服务器端口和 ESP32 上报配置说明 |
 | `实机验收清单.md` | 比赛/课堂展示前的硬件在环验收步骤 |
+| `仓库架构评估.md` | 当前仓库结构、风险和后续维护建议 |
 | `display-redesign-proposal-2026-05-16.md` | 大屏改版方案和设计背景 |
 
 ## 本地待确认交付物
