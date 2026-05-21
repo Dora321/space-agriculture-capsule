@@ -8,7 +8,6 @@
 import machine
 import time
 import gc
-import sys
 
 # 本地模块
 import config
@@ -18,53 +17,26 @@ import actuators
 import utils
 import action_runtime
 import decision as decision_engine
+import display_runtime
 import sensor_runtime
 from state import SystemState
 
 # 全局状态
 state = SystemState()
-_display_ready = False
-_page_index = 0
-_last_page_time = 0
 
 
 def _init_display():
     """按需初始化 OLED，避免显示模块长期占用 AI TLS 所需内存。"""
-    global _display_ready
-    import display
-    _display_ready = display.init()
-    return display
+    return display_runtime.init_display()
 
 
 def _display():
-    global _display_ready
-    import display
-    if not _display_ready:
-        _display_ready = display.init()
-    return display
+    return display_runtime.display()
 
 
 def _release_display():
     """AI 请求前释放 OLED 模块和帧缓冲，给 TLS 握手腾出堆内存。"""
-    global _display_ready
-    try:
-        mod = sys.modules.get("display")
-        if mod:
-            try:
-                mod.power_off()
-            except Exception:
-                pass
-            try:
-                mod._oled = None
-            except Exception:
-                pass
-            del sys.modules["display"]
-        if "ssd1306" in sys.modules:
-            del sys.modules["ssd1306"]
-    except Exception as e:
-        print("[Display] Release failed:", e)
-    _display_ready = False
-    gc.collect()
+    display_runtime.release_display()
 
 
 def _get_plant_info():
@@ -97,49 +69,15 @@ def _send_telemetry():
 
 def _refresh_display(force=False, reset_page=False):
     """刷新 OLED 三页轮播。force=True 时立即重绘当前页。"""
-    global _page_index, _last_page_time
-
-    now = time.time()
-    rotate_sec = getattr(config, "PAGE_ROTATE_SEC", 5)
-
-    if reset_page:
-        _page_index = 0
-        _last_page_time = now
-        force = True
-    elif _last_page_time == 0:
-        _last_page_time = now
-        force = True
-    elif now - _last_page_time >= rotate_sec:
-        _page_index = (_page_index + 1) % 3
-        _last_page_time = now
-        force = True
-
-    if not force:
-        return
-
     plant_info = _get_plant_info()
     ip = wifi_client.get_ip() if state.wifi_connected else None
-    _display().show_data(
-        soil=state.soil_moisture,
-        light=state.light_level,
-        temp=state.temperature,
-        hum=state.humidity,
-        plant=state.plant_type,
-        action=state.last_action,
-        page_index=_page_index,
+    display_runtime.refresh_display(
+        state,
         plant_info=plant_info,
-        growth_stage=state.growth_stage,
-        days_since_planting=state.days_since_planting,
-        sun_minutes_today=state.sun_minutes_today,
-        wifi_connected=state.wifi_connected,
         ip=ip,
         ai_enabled=_ai_enabled(),
-        start_time=state.start_time,
-        action_count=state.action_count,
-        read_count=state.read_count,
-        last_action_duration=state.last_action_duration,
-        last_action_time=state.last_action_time,
-        decision_reason=state.last_decision_reason,
+        force=force,
+        reset_page=reset_page,
     )
 
 
