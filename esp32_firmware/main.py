@@ -16,6 +16,7 @@ import wifi_client
 import sensors
 import actuators
 import utils
+import action_runtime
 import decision as decision_engine
 import sensor_runtime
 from state import SystemState
@@ -225,91 +226,19 @@ def make_decision():
 
 def execute_decision(decision):
     """执行决策"""
-    action = decision.get('action', 'idle')
-    duration = min(decision.get('duration_sec', 0), config.PUMP_MAX_RUN_SEC)  # 安全上限
-    reason = decision.get('reason', '')
-    valid_actions = ("water", "nutrient", "idle")
-
-    if action not in valid_actions:
-        print(f"[Action] Unknown action '{action}', forcing idle")
-        action = "idle"
-        duration = 0
-        reason = "unknown action"
-    
-    if action == 'idle':
-        print("[Action] Idle")
-        actuators.all_off()
-        state.last_action = 'idle'
-        state.last_action_duration = 0
-        state.last_action_time = time.time()
-        state.last_decision_reason = reason
-        _refresh_display(force=True, reset_page=True)
-        return
-    
-    # 执行动作
-    print(f"[Action] Executing: {action} ({duration}s) Reason: {reason}")
-    
-    # 状态LED设为黄色（执行中）
-    utils.set_led("yellow")
-
-    # 执行动作期间覆盖轮播，动作完成后恢复
-    _display().show_action(action, duration, reason)
-    
-    if action == "water":
-        actuators.run_water_pump(duration)
-        if _demo_enabled():
-            state.demo_soil_moisture = _demo_value("DEMO_RECOVER_SOIL", 55)
-            state.soil_moisture = int(state.demo_soil_moisture)
-    elif action == "nutrient":
-        actuators.run_nutrient_pump(duration)
-    # 更新动作记录
-    state.last_action = action
-    state.last_action_duration = duration
-    state.last_action_time = time.time()
-    state.last_decision_reason = reason
-    state.action_count += 1
-    
-    if action == "nutrient":
-        state.last_nutrient_time = state.last_action_time
-    
-    # 状态LED设为绿色（完成）
-    utils.set_led("green")
-    
-    _refresh_display(force=True, reset_page=True)
+    return action_runtime.execute_decision(
+        state,
+        decision,
+        demo_enabled=_demo_enabled(),
+        demo_recover_soil=_demo_value("DEMO_RECOVER_SOIL", 55),
+        show_action=lambda action, duration, reason: _display().show_action(action, duration, reason),
+        refresh_display=_refresh_display,
+    )
 
 
 def safety_check():
     """安全检查 - 防止连续动作导致系统损坏"""
-    now = time.time()
-
-    # 检查执行器实际硬件状态（防止状态脱节）
-    if actuators.is_any_running():
-        print("[Safety] Actuator running, skipped")
-        return False
-
-    if _demo_enabled():
-        return True
-
-    # 检查距离上次动作是否过短（防抖）
-    if state.last_action != "idle":
-        elapsed = now - state.last_action_time
-        if elapsed < config.MIN_ACTION_INTERVAL:
-            print(f"[Safety] Action interval too short ({elapsed:.0f}s), skipped")
-            return False
-    
-    # 检查动作次数（每小时最多N次）
-    now = time.time()
-    if now - state.action_count_start >= 3600:
-        # 超过1小时，重置计数窗口
-        state.action_count_start = now
-        state.action_count = 0
-
-    if state.action_count >= config.MAX_ACTIONS_PER_HOUR:
-        print("[Safety] Hourly action limit exceeded, waiting...")
-        time.sleep(60)
-        return False
-    
-    return True
+    return action_runtime.safety_check(state, demo_enabled=_demo_enabled())
 
 
 def watch_dog():
