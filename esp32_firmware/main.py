@@ -12,10 +12,9 @@ import gc
 # 本地模块
 import config
 import wifi_client
-import sensors
 import actuators
-import utils
 import action_runtime
+import boot_runtime
 import decision as decision_engine
 import display_runtime
 import sensor_runtime
@@ -83,58 +82,15 @@ def _refresh_display(force=False, reset_page=False):
 
 def init_system():
     """系统初始化"""
-    print("=" * 50)
-    if _demo_enabled():
-        print("[Demo] DEMO_MODE enabled: using simulated contest data")
-    print("  Space Agriculture Growth Chamber System v1.0")
-    print("=" * 50)
-    
-    state.start_time = time.time()
-    state.action_count_start = time.time()
-    
-    # 初始化各模块（按依赖顺序：显示→传感器→执行器）
-    print("[System] Initializing OLED display...")
-    _init_display()
-    
-    # 显示启动信息
-    _display().show_boot()
-    
-    print("[System] Initializing sensors...")
-    sensors.init()
-    
-    print("[System] Initializing actuators...")
-    actuators.init()
-    
-    print("[System] Initializing status LEDs...")
-    utils.init_leds()
-    
-    # 连接WiFi
-    state.wifi_connected = wifi_client.connect()
-    
-    if state.wifi_connected:
-        print("[WiFi] Connected, IP:", wifi_client.get_ip())
-        _display().show_text("WiFi OK!", 20, 40)
-    else:
-        print("[WiFi] Connection failed, using local rules")
-        _display().show_text("WiFi Failed", 20, 40)
-    
-    time.sleep(1)
-    
-    _display().show_text("System Ready!", 20, 40)
-    time.sleep(1)
-
-    # 首次完整读取传感器（确保屏幕立刻显示真实数据而非默认0）
-    read_all_sensors()
-    print("[Plant] Current type:", state.plant_type)
-
-    # 显示初始待机画面
-    _refresh_display(force=True, reset_page=True)
-    _send_telemetry()
-
-    print("[System] Initialization complete, starting main loop")
-    print("=" * 50)
-
-    return True
+    return boot_runtime.init_system(
+        state,
+        demo_enabled=_demo_enabled(),
+        init_display=_init_display,
+        display=_display,
+        read_all_sensors=read_all_sensors,
+        refresh_display=_refresh_display,
+        send_telemetry=_send_telemetry,
+    )
 
 
 def read_all_sensors():
