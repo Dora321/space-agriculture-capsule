@@ -12,11 +12,11 @@ import gc
 # 本地模块
 import config
 import wifi_client
-import actuators
 import action_runtime
 import boot_runtime
 import decision as decision_engine
 import display_runtime
+import loop_runtime
 import sensor_runtime
 from state import SystemState
 
@@ -144,82 +144,18 @@ def watch_dog():
 
 def main_loop():
     """主循环"""
-    interval = _demo_value("DEMO_READ_INTERVAL", config.READ_INTERVAL) if _demo_enabled() else config.READ_INTERVAL
-    last_read = 0
-    last_decision = 0
-
-    while True:
-        try:
-            now = time.time()
-
-            # 空闲时按 PAGE_ROTATE_SEC 轮播 OLED 页面
-            _refresh_display()
-
-            # 定期读取传感器
-            if now - last_read >= interval:
-                last_read = now
-                state.read_count += 1
-
-                # 读取前提示用户，避免在 DHT 慢速读取时误以为卡死
-                _display().show_overlay(f"R{state.read_count}", 0, 56)
-
-                # 读取传感器
-                read_ok = read_all_sensors()
-
-                if not read_ok:
-                    # [DEBUG] 读取失败时显示错误，而不是静默跳过
-                    _display().show_overlay("ERR!", 0, 56)
-                    print(f"[DEBUG] read_all_sensors failed, count={state.read_count}")
-                    time.sleep(2)
-                    # 即使失败也刷新显示（用旧值），让用户看到系统还在跑
-                    _refresh_display(force=True)
-                    continue
-
-                decision_interval = _demo_value("DEMO_READ_INTERVAL", getattr(config, "DECISION_INTERVAL", 300)) if _demo_enabled() else getattr(config, "DECISION_INTERVAL", 300)
-                if now - last_decision >= decision_interval:
-                    last_decision = now
-
-                    # 安全检查
-                    if not safety_check():
-                        _display().show_overlay("SAFE", 0, 56)
-                        _send_telemetry()
-                        continue
-
-                    # AI决策
-                    decision = make_decision()
-
-                    # 执行决策
-                    execute_decision(decision)
-                    _send_telemetry()
-                else:
-                    remain = int(decision_interval - (now - last_decision))
-                    print(f"[Decision] Next decision in {remain}s")
-                    _send_telemetry()
-
-                # 显示传感器数据
-                _refresh_display(force=True, reset_page=True)
-                _send_telemetry()
-
-                # 检查是否需要重连WiFi
-                if not wifi_client.is_connected():
-                    print("[WiFi] Disconnected, attempting reconnect...")
-                    state.wifi_connected = wifi_client.smart_connect()
-
-                # 释放内存
-                gc.collect()
-
-            # 空闲时短暂休眠
-            time.sleep(1)
-
-        except KeyboardInterrupt:
-            print("\n[System] User interrupted, turning off all actuators")
-            actuators.all_off()
-            break
-        except Exception as e:
-            print("[Error] Main loop exception:", e)
-            state.error_count += 1
-            watch_dog()
-            time.sleep(5)
+    return loop_runtime.run_loop(
+        state,
+        demo_enabled=_demo_enabled(),
+        display=_display,
+        refresh_display=_refresh_display,
+        read_all_sensors=read_all_sensors,
+        safety_check=safety_check,
+        make_decision=make_decision,
+        execute_decision=execute_decision,
+        send_telemetry=_send_telemetry,
+        watch_dog=watch_dog,
+    )
 
 
 def run():
