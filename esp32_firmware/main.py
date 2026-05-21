@@ -17,6 +17,7 @@ import sensors
 import actuators
 import utils
 import decision as decision_engine
+import sensor_runtime
 from state import SystemState
 
 # 全局状态
@@ -63,11 +64,6 @@ def _release_display():
         print("[Display] Release failed:", e)
     _display_ready = False
     gc.collect()
-
-
-def _format_date():
-    t = time.localtime()
-    return f"{t[0]}-{t[1]}-{t[2]}"
 
 
 def _get_plant_info():
@@ -204,107 +200,16 @@ def init_system():
 
 def read_all_sensors():
     """读取所有传感器数据，检测传感器离线"""
-    if _demo_enabled():
-        return read_demo_sensors()
-
-    try:
-        soil = sensors.read_soil_moisture()
-        light = sensors.read_light_level()
-        temp, hum = sensors.read_dht22()
-        plant = sensors.read_plant_type()
-        
-        # 检测传感器离线（返回 None 表示故障）
-        sensor_failures = []
-        if soil is None:
-            sensor_failures.append("Soil")
-            soil = 0  # 降级为 0，触发本地规则的安全浇水
-        if light is None:
-            sensor_failures.append("Light")
-            light = 0
-        if temp is None or hum is None:
-            sensor_failures.append("DHT")
-            temp = temp if temp is not None else 25.0
-            hum = hum if hum is not None else 60.0
-        
-        # 传感器离线告警
-        if sensor_failures:
-            fail_msg = "OFFLINE: " + ",".join(sensor_failures)
-            print(f"[Alert] Sensor offline: {fail_msg}")
-            utils.set_led("red")
-            _display().show_error(fail_msg)
-            time.sleep(2)  # 告警显示 2 秒
-            state.error_count += 1
-        
-        state.soil_moisture = soil
-        state.light_level = light
-        state.temperature = temp
-        state.humidity = hum
-        state.plant_type = plant
-        
-        # 计算生长天数和当前阶段
-        state.days_since_planting = config.calc_days_since_planting()
-        state.plant_info = config.get_plant_info(plant)
-        state.growth_stage = config.get_growth_stage(state.plant_info, state.days_since_planting)
-
-        # 累计当日达标光照时长，跨日自动清零
-        today = _format_date()
-        if today != state.sun_date:
-            state.sun_date = today
-            state.sun_minutes_today = 0
-        light_min = state.plant_info.get("light_min", 30)
-        if state.light_level >= light_min:
-            state.sun_minutes_today += int(config.READ_INTERVAL / 60)
-        
-        stage_name = state.growth_stage.get("stage", "unknown")
-        fert = state.growth_stage.get("fert", "NPK")
-        print(f"[Sensor] Soil:{state.soil_moisture}% | Light:{state.light_level}% | Temp:{state.temperature}C | Hum:{state.humidity}%")
-        print(f"[Growth] Day {state.days_since_planting} | Stage: {stage_name} | Fert: {fert} | Sun:{state.sun_minutes_today / 60:.1f}h")
-        
-        # 成功读取，重置连续错误计数（看门狗只追踪连续错误）
-        state.error_count = 0
-        return True
-    except Exception as e:
-        print("[Error] Sensor read failed:", e)
-        state.error_count += 1
-        return False
+    return sensor_runtime.read_all_sensors(
+        state,
+        demo_enabled=_demo_enabled(),
+        show_error=lambda fail_msg: _display().show_error(fail_msg),
+    )
 
 
 def read_demo_sensors():
     """Generate fast-changing contest demo data without physical sensor changes."""
-    try:
-        plant = _demo_value("DEMO_PLANT_TYPE", "生菜")
-        if state.demo_soil_moisture is None:
-            state.demo_soil_moisture = _demo_value("DEMO_START_SOIL", 42)
-        else:
-            drop = _demo_value("DEMO_SOIL_DROP", 7)
-            state.demo_soil_moisture = max(0, state.demo_soil_moisture - drop)
-
-        state.soil_moisture = int(state.demo_soil_moisture)
-        state.light_level = _demo_value("DEMO_LIGHT_LEVEL", 72)
-        state.temperature = _demo_value("DEMO_TEMPERATURE", 24.5)
-        state.humidity = _demo_value("DEMO_HUMIDITY", 62)
-        state.plant_type = plant
-        state.days_since_planting = max(0, state.read_count + 6)
-        state.plant_info = config.get_plant_info(plant)
-        state.growth_stage = config.get_growth_stage(state.plant_info, state.days_since_planting)
-
-        today = _format_date()
-        if today != state.sun_date:
-            state.sun_date = today
-            state.sun_minutes_today = 0
-        state.sun_minutes_today += int(_demo_value("DEMO_READ_INTERVAL", 5))
-
-        stage_name = state.growth_stage.get("stage", "unknown")
-        print(
-            f"[Demo Sensor] Soil:{state.soil_moisture}% | Light:{state.light_level}% | "
-            f"Temp:{state.temperature}C | Hum:{state.humidity}% | Stage:{stage_name}"
-        )
-        state.error_count = 0
-        return True
-    except Exception as e:
-        print("[Demo] Sensor simulation failed:", e)
-        state.error_count += 1
-        return False
+    return sensor_runtime.read_demo_sensors(state)
 
 
 def make_decision():

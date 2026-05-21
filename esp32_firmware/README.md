@@ -12,6 +12,7 @@ esp32_firmware/
 ├── plants.json          # 植物数据库（14种植物的养护参数和生长阶段）
 ├── state.py             # 主循环共享运行状态
 ├── decision.py          # 本地规则、AI 请求门控和云端决策编排
+├── sensor_runtime.py    # 传感器读取编排、离线降级和生长统计
 ├── sensors.py           # 传感器读取模块
 ├── actuators.py         # 执行器控制模块
 ├── wifi_client.py       # WiFi 连接模块
@@ -85,6 +86,7 @@ py -m mpremote connect COM3 cp plants.json :
 py -m mpremote connect COM3 cp main.py :
 py -m mpremote connect COM3 cp state.py :
 py -m mpremote connect COM3 cp decision.py :
+py -m mpremote connect COM3 cp sensor_runtime.py :
 py -m mpremote connect COM3 cp sensors.py :
 py -m mpremote connect COM3 cp actuators.py :
 py -m mpremote connect COM3 cp wifi_client.py :
