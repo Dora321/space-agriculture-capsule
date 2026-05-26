@@ -137,3 +137,64 @@ class TestAllPlants:
                 last_nutrient=100, current_time=100,
             )
             assert d["action"] == "idle", f"植物 '{name}' 正常状态下未待机"
+
+
+class TestTemperatureSafety:
+    """温度安全规则：高温/低温下推迟浇水，但极度干旱仍优先救命"""
+
+    def test_high_temp_skips_normal_watering(self):
+        """土壤偏干但高温 → 推迟浇水，给出温度原因"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 5,
+            plant_info=info,
+            last_nutrient=0, current_time=1000,
+            temperature=config.TEMP_HIGH_C + 1,
+        )
+        assert d["action"] == "idle"
+        assert "HIGH" in d["reason"]
+
+    def test_low_temp_skips_normal_watering(self):
+        """土壤偏干但低温 → 推迟浇水，给出温度原因"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 5,
+            plant_info=info,
+            last_nutrient=0, current_time=1000,
+            temperature=config.TEMP_LOW_C - 1,
+        )
+        assert d["action"] == "idle"
+        assert "LOW" in d["reason"]
+
+    def test_critical_dry_overrides_high_temp(self):
+        """土壤极度干旱（< thr-15）→ 即使高温也救命浇水"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 20,
+            plant_info=info,
+            last_nutrient=0, current_time=1000,
+            temperature=config.TEMP_HIGH_C + 5,
+        )
+        assert d["action"] == "water"
+
+    def test_safe_temp_allows_watering(self):
+        """温度安全区间内，土壤偏干仍正常浇水"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 5,
+            plant_info=info,
+            last_nutrient=0, current_time=1000,
+            temperature=24,
+        )
+        assert d["action"] == "water"
+
+    def test_none_temperature_falls_back_to_legacy_behavior(self):
+        """温度传感器离线（None）→ 不改变原决策行为"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 5,
+            plant_info=info,
+            last_nutrient=0, current_time=1000,
+            temperature=None,
+        )
+        assert d["action"] == "water"
