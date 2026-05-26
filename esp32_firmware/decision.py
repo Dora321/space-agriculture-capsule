@@ -71,6 +71,7 @@ def local_decision(state, plant_info):
         light=state.light_level,
         sun_minutes=state.sun_minutes_today,
         uptime_sec=time.time() - state.start_time,
+        temperature=state.temperature,
     )
 
 

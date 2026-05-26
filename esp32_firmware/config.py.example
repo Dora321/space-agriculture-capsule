@@ -116,6 +116,13 @@ PUMP_WATER_DEFAULT_SEC = 8     # 默认浇水时长（秒）
 PUMP_NUTRIENT_DEFAULT_SEC = 5 # 默认营养液时长（秒）
 PUMP_MAX_RUN_SEC = 60          # 单次最大运行时长（安全限制）
 
+# ============ 温度安全护栏 ============
+# 超过 TEMP_HIGH_C 视为高温，跳过浇水避免叶面灼伤 + 闷根
+# 低于 TEMP_LOW_C 视为低温，跳过浇水避免冻根
+# 注：太空舱内温度异常通常表示热控失效，决策上保守为先
+TEMP_HIGH_C = 35   # 高温警戒线（℃）
+TEMP_LOW_C = 8     # 低温警戒线（℃）
+
 # ============ 植物数据库 ============
 # PLANT_DB 已迁移至 plants.json（节省 RAM）
 # 如需添加新植物，请编辑 plants.json 文件

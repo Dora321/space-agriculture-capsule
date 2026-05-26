@@ -15,10 +15,11 @@ Rules:
 2. Safety first. Avoid system overload.
 3. Save water.
 4. One action at a time.
+5. Temperature safety: if temp >= 35C (high) or <= 8C (low), avoid watering (risk of scald/freeze root). Exception: if soil is critically dry (>= 15% below threshold), watering still allowed to save the plant. Mention the temperature reason explicitly.
 Actions:
-- water: if soil dry
+- water: if soil dry and temp safe
 - nutrient: if fert needed
-- idle: if normal
+- idle: if normal, or if temp is out of safe range
 - idle with reason if light is low; no light hardware action exists
 Fertilizers: N, P, K, PK, NK.
 Output strict JSON:

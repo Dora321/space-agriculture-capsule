@@ -66,11 +66,12 @@ def blink_led(color, times=3, interval_ms=500):
 
 def local_fallback_decision(
     soil, plant_info, last_nutrient, current_time,
-    light=None, sun_minutes=0, uptime_sec=0
+    light=None, sun_minutes=0, uptime_sec=0,
+    temperature=None
 ):
     """
     本地备用决策逻辑（云端超时/失败时使用）
-    
+
     参数:
         soil: 土壤湿度百分比
         plant_info: 植物参数字典
@@ -79,26 +80,44 @@ def local_fallback_decision(
         light: 当前光照百分比
         sun_minutes: 今日累计达标光照分钟数
         uptime_sec: 系统运行秒数
-    
+        temperature: 当前舱内温度（℃），None 表示传感器离线
+
     返回:
         dict: {"action": str, "duration_sec": int, "reason": str}
     """
-    
+
     soil_threshold = plant_info['soil_threshold']
     water_sec = plant_info['water_sec']
     nutrient_sec = plant_info['nutrient_sec']
     nutrient_interval = plant_info.get('nutrient_interval', 259200)  # 默认3天
-    
+    temp_high = getattr(config, "TEMP_HIGH_C", 35)
+    temp_low = getattr(config, "TEMP_LOW_C", 8)
+
     # 决策优先级
-    # 1. 土壤极度干燥 -> 立即浇水
+    # 1. 土壤极度干燥 -> 立即浇水（即使温度异常也要救命）
     if soil < soil_threshold - 15:
         return {
             "action": "water",
             "duration_sec": water_sec + 3,  # 延长一点
             "reason": "soil very dry"
         }
-    
-    # 2. 土壤干燥 -> 浇水
+
+    # 2. 温度异常 -> 在非极度干旱场景下推迟浇水，避免闷根/冻根
+    if temperature is not None:
+        if temperature >= temp_high:
+            return {
+                "action": "idle",
+                "duration_sec": 0,
+                "reason": f"temp HIGH {temperature}C>={temp_high}C, skip watering"
+            }
+        if temperature <= temp_low:
+            return {
+                "action": "idle",
+                "duration_sec": 0,
+                "reason": f"temp LOW {temperature}C<={temp_low}C, skip watering"
+            }
+
+    # 3. 土壤干燥 -> 浇水
     if soil < soil_threshold:
         return {
             "action": "water",
