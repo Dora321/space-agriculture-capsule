@@ -1,9 +1,9 @@
 """
-显示模块 - SSD1306 OLED 显示屏
+显示模块 - SH1106 OLED 显示屏
 英文模式显示（ASCII 8x8 内置字体）
 """
 
-import ssd1306
+import sh1106
 import time
 from machine import I2C, Pin
 import config
@@ -228,7 +228,7 @@ def init():
                 print("[Display] OLED not connected")
                 return False
 
-        _oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+        _oled = sh1106.SH1106_I2C(128, 64, i2c, addr=0x3C)
         _oled.fill(0)
         _oled.show()
 

@@ -41,7 +41,7 @@ esp32_firmware/
 | 继电器×2 | 5V低电平触发 | 2 |
 | 水泵 | 5V潜水泵 | 1 |
 | 营养液泵 | 12V隔膜泵 | 1 |
-| OLED | SSD1306 I2C | 1 |
+| OLED | SH1106 I2C | 1 |
 
 ### 2. 接线
 
@@ -100,6 +100,7 @@ py -m mpremote connect COM3 cp actuators.py :
 py -m mpremote connect COM3 cp wifi_client.py :
 py -m mpremote connect COM3 cp ai_client.py :
 py -m mpremote connect COM3 cp display.py :
+py -m mpremote connect COM3 cp sh1106.py :
 py -m mpremote connect COM3 cp telemetry.py :
 py -m mpremote connect COM3 cp utils.py :
 ```
@@ -186,7 +187,7 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 ### OLED 显示
 
-系统使用英文模式显示（SSD1306 内置 ASCII 5x8 字体）：
+系统使用英文模式显示（SH1106 framebuffer ASCII 5x8 字体）：
 - 启动画面："SPACE FARM v1.0"
 - 实时传感器数据：Soil/L(光照)/T/H
 - 当前动作：Water/Nutrient/Idle
@@ -335,7 +336,7 @@ py -m mpremote connect COM3
 
 1. **执行器运行期间主循环阻塞**：水泵/营养液泵运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
 
-2. **OLED 英文模式**：系统使用 SSD1306 内置 ASCII 5x8 字体显示，植物名称和状态以英文显示。如需中文显示，需自行添加 16x16 点阵字库文件。
+2. **OLED 英文模式**：系统使用 SH1106 framebuffer ASCII 5x8 字体显示，植物名称和状态以英文显示。如需中文显示，需自行添加 16x16 点阵字库文件。
 
 3. **API 密钥安全**：`config.py` 中 API 密钥为明文存储，这是嵌入式设备的常见做法。但请注意：
    - **不要将 `config.py` 上传到公开 Git 仓库**（已在 `.gitignore` 中排除）

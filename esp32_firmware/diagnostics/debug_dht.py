@@ -7,7 +7,7 @@ import machine
 import dht
 import time
 from machine import I2C, Pin
-import ssd1306
+import sh1106
 
 # 配置（与 config.py 一致）
 DHT_PIN = 4
@@ -19,7 +19,7 @@ OLED_SCL = 22
 print("[DEBUG] Init OLED...")
 try:
     i2c = I2C(0, scl=Pin(OLED_SCL), sda=Pin(OLED_SDA), freq=400000)
-    oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+    oled = sh1106.SH1106_I2C(128, 64, i2c, addr=0x3C)
     oled.fill(0)
     oled.text("DHT DEBUG", 30, 0)
     oled.text("Init...", 40, 28)

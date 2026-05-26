@@ -44,8 +44,8 @@ def release_display():
             except Exception:
                 pass
             del sys.modules["display"]
-        if "ssd1306" in sys.modules:
-            del sys.modules["ssd1306"]
+        if "sh1106" in sys.modules:
+            del sys.modules["sh1106"]
     except Exception as e:
         print("[Display] Release failed:", e)
     _display_ready = False

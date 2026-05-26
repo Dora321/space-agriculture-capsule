@@ -127,12 +127,12 @@ dht_mock.DHT22 = MockDHT22
 dht_mock.DHT11 = MockDHT22
 sys.modules["dht"] = dht_mock
 
-# ============ Mock ssd1306 / urequests ============
-ssd1306_mock = types.ModuleType("ssd1306")
+# ============ Mock sh1106 / urequests ============
+sh1106_mock = types.ModuleType("sh1106")
 
 
-class MockSSD1306_I2C:
-    def __init__(self, w, h, i2c):
+class MockSH1106_I2C:
+    def __init__(self, w, h, i2c, addr=0x3C):
         pass
 
     def fill(self, c):
@@ -160,8 +160,8 @@ class MockSSD1306_I2C:
         pass
 
 
-ssd1306_mock.SSD1306_I2C = MockSSD1306_I2C
-sys.modules["ssd1306"] = ssd1306_mock
+sh1106_mock.SH1106_I2C = MockSH1106_I2C
+sys.modules["sh1106"] = sh1106_mock
 
 urequests_mock = types.ModuleType("urequests")
 sys.modules["urequests"] = urequests_mock
