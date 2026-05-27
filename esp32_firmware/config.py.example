@@ -84,7 +84,7 @@ DHT_PIN = 4
 DHT_TYPE = "DHT11"  # 可选: "DHT11" 或 "DHT22"
 
 # 继电器（低电平触发）
-RELAY_WATER_PIN = 5       # 水泵继电器（12V 隔膜泵）
+RELAY_WATER_PIN = 5       # 水泵继电器（12V 蠕动泵）
 
 # 拨码开关（3位拨码开关，支持 8 种组合）
 # bit0~bit2 对应 DIP 开关的第1~第3位
