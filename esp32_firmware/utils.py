@@ -74,48 +74,60 @@ def local_fallback_decision(
             "reason": "soil very dry"
         }
 
-    # 2. 温度异常 -> 在非极度干旱场景下推迟浇水，避免闷根/冻根
-    if temperature is not None:
-        if temperature >= temp_high:
-            return {
-                "action": "idle",
-                "duration_sec": 0,
-                "reason": f"temp HIGH {temperature}C>={temp_high}C, skip watering"
-            }
-        if temperature <= temp_low:
-            return {
-                "action": "idle",
-                "duration_sec": 0,
-                "reason": f"temp LOW {temperature}C<={temp_low}C, skip watering"
-            }
+    # 2. 低温 -> 跳过所有执行器动作（补光灯升温对低温植物不利）
+    if temperature is not None and temperature <= temp_low:
+        return {
+            "action": "idle",
+            "duration_sec": 0,
+            "reason": f"temp LOW {temperature}C<={temp_low}C, skip all actions"
+        }
 
-    # 3. 土壤干燥 -> 浇水
-    if soil < soil_threshold:
+    # 3. 高温标记：仅跳过浇水（避免闷根），补光不受影响
+    high_temp_skip_water = False
+    if temperature is not None and temperature >= temp_high:
+        high_temp_skip_water = True
+
+    # 4. 土壤干燥（非极度）-> 温度安全时浇水
+    if soil < soil_threshold and not high_temp_skip_water:
         return {
             "action": "water",
             "duration_sec": water_sec,
             "reason": "soil dry"
         }
 
-    # 3. 光照不足 -> 仅提示用户移位，不自动执行补光
+    # 5. 光照不足 -> 补光（不受高温浇水限制影响）
     if light is not None:
         light_min = plant_info.get('light_min', 30)
         light_hours = plant_info.get('light_hours', [6, 8])
+        light_max_run = getattr(config, "LIGHT_MAX_RUN_SEC", 120)
         sun_hours = sun_minutes / 60
         if light < light_min:
+            # 补光时长 = 缺少日照时长的一半，上限 LIGHT_MAX_RUN_SEC，下限 30 秒
+            deficit_h = max(0, light_hours[0] - sun_hours)
+            light_dur = int(min(light_max_run, max(30, deficit_h * 3600 / 2)))
             return {
-                "action": "idle",
-                "duration_sec": 0,
+                "action": "light",
+                "duration_sec": light_dur,
                 "reason": f"light LOW {light}%<{light_min}%"
             }
         if uptime_sec > 43200 and sun_hours < light_hours[0]:
+            deficit_h = light_hours[0] - sun_hours
+            light_dur = int(min(light_max_run, max(30, deficit_h * 3600 / 2)))
             return {
-                "action": "idle",
-                "duration_sec": 0,
+                "action": "light",
+                "duration_sec": light_dur,
                 "reason": f"sun LOW {sun_hours:.1f}h/{light_hours[0]}h"
             }
-    
-    # 4. 一切正常
+
+    # 6. 高温但土壤不干、光照也不缺 -> 跳过浇水
+    if high_temp_skip_water:
+        return {
+            "action": "idle",
+            "duration_sec": 0,
+            "reason": f"temp HIGH {temperature}C>={temp_high}C, skip watering"
+        }
+
+    # 7. 一切正常
     return {
         "action": "idle",
         "duration_sec": 0,

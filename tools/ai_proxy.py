@@ -71,7 +71,7 @@ def _validate_decision(decision: dict) -> dict:
     if action == "nutrient":
         action = "idle"
         duration = 0
-    if action not in {"water", "idle"}:
+    if action not in {"water", "light", "idle"}:
         raise ValueError(f"invalid action: {action!r}")
     if not isinstance(duration, int):
         raise ValueError("duration_sec must be an int")

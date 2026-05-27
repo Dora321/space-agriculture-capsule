@@ -1,6 +1,7 @@
 """
 测试运行时边界：占位密钥、显示 mock、执行动作分支。
 """
+import time
 import ai_client
 import actuators
 import display
@@ -102,6 +103,24 @@ class TestExecuteDecision:
         assert main.state.action_count == 0
         assert called["water"] == 0
 
+    def test_light_action_calls_run_light(self, monkeypatch):
+        """light 动作正确调用 actuators.run_light"""
+        monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
+        monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
+        called = {"duration": None}
+        monkeypatch.setattr(actuators, "run_light", lambda d: called.__setitem__("duration", d) or True)
+
+        main.execute_decision({
+            "action": "light",
+            "duration_sec": 60,
+            "reason": "light LOW 20%<30%",
+        })
+
+        assert main.state.last_action == "light"
+        assert main.state.last_action_duration == 60
+        assert main.state.action_count == 1
+        assert called["duration"] == 60
+
 
 class TestStatusStrip:
     """WS2812 育种舱状态灯条"""
@@ -201,7 +220,7 @@ class TestAiRequestGating:
         main.state.temperature = 25
         main.state.humidity = 60
         main.state.sun_minutes_today = 60
-        main.state.start_time = 0
+        main.state.start_time = time.time() - 3600  # 1 hour uptime
         main.state.last_ai_request_time = 0
         main.state.last_ai_snapshot = None
         main.state.last_decision_source = "local"

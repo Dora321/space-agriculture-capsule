@@ -59,8 +59,8 @@ class TestIdleDecision:
         assert d["action"] == "idle"
         assert d["duration_sec"] == 0
 
-    def test_low_light_idle_hint(self):
-        """土壤正常但光照不足 → 只提示，不自动执行动作"""
+    def test_low_light_triggers_light_action(self):
+        """土壤正常但光照不足 → 执行补光"""
         info = _plant()
         d = local_fallback_decision(
             soil=info["soil_threshold"] + 20,
@@ -68,8 +68,20 @@ class TestIdleDecision:
             plant_info=info,
             current_time=100,
         )
-        assert d["action"] == "idle"
+        assert d["action"] == "light"
         assert "light LOW" in d["reason"]
+        assert d["duration_sec"] >= 30
+
+    def test_sufficient_light_no_light_action(self):
+        """光照充足 → 不触发补光"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            light=info["light_min"] + 20,
+            plant_info=info,
+            current_time=100,
+        )
+        assert d["action"] != "light"
 
 
 class TestSinglePumpInvariant:
@@ -119,28 +131,68 @@ class TestAllPlants:
 
 
 class TestTemperatureSafety:
-    """温度安全规则：高温/低温下推迟浇水，但极度干旱仍优先救命"""
+    """温度安全规则：高温跳过浇水但允许补光；低温跳过所有动作；极度干旱仍优先救命"""
 
     def test_high_temp_skips_normal_watering(self):
-        """土壤偏干但高温 → 推迟浇水，给出温度原因"""
+        """土壤偏干但高温 → 推迟浇水（光照充足时返回温度原因 idle）"""
         info = _plant()
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
             current_time=1000,
             temperature=config.TEMP_HIGH_C + 1,
+            light=info["light_min"] + 20,
         )
         assert d["action"] == "idle"
         assert "HIGH" in d["reason"]
 
-    def test_low_temp_skips_normal_watering(self):
-        """土壤偏干但低温 → 推迟浇水，给出温度原因"""
+    def test_high_temp_allows_light_action(self):
+        """高温时光照不足 → 仍可补光（补光不涉及水分）"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=1000,
+            temperature=config.TEMP_HIGH_C + 1,
+            light=info["light_min"] - 5,
+        )
+        assert d["action"] == "light"
+        assert "light LOW" in d["reason"]
+
+    def test_high_temp_dry_soil_with_low_light(self):
+        """高温+土壤偏干+光照不足 → 跳过浇水，但执行补光"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 5,
+            plant_info=info,
+            current_time=1000,
+            temperature=config.TEMP_HIGH_C + 1,
+            light=info["light_min"] - 5,
+        )
+        assert d["action"] == "light"
+        assert "light LOW" in d["reason"]
+
+    def test_low_temp_skips_all_actions(self):
+        """低温 → 跳过所有动作（包括补光和浇水）"""
         info = _plant()
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
             current_time=1000,
             temperature=config.TEMP_LOW_C - 1,
+        )
+        assert d["action"] == "idle"
+        assert "LOW" in d["reason"]
+
+    def test_low_temp_skips_light_action(self):
+        """低温时光照不足 → 也跳过补光"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=1000,
+            temperature=config.TEMP_LOW_C - 1,
+            light=info["light_min"] - 5,
         )
         assert d["action"] == "idle"
         assert "LOW" in d["reason"]

@@ -15,11 +15,11 @@ def execute_decision(
     show_action=None,
     refresh_display=None,
 ):
-    """Execute a water/nutrient/idle decision and update runtime state."""
+    """Execute a water/light/idle decision and update runtime state."""
     action = decision.get("action", "idle")
     duration = min(decision.get("duration_sec", 0), config.PUMP_MAX_RUN_SEC)
     reason = decision.get("reason", "")
-    valid_actions = ("water", "idle")
+    valid_actions = ("water", "light", "idle")
 
     # 兼容历史/AI 误返：把 nutrient 静默映射为 idle，避免单泵架构下行为不一致
     if action == "nutrient":
@@ -56,6 +56,9 @@ def execute_decision(
         if demo_enabled:
             state.demo_soil_moisture = demo_recover_soil
             state.soil_moisture = int(state.demo_soil_moisture)
+
+    if action == "light":
+        actuators.run_light(duration)
 
     state.last_action = action
     state.last_action_duration = duration

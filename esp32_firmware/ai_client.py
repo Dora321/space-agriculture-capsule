@@ -9,21 +9,23 @@ import config
 
 
 # System Prompt
-# 硬件改动 2026-05-27：单水泵架构，仅 water / idle 两个 action。
+# 硬件改动 2026-05-27：水泵 + 补光灯，water / light / idle 三个 action。
 SYSTEM_PROMPT = """You are a space agriculture AI.
-Hardware: single water pump. No nutrient/fertilizer pump exists.
+Hardware: water pump + grow light relay. No nutrient/fertilizer pump exists.
 Rules:
 1. Stage hints: Seedling=low water; Veg=high water; Bloom=low water; Fruit=high water. Fertilizer stage info is informational only and DOES NOT trigger any action.
 2. Safety first. Avoid system overload.
 3. Save water.
 4. One action at a time.
-5. Temperature safety: if temp >= 35C (high) or <= 8C (low), avoid watering (risk of scald/freeze root). Exception: if soil is critically dry (>= 15% below threshold), watering still allowed to save the plant. Mention the temperature reason explicitly.
-Actions (ONLY two valid):
+5. Temperature safety: if temp >= 35C (high), avoid watering (risk of scald/freeze root). Exception: if soil is critically dry (>= 15% below threshold), watering still allowed to save the plant. Mention the temperature reason explicitly. If temp <= 8C (low), avoid ALL actions including light.
+6. Light: if light level is below the plant's light_min, use the "light" action to turn on the grow light. Duration should compensate for insufficient sunlight (typically 30-120 seconds per cycle).
+Actions (ONLY three valid):
 - water: if soil dry and temp safe
-- idle: if normal, if temp is out of safe range, or if light is low (no light hardware exists)
+- light: if light below plant's light_min and temp not too low
+- idle: if normal, if temp is out of safe range
 NEVER output "nutrient" — there is no nutrient pump.
 Output strict JSON:
-{"action":"water|idle","duration_sec":int,"reason":"short reason"}"""
+{"action":"water|light|idle","duration_sec":int,"reason":"short reason"}"""
 
 
 def _is_placeholder_key(value):
@@ -66,8 +68,8 @@ Temp: {temp}C
 Hum: {humidity}%{stage_info}
 
 Light rules:
-- If light < min, suggest moving plant to brighter location; action must stay idle because no light relay exists.
-- If sun today is below target after long uptime, mention low sun in reason.
+- If light < min, use "light" action with appropriate duration to turn on the grow light.
+- If sun today is below target after long uptime, use "light" action to compensate.
 - Low light means less evaporation, so avoid unnecessary watering.
 
 Decision:"""
@@ -229,6 +231,7 @@ def format_decision_log(decision, soil, light, temp, plant):
     """格式化决策日志"""
     action_names = {
         "water": "浇水",
+        "light": "补光",
         "idle": "待机"
     }
     
@@ -252,10 +255,13 @@ def parse_decision_from_text(text):
     # 尝试匹配动作关键词
     action = "idle"
     duration = 0
-    
+
     if "water" in text or "浇水" in text:
         action = "water"
         duration = 8
+    elif "light" in text or "补光" in text:
+        action = "light"
+        duration = 60
     # 尝试提取时长（用简单字符串操作替代 re，避免 MicroPython re 模块不可用的风险）
     idx = text.find("duration")
     if idx >= 0:

@@ -16,6 +16,14 @@ class TestParseAction:
         d = parse_decision_from_text("建议浇水8秒")
         assert d["action"] == "water"
 
+    def test_parse_light_english(self):
+        d = parse_decision_from_text("suggest light for 60 seconds")
+        assert d["action"] == "light"
+
+    def test_parse_light_chinese(self):
+        d = parse_decision_from_text("建议补光60秒")
+        assert d["action"] == "light"
+
     def test_nutrient_text_falls_back_to_idle(self):
         """单泵架构下，AI 万一返回'营养'字样也应被解析为 idle，绝不出现 nutrient action"""
         d = parse_decision_from_text("补充营养液5秒")

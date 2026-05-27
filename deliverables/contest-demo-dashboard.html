@@ -1247,6 +1247,7 @@
     function actionLabel(action) {
       const labels = {
         water: "浇水",
+        light: "补光",
         idle: "待机",
         check: "检测中"
       };
@@ -1264,10 +1265,11 @@
       const hasEnglish = /[a-z]/i.test(String(reason || ""));
       if (text.includes("very dry")) return "土壤严重缺水，执行延长浇水。";
       if (text.includes("soil dry") || text.includes("dry")) return `土壤湿度 ${Math.round(soil)}%，低于阈值，执行浇水。`;
-      if (text.includes("light low") || text.includes("low light")) return `当前光照 ${Math.round(light)}%，建议移动到更明亮的位置。`;
-      if (text.includes("low sun") || text.includes("minimal sun")) return `今日有效光照 ${Number(sun || 0).toFixed(1)} 小时，请关注补光或摆放位置。`;
+      if (text.includes("light low") || text.includes("low light")) return `当前光照 ${Math.round(light)}%，低于阈值，启动补光灯。`;
+      if (text.includes("low sun") || text.includes("minimal sun")) return `今日有效光照 ${Number(sun || 0).toFixed(1)} 小时，启动补光灯补偿日照。`;
       if (text.includes("moist") || text.includes("adequate") || text.includes("status normal") || text.includes("normal")) return "土壤和光照状态正常，系统保持待机。";
       if (action === "water") return `土壤湿度 ${Math.round(soil)}%，执行浇水。`;
+      if (action === "light") return `光照不足，执行补光。`;
       if (!reason) return "环境状态正常，系统保持待机。";
       if (hasEnglish && action === "idle") return "当前环境处于可接受范围，系统保持待机。";
       if (hasEnglish) return "系统已根据当前环境数据生成中文决策。";
@@ -1275,7 +1277,7 @@
     }
 
     function setPhase(action, soil) {
-      if (action === "water") return 3;
+      if (action === "water" || action === "light") return 3;
       if (soil < state.soilThreshold) return 2;
       return 0;
     }
@@ -1465,7 +1467,7 @@
         state.startedAt = Date.now() - Number(data.uptime_sec) * 1000;
       }
       state.phase = setPhase(state.action, state.soil);
-      if (state.action === "water") {
+      if (state.action === "water" || state.action === "light") {
         state.lastActionAt = new Date();
         state.todayWaterCount = Math.max(state.todayWaterCount, state.actionCount);
         state.idleStreak = 0;

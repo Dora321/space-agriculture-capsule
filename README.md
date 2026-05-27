@@ -6,9 +6,9 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-80%2F80%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-87%2F87%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
-[![Cost](https://img.shields.io/badge/BOM-%C2%A5122-orange)](#)
+[![Cost](https://img.shields.io/badge/BOM-%C2%A5140-orange)](#)
 
 ---
 
@@ -60,7 +60,7 @@
 | 👨‍🚀 人力昂贵 | **全自动养护闭环** | 感知→决策→执行全链路自动化，拨码一键切换 8 种作物，无需人工配置 |
 | 🔧 故障无人维修 | **四级容错与降级** | 传感器离线→自动切安全值；执行器故障→跳过继续运行；看门狗→死机自动重启 |
 | ⚡ 能源稀缺 | **采样与决策节流** | 采样周期 60s，AI 请求门控（阈值触发+周期复核），非必要时不浪费带宽和电力 |
-| ♻️ 资源浪费不可接受 | **精量滴灌 + 安全上限** | 最小水量释放，单次最长 60s、每小时最多 12 次动作，避免过量浇水或营养液浪费 |
+| ♻️ 资源浪费不可接受 | **精量滴灌 + 智能补光 + 安全上限** | 最小水量/补光释放，单次最长 60s/120s、每小时最多 12 次动作，避免过量浇水或浪费 |
 | 🧪 多作物轮种需求 | **8 种作物完整数据库** | 每作物独立生长阶段模型（苗期→生长期→花期→果期→采收期），3 位拨码现场一键切换 |
 
 系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵**自动浇水养护 **8 种作物**（3 位拨码现场切换）。OLED 三页轮播 + **WS2812 11 颗灯珠的湿度温度计**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
@@ -96,6 +96,7 @@ flowchart LR
 
         subgraph ACT["执行层 ACT"]
             Pump["💧 精量滴灌<br/>水泵 GPIO5"]
+            Light["💡 补光灯<br/>COB GPIO18"]
             Strip["🌈 状态灯条<br/>WS2812 GPIO26"]
         end
 
@@ -137,15 +138,15 @@ flowchart LR
 |:-----|:-----|:-----|
 | **主控** | ESP32 DevKit v1 | Xtensa LX6 双核 240MHz, 520KB SRAM, WiFi 内置 |
 | **传感器** | 电容式土壤 v1.2 + HS-S20L-B 光敏 + DHT11 | 土壤湿度/光照/温湿度，共 3 类 4 个传感器 |
-| **执行器** | 12V 蠕动泵 + 单继电器 | 低电平触发，带安全超时 + 温度护栏 |
+| **执行器** | 12V 蠕动泵 + 12V COB 补光灯 + 双继电器 | 低电平触发，带安全超时 + 温度护栏 |
 | **显示** | SH1106 I2C OLED 128×64 + WS2812 11 灯珠灯条 | 三页轮播 + 湿度温度计可视化 |
 | **固件** | MicroPython · 13 个模块化文件 | 按启动/主循环/感知/决策/执行/显示/遥测拆分，单一职责 |
 | **AI** | DeepSeek V4 Flash + 代理中转 | ¥1/百万 tokens · 支持 HTTP 代理（无 TLS 压力）或直连 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 80 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 87 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
-**硬件成本**：¥122/套（批量采购可压至 ¥110/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
+**硬件成本**：¥140/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
 
 ---
 
@@ -187,7 +188,7 @@ DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
 py -m pytest
 ```
 
-预期输出：**80 passed**
+预期输出：**87 passed**
 
 ---
 
@@ -200,7 +201,7 @@ py -m pytest
 │   ├── boot_runtime.py      # 启动序列编排
 │   ├── loop_runtime.py      # 主循环调度（采样→决策→执行→遥测）
 │   ├── sensors.py           # 传感器底层读取（土壤/光照/DHT/拨码）
-│   ├── actuators.py         # 执行器底层控制（12V 水泵单继电器）
+│   ├── actuators.py         # 执行器底层控制（12V 水泵 + 12V 补光灯双继电器）
 │   ├── status_strip.py      # WS2812 状态灯条（湿度温度计 + 系统状态）
 │   ├── decision.py          # 决策编排（AI门控 + 本地规则兜底）
 │   ├── action_runtime.py    # 动作执行 + 安全检查
@@ -209,7 +210,7 @@ py -m pytest
 │   ├── ai_client.py         # DeepSeek API 客户端 + 代理中转
 │   ├── config.py.example    # 配置模板（WiFi/AI/引脚）
 │   └── plants.json          # 8 种植物完整参数数据库
-├── tests/                   # pytest 自动化测试（50 用例 ALL PASS）
+├── tests/                   # pytest 自动化测试（87 用例 ALL PASS）
 │   ├── conftest.py          # MicroPython Mock 注入层
 │   ├── test_ai_parse.py     # AI 响应解析
 │   ├── test_config.py       # 配置 + 植物数据库
@@ -250,14 +251,14 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **80 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏故障预案 |
+| 自动化测试 | **87 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |
 | 决策延迟 | 云端 AI < 3s，本地规则 < 1ms | 实时筛选有价值的突变性状；满足深空 4-24 分钟通信延迟 |
 | 采样周期 | **60 秒**采样一次 | **高密度生长数据采集**，远超人工观测密度 |
 | 固件模块 | **13 个**，单文件最大约 300 行 | 模块化，便于在轨远程热更新维护 |
-| 硬件成本 | **¥122/套** | 低成本批量部署，覆盖更多品种平行实验 |
+| 硬件成本 | **¥140/套** | 低成本批量部署，覆盖更多品种平行实验 |
 | 实机运行 | 超过 **18 天**连续运行 | 跑通一个完整速生菜生长周期 |
 
 ---
