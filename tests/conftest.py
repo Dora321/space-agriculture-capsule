@@ -169,6 +169,38 @@ sys.modules["urequests"] = urequests_mock
 # ujson → 标准 json
 sys.modules["ujson"] = __import__("json")
 
+# ============ Mock neopixel 模块（WS2812 状态灯条）============
+neopixel_mock = types.ModuleType("neopixel")
+
+
+class MockNeoPixel:
+    def __init__(self, pin, n, *args, **kwargs):
+        self._pin = pin
+        self.n = n
+        self._buf = [(0, 0, 0)] * n
+        self.last_write = None
+
+    def __setitem__(self, idx, value):
+        self._buf[idx] = value
+
+    def __getitem__(self, idx):
+        return self._buf[idx]
+
+    def __len__(self):
+        return self.n
+
+    def fill(self, color):
+        for i in range(self.n):
+            self._buf[i] = color
+
+    def write(self):
+        # 记录最后一次写入，方便测试断言
+        self.last_write = list(self._buf)
+
+
+neopixel_mock.NeoPixel = MockNeoPixel
+sys.modules["neopixel"] = neopixel_mock
+
 # ============ Mock gc 模块 ============
 gc_mock = types.ModuleType("gc")
 gc_mock.mem_free = lambda: 80000

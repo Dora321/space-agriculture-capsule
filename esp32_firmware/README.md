@@ -38,9 +38,9 @@ esp32_firmware/
 | 土壤湿度 | 电容式 v1.2 | 1 |
 | 环境亮度 | HS-S20L-B 光敏模块 | 1 |
 | 温湿度 | DHT11 | 1 |
-| 继电器×2 | 5V低电平触发 | 2 |
-| 水泵 | 5V潜水泵 | 1 |
-| 营养液泵 | 12V隔膜泵 | 1 |
+| 继电器 | 5V 低电平触发 | 1 |
+| 水泵 | 12V 隔膜泵 | 1 |
+| 状态灯条 | WS2812 RGB（11 颗灯珠） | 1 |
 | OLED | SH1106 I2C | 1 |
 
 ### 2. 接线
@@ -101,9 +101,12 @@ py -m mpremote connect COM3 cp wifi_client.py :
 py -m mpremote connect COM3 cp ai_client.py :
 py -m mpremote connect COM3 cp display.py :
 py -m mpremote connect COM3 cp sh1106.py :
+py -m mpremote connect COM3 cp status_strip.py :
 py -m mpremote connect COM3 cp telemetry.py :
 py -m mpremote connect COM3 cp utils.py :
 ```
+
+> **注意**：MicroPython 默认不内置 `neopixel` 模块的某些版本——ESP32 官方 MicroPython 是内置的；若使用裁剪固件需先 `import neopixel` 验证。
 
 > **注意**：`plants.json` 必须上传，否则 `get_plant_info()` 只能返回 fallback 最小数据。
 
@@ -178,11 +181,11 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 ### 本地规则兜底
 
-即使 WiFi 断开，AI 不可用，系统仍能根据本地规则工作：
+即使 WiFi 断开，AI 不可用，系统仍能根据本地规则工作（单泵架构 2026-05-27 起）：
 
-1. 土壤湿度 < 阈值-15 → 立即浇水（延长时间）
-2. 土壤湿度 < 阈值 → 浇水
-3. 营养液间隔到期 → 补充营养
+1. 土壤湿度 < 阈值-15 → 立即救命浇水（延长时间，温度异常也照常浇）
+2. 温度 ≥ TEMP_HIGH_C 或 ≤ TEMP_LOW_C → 跳过浇水（避免闷根/冻根）
+3. 土壤湿度 < 阈值 → 正常浇水
 4. 一切正常 → 待机
 
 ### OLED 显示
@@ -190,18 +193,28 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 系统使用英文模式显示（SH1106 framebuffer ASCII 5x8 字体）：
 - 启动画面："SPACE FARM v1.0"
 - 实时传感器数据：Soil/L(光照)/T/H
-- 当前动作：Water/Nutrient/Idle
+- 当前动作：Water/Idle
 - 错误信息：OFFLINE 告警
+
+### WS2812 状态灯条（育种舱生物指示灯）
+
+11 颗 RGB 灯珠作为"土壤湿度温度计 + 系统状态指示"：
+- **平时**：按土壤湿度点亮对应数量灯珠（每颗约 9%），颜色梯度暖红 → 黄 → 绿 → 冷蓝
+- **浇水中**：整条黄色
+- **离线/错误**：整条红色（或首尾两颗暗红常亮表示传感器离线）
+- **正常空闲**：整条柔和绿
+
+亮度通过 `WS2812_BRIGHTNESS`（0.0-1.0）控制，默认 0.4 避免功耗过高 + 不刺眼。
 
 ### 传感器离线降级
 
 | 传感器 | 离线降级值 | 说明 |
 |--------|-----------|------|
-| 土壤湿度 | 0% | 触发安全浇水 |
+| 土壤湿度 | 0% | 触发安全浇水；WS2812 首尾暗红警示 |
 | 环境亮度 | 0% | 降级为无光照 |
 | DHT11 | 25°C / 60% | 默认舒适值 |
 
-传感器离线时 LED 红闪 + OLED 显示 "OFFLINE: ..." 告警。
+传感器离线时 WS2812 红闪 + OLED 显示 "OFFLINE: ..." 告警。
 
 ### 诊断脚本
 
@@ -334,7 +347,7 @@ py -m mpremote connect COM3
 
 ## 设计限制说明
 
-1. **执行器运行期间主循环阻塞**：水泵/营养液泵运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
+1. **执行器运行期间主循环阻塞**：12V 水泵运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
 
 2. **OLED 英文模式**：系统使用 SH1106 framebuffer ASCII 5x8 字体显示，植物名称和状态以英文显示。如需中文显示，需自行添加 16x16 点阵字库文件。
 
@@ -364,8 +377,7 @@ def read_co2():
 "新植物": {
   "soil_threshold": 35,
   "water_sec": 10,
-  "nutrient_sec": 5,
-  "nutrient_interval": 259200,
+  "light_min": 30, "light_opt": 50, "light_hours": [6, 8],
   "growth_stages": [
     {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "苗期"},
     {"days": [8, 30], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "生长期"}

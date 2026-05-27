@@ -41,3 +41,16 @@ def test_validate_state_clamps_values_and_normalizes_action():
     assert state["light_hours"] == [8, 12]
     assert state["uptime_sec"] == 300
     assert state["decision_source"] == "cloud"
+
+
+def test_validate_state_remaps_legacy_nutrient_action():
+    """单泵架构：dashboard 收到旧设备的 nutrient action 应归一到 idle"""
+    dashboard_server = _load_dashboard_server()
+    state = dashboard_server._validate_state({
+        "action": "nutrient",
+        "soil": 30,
+        "light": 50,
+        "temperature": 24,
+        "humidity": 50,
+    })
+    assert state["action"] == "idle"

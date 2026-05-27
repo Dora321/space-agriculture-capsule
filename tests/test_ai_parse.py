@@ -16,9 +16,10 @@ class TestParseAction:
         d = parse_decision_from_text("建议浇水8秒")
         assert d["action"] == "water"
 
-    def test_parse_nutrient_chinese(self):
+    def test_nutrient_text_falls_back_to_idle(self):
+        """单泵架构下，AI 万一返回'营养'字样也应被解析为 idle，绝不出现 nutrient action"""
         d = parse_decision_from_text("补充营养液5秒")
-        assert d["action"] == "nutrient"
+        assert d["action"] == "idle"
 
     def test_parse_idle_default(self):
         """无关键词时默认 idle"""
@@ -55,7 +56,7 @@ class TestEdgeCases:
         d = parse_decision_from_text("WATER the plants NOW")
         assert d["action"] == "water"
 
-    def test_multiple_keywords_first_wins(self):
-        """多个关键词时，优先级：water > nutrient"""
+    def test_multiple_keywords_water_wins(self):
+        """单泵架构下，仅 water 是合法关键词；其它一律 idle"""
         d = parse_decision_from_text("water and then nutrient")
         assert d["action"] == "water"

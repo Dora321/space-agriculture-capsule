@@ -49,7 +49,7 @@ def _should_request_ai(state, local_decision, plant_info):
     threshold_event = (
         state.soil_moisture < soil_threshold
         or state.light_level < light_min
-        or local_decision.get("action") in ("water", "nutrient")
+        or local_decision.get("action") == "water"
     )
     changed = _ai_input_changed(state, snapshot)
     forced = last_ai > 0 and now - last_ai >= force_interval
@@ -66,7 +66,6 @@ def local_decision(state, plant_info):
     return utils.local_fallback_decision(
         soil=state.soil_moisture,
         plant_info=plant_info,
-        last_nutrient=state.last_nutrient_time,
         current_time=time.time(),
         light=state.light_level,
         sun_minutes=state.sun_minutes_today,

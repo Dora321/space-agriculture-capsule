@@ -67,7 +67,11 @@ def _strip_code_fence(text: str) -> str:
 def _validate_decision(decision: dict) -> dict:
     action = decision.get("action")
     duration = decision.get("duration_sec")
-    if action not in {"water", "nutrient", "idle"}:
+    # 单泵架构（2026-05-27）：legacy nutrient action 静默归一到 idle
+    if action == "nutrient":
+        action = "idle"
+        duration = 0
+    if action not in {"water", "idle"}:
         raise ValueError(f"invalid action: {action!r}")
     if not isinstance(duration, int):
         raise ValueError("duration_sec must be an int")

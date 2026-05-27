@@ -19,7 +19,7 @@ class TestWaterDecision:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 20,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
         )
         assert d["action"] == "water"
         assert d["duration_sec"] > info["water_sec"]  # 延长
@@ -30,7 +30,7 @@ class TestWaterDecision:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
         )
         assert d["action"] == "water"
         assert d["duration_sec"] == info["water_sec"]
@@ -41,34 +41,9 @@ class TestWaterDecision:
         d = local_fallback_decision(
             soil=info["soil_threshold"] + 20,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
         )
         assert d["action"] != "water"
-
-
-class TestNutrientDecision:
-    """营养液决策测试"""
-
-    def test_nutrient_interval_expired(self):
-        """营养液间隔到期 + 土壤适中 → 补充营养"""
-        info = _plant()
-        interval = info["nutrient_interval"]
-        d = local_fallback_decision(
-            soil=info["soil_threshold"] + 5,
-            plant_info=info,
-            last_nutrient=0,
-            current_time=interval + 1,
-        )
-        assert d["action"] == "nutrient"
-
-    def test_nutrient_not_due(self):
-        """营养液间隔未到 → 不补充"""
-        info = _plant()
-        d = local_fallback_decision(
-            soil=60, plant_info=info,
-            last_nutrient=100, current_time=200,
-        )
-        assert d["action"] != "nutrient"
 
 
 class TestIdleDecision:
@@ -79,7 +54,7 @@ class TestIdleDecision:
         d = local_fallback_decision(
             soil=60,
             plant_info=_plant(),
-            last_nutrient=100, current_time=100,
+            current_time=100,
         )
         assert d["action"] == "idle"
         assert d["duration_sec"] == 0
@@ -91,26 +66,32 @@ class TestIdleDecision:
             soil=info["soil_threshold"] + 20,
             light=info["light_min"] - 1,
             plant_info=info,
-            last_nutrient=100,
             current_time=100,
         )
         assert d["action"] == "idle"
         assert "light LOW" in d["reason"]
 
 
-class TestPriority:
-    """决策优先级测试"""
+class TestSinglePumpInvariant:
+    """单水泵硬件不变量：本地决策永不产出 'nutrient' 动作"""
 
-    def test_dry_beats_nutrient(self):
-        """土壤干燥优先于营养液"""
+    def test_no_nutrient_action_when_soil_dry(self):
         info = _plant()
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
-            last_nutrient=0,
-            current_time=info["nutrient_interval"] + 1,
+            current_time=10**9,  # 任意大时间戳
         )
-        assert d["action"] == "water"
+        assert d["action"] != "nutrient"
+
+    def test_no_nutrient_action_when_idle(self):
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=10**9,
+        )
+        assert d["action"] != "nutrient"
 
 
 class TestAllPlants:
@@ -122,8 +103,7 @@ class TestAllPlants:
             name = config.get_plant_name(idx)
             info = config.get_plant_info(name)
             d = local_fallback_decision(
-                soil=0, plant_info=info,
-                last_nutrient=0, current_time=1000,
+                soil=0, plant_info=info, current_time=1000,
             )
             assert d["action"] == "water", f"植物 '{name}' 土壤为0%时未触发浇水"
 
@@ -133,8 +113,7 @@ class TestAllPlants:
             name = config.get_plant_name(idx)
             info = config.get_plant_info(name)
             d = local_fallback_decision(
-                soil=80, plant_info=info,
-                last_nutrient=100, current_time=100,
+                soil=80, plant_info=info, current_time=100,
             )
             assert d["action"] == "idle", f"植物 '{name}' 正常状态下未待机"
 
@@ -148,7 +127,7 @@ class TestTemperatureSafety:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
             temperature=config.TEMP_HIGH_C + 1,
         )
         assert d["action"] == "idle"
@@ -160,7 +139,7 @@ class TestTemperatureSafety:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
             temperature=config.TEMP_LOW_C - 1,
         )
         assert d["action"] == "idle"
@@ -172,7 +151,7 @@ class TestTemperatureSafety:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 20,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
             temperature=config.TEMP_HIGH_C + 5,
         )
         assert d["action"] == "water"
@@ -183,7 +162,7 @@ class TestTemperatureSafety:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
             temperature=24,
         )
         assert d["action"] == "water"
@@ -194,7 +173,7 @@ class TestTemperatureSafety:
         d = local_fallback_decision(
             soil=info["soil_threshold"] - 5,
             plant_info=info,
-            last_nutrient=0, current_time=1000,
+            current_time=1000,
             temperature=None,
         )
         assert d["action"] == "water"

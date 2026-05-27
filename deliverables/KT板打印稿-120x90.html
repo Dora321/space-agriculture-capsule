@@ -486,10 +486,10 @@
           <div>
             <h3>执行层 ACT</h3>
             <ul>
-              <li>水泵继电器自动浇水</li>
-              <li>营养液泵按周期补充</li>
-              <li>红黄绿 LED 状态指示</li>
+              <li>12V 水泵 + 单路继电器自动浇水</li>
+              <li>WS2812 RGB 灯条 11 颗灯珠（湿度温度计 + 系统状态）</li>
               <li>单次 60 秒上限，12 次/小时限频</li>
+              <li>温度异常 ≥35℃ 或 ≤8℃ 跳过浇水</li>
             </ul>
           </div>
           <div class="note">异常动作强制 idle，传感器离线降级</div>
@@ -520,7 +520,7 @@
           </div>
           <div class="highlight">
             <h3>14 种作物参数库</h3>
-            <p>每种作物包含湿度阈值、浇水时长、营养液周期与生长阶段表。</p>
+            <p>每种作物包含湿度阈值、浇水时长、光照需求与生长阶段表。</p>
           </div>
           <div class="highlight">
             <h3>生长阶段自适应</h3>
@@ -554,7 +554,7 @@
             <tr>
               <th>样例作物</th>
               <th>浇水</th>
-              <th>营养液</th>
+              <th>光照需求</th>
               <th>阶段策略</th>
             </tr>
           </thead>
@@ -562,25 +562,25 @@
             <tr>
               <td>生菜</td>
               <td>8秒</td>
-              <td>3天</td>
+              <td>6-8 小时/天</td>
               <td>苗期少水，营养期氮肥促叶，后期可采收。</td>
             </tr>
             <tr>
               <td>番茄</td>
               <td>12秒</td>
-              <td>2天</td>
+              <td>8-12 小时/天</td>
               <td>花期减水补磷钾，果期补钾促进膨果。</td>
             </tr>
             <tr>
               <td>黄瓜</td>
               <td>15秒</td>
-              <td>2天</td>
+              <td>8-10 小时/天</td>
               <td>果期需大量水分和钾肥，策略更积极。</td>
             </tr>
             <tr>
               <td>生姜</td>
               <td>10秒</td>
-              <td>3天</td>
+              <td>4-6 小时/天</td>
               <td>避强光保湿，姜块膨大期适当控水。</td>
             </tr>
           </tbody>
@@ -592,7 +592,7 @@
       <h2 class="section-title">现场展示 <span>实物、OLED、大屏和运行日志形成完整证据链</span></h2>
       <div class="show-grid">
         <article class="media-card">
-          <div class="placeholder">放置硬件实物照片<br>ESP32 / 传感器 / 继电器 / 水泵 / 营养液泵</div>
+          <div class="placeholder">放置硬件实物照片<br>ESP32 / 传感器 / 单路继电器 / 12V 水泵 / WS2812 灯条 / OLED</div>
           <div class="media-caption">硬件原型：从传感器采集到执行器控制，全链路由 ESP32 运行。</div>
         </article>
         <article class="media-card">

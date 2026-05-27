@@ -19,7 +19,14 @@ def execute_decision(
     action = decision.get("action", "idle")
     duration = min(decision.get("duration_sec", 0), config.PUMP_MAX_RUN_SEC)
     reason = decision.get("reason", "")
-    valid_actions = ("water", "nutrient", "idle")
+    valid_actions = ("water", "idle")
+
+    # 兼容历史/AI 误返：把 nutrient 静默映射为 idle，避免单泵架构下行为不一致
+    if action == "nutrient":
+        print("[Action] 'nutrient' no longer supported (single-pump build), forcing idle")
+        action = "idle"
+        duration = 0
+        reason = "nutrient deprecated"
 
     if action not in valid_actions:
         print(f"[Action] Unknown action '{action}', forcing idle")
@@ -49,17 +56,12 @@ def execute_decision(
         if demo_enabled:
             state.demo_soil_moisture = demo_recover_soil
             state.soil_moisture = int(state.demo_soil_moisture)
-    elif action == "nutrient":
-        actuators.run_nutrient_pump(duration)
 
     state.last_action = action
     state.last_action_duration = duration
     state.last_action_time = time.time()
     state.last_decision_reason = reason
     state.action_count += 1
-
-    if action == "nutrient":
-        state.last_nutrient_time = state.last_action_time
 
     utils.set_led("green")
     if refresh_display is not None:

@@ -9,21 +9,21 @@ import config
 
 
 # System Prompt
+# 硬件改动 2026-05-27：单水泵架构，仅 water / idle 两个 action。
 SYSTEM_PROMPT = """You are a space agriculture AI.
+Hardware: single water pump. No nutrient/fertilizer pump exists.
 Rules:
-1. Stage needs: Seedling=low water/fert; Veg=high water/N; Bloom=low water, high P/K; Fruit=high water/K.
+1. Stage hints: Seedling=low water; Veg=high water; Bloom=low water; Fruit=high water. Fertilizer stage info is informational only and DOES NOT trigger any action.
 2. Safety first. Avoid system overload.
 3. Save water.
 4. One action at a time.
 5. Temperature safety: if temp >= 35C (high) or <= 8C (low), avoid watering (risk of scald/freeze root). Exception: if soil is critically dry (>= 15% below threshold), watering still allowed to save the plant. Mention the temperature reason explicitly.
-Actions:
+Actions (ONLY two valid):
 - water: if soil dry and temp safe
-- nutrient: if fert needed
-- idle: if normal, or if temp is out of safe range
-- idle with reason if light is low; no light hardware action exists
-Fertilizers: N, P, K, PK, NK.
+- idle: if normal, if temp is out of safe range, or if light is low (no light hardware exists)
+NEVER output "nutrient" — there is no nutrient pump.
 Output strict JSON:
-{"action":"water|nutrient|idle","duration_sec":int,"reason":"short reason"}"""
+{"action":"water|idle","duration_sec":int,"reason":"short reason"}"""
 
 
 def _is_placeholder_key(value):
@@ -229,7 +229,6 @@ def format_decision_log(decision, soil, light, temp, plant):
     """格式化决策日志"""
     action_names = {
         "water": "浇水",
-        "nutrient": "营养液",
         "idle": "待机"
     }
     
@@ -257,9 +256,6 @@ def parse_decision_from_text(text):
     if "water" in text or "浇水" in text:
         action = "water"
         duration = 8
-    elif "nutrient" in text or "营养" in text:
-        action = "nutrient"
-        duration = 5
     # 尝试提取时长（用简单字符串操作替代 re，避免 MicroPython re 模块不可用的风险）
     idx = text.find("duration")
     if idx >= 0:

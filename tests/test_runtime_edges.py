@@ -57,7 +57,7 @@ class TestHardwareMocks:
         display.show_text("1234567890abcdefOVER", 8, 0)
         display.show_overlay("1234567890abcdefOVER", 16, 56)
         display.show_wifi_status(True, "192.168.123.123")
-        display.show_action("nutrient", 12345678901234567890, "long")
+        display.show_action("water", 12345678901234567890, "long")
 
         for text, x, y in recorder.text_calls:
             assert 0 <= x <= 127
@@ -70,7 +70,6 @@ class TestExecuteDecision:
         actuators.init()
         main.state.last_action = "idle"
         main.state.action_count = 0
-        main.state.last_nutrient_time = 0
 
     def test_unknown_action_falls_back_to_idle(self, monkeypatch):
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
@@ -85,6 +84,59 @@ class TestExecuteDecision:
         assert main.state.last_action == "idle"
         assert main.state.last_action_duration == 0
         assert main.state.action_count == 0
+
+    def test_nutrient_action_is_remapped_to_idle(self, monkeypatch):
+        """单泵架构：AI 万一返回 nutrient 也应被静默映射为 idle，不调用泵"""
+        monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
+        monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
+        called = {"water": 0}
+        monkeypatch.setattr(actuators, "run_water_pump", lambda duration: called.__setitem__("water", called["water"] + 1) or True)
+
+        main.execute_decision({
+            "action": "nutrient",
+            "duration_sec": 5,
+            "reason": "ai legacy",
+        })
+
+        assert main.state.last_action == "idle"
+        assert main.state.action_count == 0
+        assert called["water"] == 0
+
+
+class TestStatusStrip:
+    """WS2812 育种舱状态灯条"""
+
+    def test_strip_init_returns_true_with_mock(self):
+        import status_strip
+        assert status_strip.init() is True
+
+    def test_show_moisture_lights_correct_count(self):
+        import status_strip
+        status_strip.init()
+        status_strip.show_moisture(50)
+        # 11 颗灯，50% 应点亮约 6 颗
+        lit = sum(1 for px in status_strip._np._buf if px != (0, 0, 0))
+        assert 5 <= lit <= 7
+
+    def test_show_moisture_offline_lights_warn_endpoints(self):
+        import status_strip
+        status_strip.init()
+        status_strip.show_moisture(None)
+        buf = status_strip._np._buf
+        # 离线状态：首尾两颗有颜色，中间全灭
+        assert buf[0] != (0, 0, 0)
+        assert buf[-1] != (0, 0, 0)
+        for px in buf[1:-1]:
+            assert px == (0, 0, 0)
+
+    def test_set_status_yellow_writes_all_leds(self):
+        import status_strip
+        status_strip.init()
+        status_strip.set_status("yellow")
+        for px in status_strip._np._buf:
+            # 黄色：R 高, G 中, B 低
+            r, g, b = px
+            assert r > g > b
 
 
 class TestDemoMode:
@@ -142,8 +194,6 @@ class TestAiRequestGating:
             "light_opt": 50,
             "light_hours": [6, 8],
             "water_sec": 8,
-            "nutrient_sec": 5,
-            "nutrient_interval": 259200,
         }
         main.state.growth_stage = {"stage": "seedling"}
         main.state.soil_moisture = 55
@@ -151,7 +201,6 @@ class TestAiRequestGating:
         main.state.temperature = 25
         main.state.humidity = 60
         main.state.sun_minutes_today = 60
-        main.state.last_nutrient_time = 0
         main.state.start_time = 0
         main.state.last_ai_request_time = 0
         main.state.last_ai_snapshot = None

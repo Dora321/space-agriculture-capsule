@@ -76,8 +76,9 @@ The runtime layers and where to look for each concern:
 | Decision orchestration | `decision.py` | **AI gating lives here**, not in `ai_client.py` |
 | Local fallback rules | `utils.local_fallback_decision` | Pure function — easy to test, no I/O |
 | AI HTTP + parsing | `ai_client.py` | Builds prompt, posts, parses JSON, returns `None` on any failure |
-| Action execution + safety | `action_runtime.py` → `actuators.py` | Enforces `PUMP_MAX_RUN_SEC`, `MIN_ACTION_INTERVAL`, hourly cap |
+| Action execution + safety | `action_runtime.py` → `actuators.py` | Single 12V pump (no nutrient pump since 2026-05-27); enforces `PUMP_MAX_RUN_SEC`, `MIN_ACTION_INTERVAL`, hourly cap |
 | OLED 3-page rotation | `display_runtime.py` → `display.py` → `sh1106.py` | English-only (built-in ASCII font) |
+| Status indicator | `status_strip.py` (WS2812 11 LEDs) | Soil moisture thermometer + system status. `utils.set_led/blink_led` are thin compat wrappers around it. |
 | Dashboard upload | `telemetry.py` | One-way POST to dashboard server; no command channel back |
 
 ### Decision gating (the key non-obvious piece)
@@ -111,7 +112,8 @@ These pieces of data are duplicated across files and must move together:
 |---|---|---|
 | Plant count phrasing | `plants.json` (14 entries) + 3-bit DIP (8 selectable) | `README.md`, `deliverables/评委展示方案.md`, `deliverables/KT板设计文档.md`, `deliverables/KT板展示设计-最新版.md`, `deliverables/KT板打印稿-120x90.html`, `智能种植舱控制器选型报告.md`. Canonical phrasing: **"库内 14 种 / 现场拨码 8 种"**. |
 | Test count | `py -m pytest` output | README badge + `## 📊 数据见证` table + `测试指南.md` |
-| BOM / cost | `智能种植舱控制器选型报告.md` BOM table | README badge, KT board, judge script |
+| BOM / cost | `智能种植舱控制器选型报告.md` BOM table (current: ¥122/套 single-pump) | README badge, KT board, judge script |
+| Hardware action set | `action_runtime.py` `valid_actions` tuple | `ai_client.SYSTEM_PROMPT`, `tools/ai_proxy._validate_decision`, `tools/dashboard_server._validate_state`, `deliverables/contest-demo-dashboard.html` action labels |
 | AI model name | `config.py` `AI_MODEL` | judge Q&A in `deliverables/评委展示方案.md`, KT board tech-spec table |
 
 When you change one, grep for the others before committing.
@@ -121,6 +123,8 @@ When you change one, grep for the others before committing.
 - **Pump execution blocks the main loop** for up to `PUMP_MAX_RUN_SEC` (60s). This is documented in `esp32_firmware/README.md` as an intentional simplification; sampling period is 60s, so the impact is minimal. Don't refactor to async timers without confirming with the user — the test suite assumes synchronous semantics.
 - **OLED uses built-in ASCII font only** — plant names are mapped to English in `display._PLANT_NAMES`. Adding a new plant to `plants.json` also requires adding a name there or it falls through to the raw Chinese (which won't render).
 - **Telemetry is fire-and-forget** with a short timeout (`DASHBOARD_TIMEOUT=2`); failures are swallowed by design so dashboard outages don't stall the control loop.
+- **Single-pump architecture (2026-05-27)** — there is no nutrient pump. The action set is `{water, idle}`. `action_runtime` and `ai_proxy._validate_decision` and `dashboard_server._validate_state` all silently remap any legacy `nutrient` action to `idle` for forward-compat with old recordings/AI hallucinations. Don't reintroduce `nutrient` without first adding hardware back and updating all three sites.
+- **WS2812 is the only status indicator on GPIO26** — GPIO27 is free, the old red/green LED pins are gone. If you add new visual signaling, prefer extending `status_strip.py` over re-adding discrete LEDs.
 
 ## Source-of-truth notes
 

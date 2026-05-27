@@ -29,16 +29,21 @@ class TestPlantDatabase:
             assert "growth_stages" in info, f"植物 '{name}' 缺少 growth_stages"
 
     def test_required_fields(self):
-        """每种植物必须包含所有必要字段"""
+        """每种植物必须包含所有必要字段（单泵架构：不再要求 nutrient 相关字段）"""
         required = [
             "soil_threshold",
             "light_min", "light_opt", "light_hours",
-            "water_sec", "nutrient_sec",
-            "nutrient_interval", "growth_stages",
+            "water_sec", "growth_stages",
         ]
         for name, info in _PLANT_DB.items():
             for field in required:
                 assert field in info, f"植物 '{name}' 缺少字段 '{field}'"
+
+    def test_no_nutrient_legacy_fields(self):
+        """单泵硬件后，plants.json 不应再保留 nutrient_sec / nutrient_interval"""
+        for name, info in _PLANT_DB.items():
+            assert "nutrient_sec" not in info, f"植物 '{name}' 仍存在已废弃字段 nutrient_sec"
+            assert "nutrient_interval" not in info, f"植物 '{name}' 仍存在已废弃字段 nutrient_interval"
 
     def test_min_growth_stages(self):
         """每种植物至少 2 个生长阶段"""

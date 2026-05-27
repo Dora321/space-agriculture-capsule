@@ -2,9 +2,7 @@
   "生菜": {
     "soil_threshold": 30,
     "light_min": 30, "light_opt": 50, "light_hours": [6, 8],
-    "water_sec": 8, "nutrient_sec": 5,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 8, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "少浇水保根"},
       {"days": [8, 25], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "氮肥促叶"},
       {"days": [26, 40], "stage": "harvesting", "fert": "NPK", "water_need": "normal", "note": "可陆续采收"}
@@ -13,9 +11,7 @@
   "小白菜": {
     "soil_threshold": 28,
     "light_min": 30, "light_opt": 50, "light_hours": [6, 8],
-    "water_sec": 10, "nutrient_sec": 7,
-    "nutrient_interval": 172800,
-    "growth_stages": [
+    "water_sec": 10, "growth_stages": [
       {"days": [0, 5], "stage": "seedling", "fert": "N", "water_need": "light", "note": "保持湿润"},
       {"days": [6, 20], "stage": "vegetative", "fert": "N", "water_need": "heavy", "note": "快速生长期"},
       {"days": [21, 30], "stage": "harvesting", "fert": "NPK", "water_need": "normal", "note": "可采收"}
@@ -24,9 +20,7 @@
   "菠菜": {
     "soil_threshold": 32,
     "light_min": 25, "light_opt": 45, "light_hours": [6, 8],
-    "water_sec": 9, "nutrient_sec": 6,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 9, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "出苗期忌积水"},
       {"days": [8, 30], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "氮肥催长"},
       {"days": [31, 50], "stage": "harvesting", "fert": "NPK", "water_need": "normal", "note": "可分批采摘"}
@@ -35,9 +29,7 @@
   "韭菜": {
     "soil_threshold": 30,
     "light_min": 30, "light_opt": 50, "light_hours": [6, 8],
-    "water_sec": 8, "nutrient_sec": 6,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 8, "growth_stages": [
       {"days": [0, 10], "stage": "seedling", "fert": "N", "water_need": "light", "note": "养根期少动"},
       {"days": [11, 30], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "割后追氮肥"},
       {"days": [31, 999], "stage": "harvesting", "fert": "NPK", "water_need": "normal", "note": "割一茬长一茬"}
@@ -46,9 +38,7 @@
   "番茄": {
     "soil_threshold": 35,
     "light_min": 50, "light_opt": 70, "light_hours": [8, 12],
-    "water_sec": 12, "nutrient_sec": 8,
-    "nutrient_interval": 172800,
-    "growth_stages": [
+    "water_sec": 12, "growth_stages": [
       {"days": [0, 14], "stage": "seedling", "fert": "N", "water_need": "light", "note": "控水蹲苗"},
       {"days": [15, 45], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "促枝叶生长"},
       {"days": [46, 65], "stage": "flowering", "fert": "PK", "water_need": "reduce", "note": "减水保花补磷钾"},
@@ -58,9 +48,7 @@
   "辣椒": {
     "soil_threshold": 40,
     "light_min": 45, "light_opt": 65, "light_hours": [8, 10],
-    "water_sec": 10, "nutrient_sec": 10,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 10, "growth_stages": [
       {"days": [0, 14], "stage": "seedling", "fert": "N", "water_need": "light", "note": "忌低温积水"},
       {"days": [15, 50], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "氮肥壮棵"},
       {"days": [51, 70], "stage": "flowering", "fert": "PK", "water_need": "reduce", "note": "控水促花"},
@@ -70,9 +58,7 @@
   "黄瓜": {
     "soil_threshold": 38,
     "light_min": 45, "light_opt": 65, "light_hours": [8, 10],
-    "water_sec": 15, "nutrient_sec": 8,
-    "nutrient_interval": 172800,
-    "growth_stages": [
+    "water_sec": 15, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "防徒长"},
       {"days": [8, 30], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "搭架引蔓"},
       {"days": [31, 45], "stage": "flowering", "fert": "PK", "water_need": "normal", "note": "补磷钾促雌花"},
@@ -82,9 +68,7 @@
   "茄子": {
     "soil_threshold": 40,
     "light_min": 45, "light_opt": 65, "light_hours": [8, 10],
-    "water_sec": 12, "nutrient_sec": 10,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 12, "growth_stages": [
       {"days": [0, 14], "stage": "seedling", "fert": "N", "water_need": "light", "note": "保温促根"},
       {"days": [15, 45], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "壮棵期"},
       {"days": [46, 65], "stage": "flowering", "fert": "PK", "water_need": "reduce", "note": "门茄坐住后追肥"},
@@ -94,9 +78,7 @@
   "豆角": {
     "soil_threshold": 35,
     "light_min": 40, "light_opt": 60, "light_hours": [7, 10],
-    "water_sec": 10, "nutrient_sec": 8,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 10, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "出苗期少水"},
       {"days": [8, 35], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "抽蔓搭架"},
       {"days": [36, 50], "stage": "flowering", "fert": "PK", "water_need": "reduce", "note": "控水防落花"},
@@ -106,9 +88,7 @@
   "西葫芦": {
     "soil_threshold": 38,
     "light_min": 45, "light_opt": 65, "light_hours": [8, 10],
-    "water_sec": 12, "nutrient_sec": 8,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 12, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "促根控水"},
       {"days": [8, 25], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "展叶期"},
       {"days": [26, 40], "stage": "flowering", "fert": "PK", "water_need": "reduce", "note": "人工授粉"},
@@ -118,9 +98,7 @@
   "萝卜": {
     "soil_threshold": 35,
     "light_min": 35, "light_opt": 55, "light_hours": [6, 8],
-    "water_sec": 10, "nutrient_sec": 8,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 10, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "间苗期"},
       {"days": [8, 35], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "叶丛生长"},
       {"days": [36, 70], "stage": "fruiting", "fert": "PK", "water_need": "heavy", "note": "肉质根膨大需钾"}
@@ -129,9 +107,7 @@
   "大蒜": {
     "soil_threshold": 30,
     "light_min": 30, "light_opt": 50, "light_hours": [6, 8],
-    "water_sec": 8, "nutrient_sec": 5,
-    "nutrient_interval": 345600,
-    "growth_stages": [
+    "water_sec": 8, "growth_stages": [
       {"days": [0, 10], "stage": "seedling", "fert": "N", "water_need": "light", "note": "扎根期"},
       {"days": [11, 40], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "蒜苗采收期"},
       {"days": [41, 80], "stage": "fruiting", "fert": "PK", "water_need": "reduce", "note": "蒜头膨大控水"}
@@ -140,9 +116,7 @@
   "葱": {
     "soil_threshold": 28,
     "light_min": 25, "light_opt": 45, "light_hours": [6, 8],
-    "water_sec": 6, "nutrient_sec": 4,
-    "nutrient_interval": 345600,
-    "growth_stages": [
+    "water_sec": 6, "growth_stages": [
       {"days": [0, 7], "stage": "seedling", "fert": "N", "water_need": "light", "note": "缓苗期"},
       {"days": [8, 999], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "持续生长随割随长"}
     ]
@@ -150,9 +124,7 @@
   "生姜": {
     "soil_threshold": 45,
     "light_min": 20, "light_opt": 40, "light_hours": [4, 6],
-    "water_sec": 10, "nutrient_sec": 8,
-    "nutrient_interval": 259200,
-    "growth_stages": [
+    "water_sec": 10, "growth_stages": [
       {"days": [0, 15], "stage": "seedling", "fert": "N", "water_need": "light", "note": "避强光保湿"},
       {"days": [16, 60], "stage": "vegetative", "fert": "N", "water_need": "heavy", "note": "分蘖期大量需水"},
       {"days": [61, 120], "stage": "fruiting", "fert": "PK", "water_need": "reduce", "note": "姜块膨大期控水"}

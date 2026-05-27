@@ -59,7 +59,7 @@ def _validate_state(data: dict) -> dict:
     state["soil"] = max(0, min(100, state["soil"]))
     state["light"] = max(0, min(100, state["light"]))
     state["humidity"] = max(0, min(100, state["humidity"]))
-    if state["action"] not in {"water", "nutrient", "idle"}:
+    if state["action"] not in {"water", "idle"}:
         state["action"] = "idle"
     return state
 

@@ -43,7 +43,6 @@ _STAGE_CODES = {
 
 _ACTION_NAMES = {
     "water": "WATER",
-    "nutrient": "NUTRIENT",
     "idle": "IDLE",
 }
 

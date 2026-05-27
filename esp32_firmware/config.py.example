@@ -84,8 +84,7 @@ DHT_PIN = 4
 DHT_TYPE = "DHT11"  # 可选: "DHT11" 或 "DHT22"
 
 # 继电器（低电平触发）
-RELAY_WATER_PIN = 5       # 水泵继电器
-RELAY_NUTRIENT_PIN = 18   # 营养液泵继电器
+RELAY_WATER_PIN = 5       # 水泵继电器（12V 隔膜泵）
 
 # 拨码开关（3位拨码开关，支持 8 种组合）
 # bit0~bit2 对应 DIP 开关的第1~第3位
@@ -97,9 +96,14 @@ OLED_SDA_PIN = 21
 OLED_SCL_PIN = 22
 OLED_I2C_FREQ = 400000
 
-# 状态LED
-LED_RED_PIN = 27
-LED_GREEN_PIN = 26
+# WS2812 状态灯条（11 颗灯珠的可寻址 RGB 灯条）
+# 用作「育种舱生物指示灯」：
+#   - 平时：按土壤湿度点亮对应数量灯珠（每颗约 9%），颜色梯度暖红→绿→冷蓝
+#   - 浇水中：整条黄色脉冲呼吸
+#   - 错误/离线：整条红色闪烁
+WS2812_PIN = 26
+WS2812_LED_COUNT = 11
+WS2812_BRIGHTNESS = 0.4   # 0.0-1.0，避免功耗过高 + 不刺眼
 
 # ============ 传感器参数 ============
 # 土壤湿度参数
@@ -113,7 +117,6 @@ LIGHT_INVERT = True       # True: ADC 越大越暗；False: ADC 越大越亮
 
 # ============ 执行器参数 ============
 PUMP_WATER_DEFAULT_SEC = 8     # 默认浇水时长（秒）
-PUMP_NUTRIENT_DEFAULT_SEC = 5 # 默认营养液时长（秒）
 PUMP_MAX_RUN_SEC = 60          # 单次最大运行时长（安全限制）
 
 # ============ 温度安全护栏 ============

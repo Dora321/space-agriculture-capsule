@@ -1,71 +1,43 @@
 """
 工具模块 - 通用工具函数
+
+状态指示由 status_strip（WS2812 灯条）承担；set_led / blink_led 保留为
+向后兼容的薄壳函数。
 """
 
 import machine
 import time
 import config
-from machine import Pin
-
-
-# ============ 全局 LED 对象 ============
-_led_red = None
-_led_green = None
-_led_yellow = None  # 红+绿组合
+import status_strip
 
 
 def init_leds():
-    """初始化状态 LED"""
-    global _led_red, _led_green
-    
-    try:
-        _led_red = Pin(config.LED_RED_PIN, Pin.OUT, value=1)
-        _led_green = Pin(config.LED_GREEN_PIN, Pin.OUT, value=1)
-        print("[LED] Status LED initialized")
-    except Exception as e:
-        print(f"[LED] Initialization failed: {e}")
+    """初始化状态灯条（WS2812）"""
+    status_strip.init()
 
 
 def set_led(color):
-    """
-    设置状态 LED 颜色
-    color: "red", "green", "yellow", "off"
-    """
-    if _led_red is None or _led_green is None:
-        return
-    
-    if color == "red":
-        _led_red.value(0)    # 低电平亮
-        _led_green.value(1)  # 高电平灭
-    elif color == "green":
-        _led_red.value(1)
-        _led_green.value(0)
-    elif color == "yellow":
-        _led_red.value(0)
-        _led_green.value(0)
-    else:  # off
-        _led_red.value(1)
-        _led_green.value(1)
+    """切换状态灯条颜色。color: "red" / "green" / "yellow" / "off" """
+    status_strip.set_status(color)
 
 
 def blink_led(color, times=3, interval_ms=500):
+    """状态灯条闪烁"""
+    status_strip.blink(color, times=times, interval_ms=interval_ms)
+
+
+def show_soil_indicator(pct):
+    """土壤湿度温度计：按百分比点亮对应数量灯珠 + 颜色梯度。
+
+    pct=None 或 <0 表示传感器离线，灯条会显示警示状态。
     """
-    LED 闪烁
-    color: 颜色
-    times: 闪烁次数
-    interval_ms: 间隔（毫秒）
-    """
-    for _ in range(times):
-        set_led(color)
-        time.sleep_ms(interval_ms)
-        set_led("off")
-        time.sleep_ms(interval_ms)
+    status_strip.show_moisture(pct)
 
 
 # ============ 本地决策规则 ============
 
 def local_fallback_decision(
-    soil, plant_info, last_nutrient, current_time,
+    soil, plant_info, last_nutrient=0, current_time=0,
     light=None, sun_minutes=0, uptime_sec=0,
     temperature=None
 ):
@@ -75,8 +47,8 @@ def local_fallback_decision(
     参数:
         soil: 土壤湿度百分比
         plant_info: 植物参数字典
-        last_nutrient: 上次营养液时间戳
-        current_time: 当前时间戳
+        last_nutrient: 已废弃（保留以兼容旧测试调用），单泵后不再使用
+        current_time: 当前时间戳（保留参数以避免破坏既有调用签名）
         light: 当前光照百分比
         sun_minutes: 今日累计达标光照分钟数
         uptime_sec: 系统运行秒数
@@ -84,12 +56,12 @@ def local_fallback_decision(
 
     返回:
         dict: {"action": str, "duration_sec": int, "reason": str}
+
+    硬件改动 2026-05-27：单水泵架构，不再产出 "nutrient" 动作。
     """
 
     soil_threshold = plant_info['soil_threshold']
     water_sec = plant_info['water_sec']
-    nutrient_sec = plant_info['nutrient_sec']
-    nutrient_interval = plant_info.get('nutrient_interval', 259200)  # 默认3天
     temp_high = getattr(config, "TEMP_HIGH_C", 35)
     temp_low = getattr(config, "TEMP_LOW_C", 8)
 
@@ -143,18 +115,7 @@ def local_fallback_decision(
                 "reason": f"sun LOW {sun_hours:.1f}h/{light_hours[0]}h"
             }
     
-    # 4. 需要补充营养液（定时）
-    time_since_nutrient = current_time - last_nutrient
-    if time_since_nutrient > nutrient_interval:
-        # 土壤不太干时可以补营养
-        if soil < soil_threshold + 15:
-            return {
-                "action": "nutrient",
-                "duration_sec": nutrient_sec,
-                "reason": "nutrient due"
-            }
-    
-    # 5. 一切正常
+    # 4. 一切正常
     return {
         "action": "idle",
         "duration_sec": 0,

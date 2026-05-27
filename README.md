@@ -6,7 +6,7 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-74%2F74%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-80%2F80%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5135-orange)](#)
 
@@ -63,7 +63,7 @@
 | ♻️ 资源浪费不可接受 | **精量滴灌 + 安全上限** | 最小水量释放，单次最长 60s、每小时最多 12 次动作，避免过量浇水或营养液浪费 |
 | 🧪 多作物轮种需求 | **14 种作物完整数据库** | 每作物独立生长阶段模型（苗期→生长期→花期→果期→采收期），3 位拨码现场切换 8 种核心作物，剩余 6 种可代码切换 |
 
-系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **水泵和营养液泵**自动养护作物（库内 14 种参数，3 位拨码现场切换 8 种核心作物）。从传感器到执行器、从 OLED 小屏到 Web 大屏（模拟地面遥测/育种科学家数据看板），形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
+系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵**自动浇水养护作物（库内 14 种参数，3 位拨码现场切换 8 种核心作物）。OLED 三页轮播 + **WS2812 11 颗灯珠的湿度温度计**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
 
 项目面向 **STEM 科创教育**与**科技竞赛展示**（科学性 40 分 + 创新性 30 分 + 演讲 20 分 + 展示力 10 分）。
 
@@ -96,7 +96,7 @@ flowchart LR
 
         subgraph ACT["执行层 ACT"]
             Pump["💧 精量滴灌<br/>水泵 GPIO5"]
-            Nutrient["🧪 营养液投加<br/>营养液泵 GPIO18"]
+            Strip["🌈 状态灯条<br/>WS2812 GPIO26"]
         end
 
         SENSE --> THINK
@@ -137,8 +137,8 @@ flowchart LR
 |:-----|:-----|:-----|
 | **主控** | ESP32 DevKit v1 | Xtensa LX6 双核 240MHz, 520KB SRAM, WiFi 内置 |
 | **传感器** | 电容式土壤 v1.2 + HS-S20L-B 光敏 + DHT11 | 土壤湿度/光照/温湿度，共 3 类 4 个传感器 |
-| **执行器** | 5V 潜水泵 + 12V 隔膜泵 + 双继电器 | 低电平触发，带安全超时保护 |
-| **显示** | SH1106 I2C OLED 128×64 + 红绿双色 LED | 三页轮播（传感器/生长/系统状态）|
+| **执行器** | 12V 隔膜泵 + 单继电器 | 低电平触发，带安全超时 + 温度护栏 |
+| **显示** | SH1106 I2C OLED 128×64 + WS2812 11 灯珠灯条 | 三页轮播 + 湿度温度计可视化 |
 | **固件** | MicroPython · 13 个模块化文件 | 按启动/主循环/感知/决策/执行/显示/遥测拆分，单一职责 |
 | **AI** | DeepSeek V4 Flash + 代理中转 | ¥1/百万 tokens · 支持 HTTP 代理（无 TLS 压力）或直连 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
@@ -187,7 +187,7 @@ DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
 py -m pytest
 ```
 
-预期输出：**74 passed**
+预期输出：**80 passed**
 
 ---
 
@@ -200,7 +200,8 @@ py -m pytest
 │   ├── boot_runtime.py      # 启动序列编排
 │   ├── loop_runtime.py      # 主循环调度（采样→决策→执行→遥测）
 │   ├── sensors.py           # 传感器底层读取（土壤/光照/DHT/拨码）
-│   ├── actuators.py         # 执行器底层控制（水泵/营养液泵）
+│   ├── actuators.py         # 执行器底层控制（12V 水泵单继电器）
+│   ├── status_strip.py      # WS2812 状态灯条（湿度温度计 + 系统状态）
 │   ├── decision.py          # 决策编排（AI门控 + 本地规则兜底）
 │   ├── action_runtime.py    # 动作执行 + 安全检查
 │   ├── display.py           # OLED 页面绘制（英文三页轮播）
@@ -249,7 +250,7 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **74 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏故障预案 |
+| 自动化测试 | **80 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏故障预案 |
 | 支持作物 | **库内 14 种** / 现场拨码 8 种 | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |

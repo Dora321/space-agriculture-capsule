@@ -27,7 +27,6 @@ class SystemState:
         self.last_decision_source = "local"
         self.last_ai_request_time = 0
         self.last_ai_snapshot = None
-        self.last_nutrient_time = 0
         self.action_count = 0
         self.action_count_start = 0
         self.read_count = 0
