@@ -774,6 +774,7 @@
         <div class="pill" id="modePill" data-icon="▶" tabindex="0">模式 <strong id="mode">演示</strong></div>
         <div class="pill" data-icon="◷" tabindex="0">运行 <strong id="uptime">0 分钟</strong></div>
         <div class="pill" data-icon="✦" tabindex="0">种植 <strong id="daysPill">第 1 天</strong></div>
+        <button class="pill" id="btn2035" data-icon="🚀" tabindex="0" style="cursor:pointer;border:none;font:inherit;outline:none" onclick="toggle2035()">切换 2035 模式</button>
       </nav>
     </header>
 
@@ -1578,6 +1579,27 @@
     setInterval(tickDemo, 1800);
     setInterval(render, 30000);
     window.addEventListener("resize", render);
+
+    /* ── 2035 Luna Mode ── */
+    let _is2035 = false;
+    const _orig = { h1: "", sub: "" };
+    function toggle2035() {
+      _is2035 = !_is2035;
+      const h1 = document.querySelector("header h1");
+      const sub = document.getElementById("subtitle");
+      const btn = document.getElementById("btn2035");
+      if (_is2035) {
+        _orig.h1 = h1.textContent;
+        _orig.sub = sub.textContent;
+        h1.textContent = "Luna Greenhouse Control Center";
+        sub.textContent = "Mission Day 217 · 2035-05-17 · Earth ↔ Luna: 1.3s 通信延迟";
+        btn.innerHTML = "返回 2026 模式";
+      } else {
+        h1.textContent = _orig.h1;
+        sub.textContent = _orig.sub;
+        btn.innerHTML = "切换 2035 模式";
+      }
+    }
   </script>
 </body>
 </html>

@@ -8,7 +8,7 @@
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
 [![Tests](https://img.shields.io/badge/tests-80%2F80%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
-[![Cost](https://img.shields.io/badge/BOM-%C2%A5135-orange)](#)
+[![Cost](https://img.shields.io/badge/BOM-%C2%A5122-orange)](#)
 
 ---
 
@@ -142,10 +142,10 @@ flowchart LR
 | **固件** | MicroPython · 13 个模块化文件 | 按启动/主循环/感知/决策/执行/显示/遥测拆分，单一职责 |
 | **AI** | DeepSeek V4 Flash + 代理中转 | ¥1/百万 tokens · 支持 HTTP 代理（无 TLS 压力）或直连 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 50 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 80 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
-**硬件成本**：¥135/套（批量采购可压至 ¥110/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
+**硬件成本**：¥122/套（批量采购可压至 ¥110/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
 
 ---
 
@@ -257,7 +257,7 @@ py -m pytest
 | 决策延迟 | 云端 AI < 3s，本地规则 < 1ms | 实时筛选有价值的突变性状；满足深空 4-24 分钟通信延迟 |
 | 采样周期 | **60 秒**采样一次 | **高密度生长数据采集**，远超人工观测密度 |
 | 固件模块 | **13 个**，单文件最大约 300 行 | 模块化，便于在轨远程热更新维护 |
-| 硬件成本 | **¥135/套** | 低成本批量部署，覆盖更多品种平行实验 |
+| 硬件成本 | **¥122/套** | 低成本批量部署，覆盖更多品种平行实验 |
 | 实机运行 | 超过 **18 天**连续运行 | 跑通一个完整速生菜生长周期 |
 
 ---
