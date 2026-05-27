@@ -6,7 +6,10 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+# 忽略大多数 preview 图（中间产物），但保留 README 引用的展示图
 deliverables/*preview*.png
+!deliverables/contest-demo-dashboard-preview.png
+!deliverables/figma-kt-redesign-v2-preview.png
 
 # Secrets / API keys
 esp32_firmware/config.py
