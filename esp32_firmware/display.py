@@ -25,12 +25,6 @@ _PLANT_NAMES = {
     "辣椒": "Pepper",
     "黄瓜": "Cucumber",
     "茄子": "Eggplant",
-    "豆角": "Bean",
-    "西葫芦": "Zucchini",
-    "萝卜": "Radish",
-    "大蒜": "Garlic",
-    "葱": "Scallion",
-    "生姜": "Ginger",
 }
 
 _STAGE_CODES = {

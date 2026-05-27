@@ -219,7 +219,7 @@ y=56 : [ ][ ][#]  (pixel dots)
 }
 ```
 
-**14种植物光照参数表**:
+**8种作物光照参数表**:
 
 | 植物 | light_min | light_opt | light_hours | 分类 |
 |------|-----------|-----------|-------------|------|
@@ -231,12 +231,6 @@ y=56 : [ ][ ][#]  (pixel dots)
 | 辣椒 | 45 | 65 | [8,10] | 中等光照果菜 |
 | 黄瓜 | 45 | 65 | [8,10] | 中等光照果菜 |
 | 茄子 | 45 | 65 | [8,10] | 中等光照果菜 |
-| 豆角 | 40 | 60 | [7,10] | 中等光照 |
-| 西葫芦 | 45 | 65 | [8,10] | 喜光果菜 |
-| 萝卜 | 35 | 55 | [6,8] | 半耐阴根菜 |
-| 大蒜 | 30 | 50 | [6,8] | 耐阴 |
-| 葱 | 25 | 45 | [6,8] | 耐阴 |
-| 生姜 | 20 | 40 | [4,6] | 喜阴 |
 
 ### 3.2 光照状态判定逻辑
 
@@ -371,13 +365,13 @@ Light rules:
 | 4 | main.py | 新增 `_page_index` / `_last_page_time` 轮播状态 | 0.5h |
 | 5 | main.py | 主循环中调用轮播逻辑，替换 `show_data()` | 1h |
 | 6 | config.py.example | 新增 `PAGE_ROTATE_SEC = 5` 示例配置 | 0.1h |
-| 7 | display.py | 为 14 种植物补齐 `_PLANT_NAMES` 英文名映射 | 0.2h |
+| 7 | display.py | 为 8 种作物补齐 `_PLANT_NAMES` 英文名映射 | 0.2h |
 
 ### 4.2 P1 — 数据层（让光照有阈值可用）
 
 | # | 文件 | 改动 | 工作量 |
 |---|------|------|--------|
-| 8 | plants.json | 14种植物增加 light_min / light_opt / light_hours | 0.5h |
+| 8 | plants.json | 8种作物增加 light_min / light_opt / light_hours | 0.5h |
 | 9 | main.py | state 新增 sun_minutes_today / sun_date | 0.2h |
 | 9.1 | main.py | `read_all_sensors()` 增加日照累计 | 0.5h |
 | 10 | display.py | Page1/2 光照行使用阈值对比格式 | 0.5h |

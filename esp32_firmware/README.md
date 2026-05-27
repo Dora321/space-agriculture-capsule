@@ -9,7 +9,7 @@ esp32_firmware/
 ├── main.py              # 主程序入口
 ├── config.py.example    # 配置模板（复制为 config.py 使用）
 ├── config.py            # 实际配置（gitignore，含密钥）
-├── plants.json          # 植物数据库（14种植物的养护参数和生长阶段）
+├── plants.json          # 植物数据库（8种作物的养护参数和生长阶段）
 ├── state.py             # 主循环共享运行状态
 ├── action_runtime.py    # 执行动作、安全检查和动作计数
 ├── boot_runtime.py      # 系统启动初始化流程编排

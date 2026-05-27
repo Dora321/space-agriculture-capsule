@@ -1237,13 +1237,7 @@
         tomato: "番茄",
         pepper: "辣椒",
         cucumber: "黄瓜",
-        eggplant: "茄子",
-        bean: "豆角",
-        zucchini: "西葫芦",
-        radish: "萝卜",
-        garlic: "大蒜",
-        scallion: "葱",
-        ginger: "生姜"
+        eggplant: "茄子"
       };
       if (!raw || raw === "??" || raw.includes("�")) return "生菜";
       return labels[raw.toLowerCase()] || (/[A-Za-z]/.test(raw) ? "生菜" : raw);
