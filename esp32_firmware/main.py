@@ -1,8 +1,9 @@
 """
 太空农业种植舱 - ESP32 主控板固件
-版本: v1.0
-日期: 2026-05-13
+版本: v1.1
+日期: 2026-05-28
 说明: 基于 MicroPython 的智能种植舱控制系统
+      交互方式升级：拨码开关 → HS-KEY4A-P 四位模拟按键 + OLED 菜单
 """
 
 import machine
@@ -22,6 +23,9 @@ from state import SystemState
 
 # 全局状态
 state = SystemState()
+
+# 菜单系统（四位模拟按键 + OLED）
+_menu = None
 
 
 def _init_display():
@@ -66,6 +70,72 @@ def _send_telemetry():
         print("[Telemetry] skipped:", e)
 
 
+def _setup_menu():
+    """初始化菜单输入系统。"""
+    global _menu
+    try:
+        from menu import Menu
+
+        from key4 import Key4Buttons
+        control = Key4Buttons(config.KEY4_ADC_PIN)
+        _menu = Menu(_display(), control, config.PLANT_LIST)
+        print("[Menu] Key4 analog menu initialized")
+        return True
+    except Exception as e:
+        print("[Menu] Failed to initialize:", e)
+        _menu = None
+        return False
+
+
+def _select_plant():
+    """启动时使用四位模拟按键选择植物类型。"""
+    global _menu
+    if _menu is None:
+        if not _setup_menu():
+            return  # 菜单不可用，使用默认值
+
+    print("[Menu] Entering plant selection...")
+    selected = _menu.run_plant_selection(
+        default_index=_plant_index(state.plant_type)
+    )
+    state.plant_type = selected
+    state.plant_info = config.get_plant_info(selected)
+    print(f"[Menu] Plant selected: {selected}")
+
+
+def _plant_index(plant_name):
+    """根据植物名获取索引。"""
+    try:
+        return config.PLANT_LIST.index(plant_name)
+    except ValueError:
+        return 0
+
+
+def _check_menu():
+    """主循环中检测菜单触发（长按蓝色按钮）。
+
+    Returns:
+        bool: True 表示进入并退出了菜单，调用方应刷新显示
+    """
+    global _menu
+    if _menu is None:
+        return False
+
+    if _menu.check_menu_trigger():
+        print("[Menu] Entering main menu (long press)...")
+        _release_display()
+        # 重新初始化 display 用于菜单渲染
+        _init_display()
+        _menu.run_main_menu(
+            state,
+            get_wifi_status=lambda: state.wifi_connected,
+            get_ip=lambda: wifi_client.get_ip() if state.wifi_connected else None,
+        )
+        print("[Menu] Exited main menu")
+        return True
+    return False
+
+
 def _refresh_display(force=False, reset_page=False):
     """刷新 OLED 三页轮播。force=True 时立即重绘当前页。"""
     plant_info = _get_plant_info()
@@ -82,15 +152,25 @@ def _refresh_display(force=False, reset_page=False):
 
 def init_system():
     """系统初始化"""
-    return boot_runtime.init_system(
+    ok = boot_runtime.init_system(
         state,
         demo_enabled=_demo_enabled(),
         init_display=_init_display,
         display=_display,
+        release_display=_release_display,
         read_all_sensors=read_all_sensors,
         refresh_display=_refresh_display,
         send_telemetry=_send_telemetry,
     )
+
+    if not ok:
+        return False
+
+    # 启动菜单：让用户用四位模拟按键选择植物
+    print("[Init] Starting plant selection...")
+    _select_plant()
+
+    return True
 
 
 def read_all_sensors():
@@ -155,6 +235,7 @@ def main_loop():
         execute_decision=execute_decision,
         send_telemetry=_send_telemetry,
         watch_dog=watch_dog,
+        check_menu=_check_menu,
     )
 
 

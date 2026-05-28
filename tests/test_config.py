@@ -20,8 +20,8 @@ _PLANT_DB = _load_plant_db()
 class TestPlantDatabase:
     """植物数据库完整性测试"""
 
-    def test_all_dip_plants_in_db(self):
-        """8 种拨码对应的植物必须全在 PLANT_DB 中"""
+    def test_all_plants_in_db(self):
+        """8 种植物必须全在 PLANT_DB 中（由 PLANT_LIST 定义）"""
         for idx in range(8):
             name = config.get_plant_name(idx)
             info = config.get_plant_info(name)
@@ -125,13 +125,14 @@ class TestGrowthStage:
         assert stage["stage"] == "unknown"
 
 
-class TestDipEncoding:
-    """拨码开关编码测试"""
+class TestPlantList:
+    """植物列表（PLANT_LIST）编码测试"""
 
     def test_valid_range(self):
-        """0-7 都应返回有效植物名"""
+        """0-7 都应返回有效植物名，且植物存在于 plants.json"""
         for i in range(8):
             name = config.get_plant_name(i)
+            assert name in config.PLANT_LIST
             assert name in _PLANT_DB
 
     def test_out_of_range_default(self):

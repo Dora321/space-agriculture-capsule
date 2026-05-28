@@ -528,6 +528,137 @@ def show_graphic():
     _oled.show()
 
 
+# ============ 菜单显示 ============
+
+_MENU_VISIBLE_ITEMS = 5   # 每屏最多显示 5 个菜单项
+_MENU_ITEM_Y_START = 8    # 第一项 Y 坐标
+
+
+def show_menu(title, items, selected_idx, scroll_offset=0):
+    """渲染通用菜单。
+
+    Args:
+        title: 菜单标题（ASCII，≤16 字符）
+        items: 菜单项列表（字符串）
+        selected_idx: 当前选中项索引
+        scroll_offset: 滚动偏移量（第一项在列表中的索引）
+    """
+    if not _check_init():
+        return
+
+    _oled.fill(0)
+
+    # 标题行
+    _draw_centered(title, 0)
+
+    # 可见选项范围
+    visible_items = items[scroll_offset:scroll_offset + _MENU_VISIBLE_ITEMS]
+    for i, item_text in enumerate(visible_items):
+        abs_idx = scroll_offset + i
+        y = _MENU_ITEM_Y_START + i * 10
+        is_selected = (abs_idx == selected_idx)
+
+        prefix = ">" if is_selected else " "
+        display_text = f"{prefix} {_clip(item_text, 14)}"
+        _draw_text(display_text, 0, y)
+
+    # 底部提示
+    hint_y = _MENU_ITEM_Y_START + _MENU_VISIBLE_ITEMS * 10 + 2
+    _draw_text("[<>]Nav [OK]Sel", 0, hint_y)
+
+    _oled.show()
+
+
+def show_plant_select(plant_list, current_idx):
+    """渲染植物选择菜单。
+
+    Args:
+        plant_list: 植物名称列表（中文，会自动转为英文显示）
+        current_idx: 当前选中索引
+    """
+    if not _check_init():
+        return
+
+    _oled.fill(0)
+
+    # 标题
+    _draw_centered("Select Plant", 0)
+
+    # 计算滚动偏移，使当前选中项尽量居中
+    half = _MENU_VISIBLE_ITEMS // 2
+    scroll_offset = max(0, current_idx - half)
+    if scroll_offset + _MENU_VISIBLE_ITEMS > len(plant_list):
+        scroll_offset = max(0, len(plant_list) - _MENU_VISIBLE_ITEMS)
+
+    visible_items = plant_list[scroll_offset:scroll_offset + _MENU_VISIBLE_ITEMS]
+    for i, plant_name in enumerate(visible_items):
+        abs_idx = scroll_offset + i
+        y = _MENU_ITEM_Y_START + i * 10
+        is_selected = (abs_idx == current_idx)
+
+        prefix = ">" if is_selected else " "
+        en_name = _plant_en(plant_name)
+        display_text = f"{prefix} {_clip(en_name, 13)}"
+        _draw_text(display_text, 0, y)
+
+    # 底部：页码提示 + 操作提示
+    hint_y = _MENU_ITEM_Y_START + _MENU_VISIBLE_ITEMS * 10 + 2
+    _draw_text(f"{current_idx + 1}/{len(plant_list)}", 0, hint_y)
+    _draw_text("Green:OK", 74, hint_y)
+
+    _oled.show()
+
+
+def show_complete_menu(title, items, selected_idx):
+    """渲染完整主菜单（植物选择 / 手动控制 / 系统信息 / 返回）。
+
+    与 show_menu 类似，但底部提示支持长按返回。
+    """
+    if not _check_init():
+        return
+
+    _oled.fill(0)
+
+    # 标题行
+    _draw_centered(title, 0)
+
+    # 选项
+    visible_count = min(len(items), _MENU_VISIBLE_ITEMS)
+    for i in range(visible_count):
+        y = _MENU_ITEM_Y_START + i * 10
+        is_selected = (i == selected_idx)
+
+        prefix = ">" if is_selected else " "
+        display_text = f"{prefix} {_clip(items[i], 14)}"
+        _draw_text(display_text, 0, y)
+
+    # 底部提示
+    hint_y = _MENU_ITEM_Y_START + _MENU_VISIBLE_ITEMS * 10 + 2
+    _draw_text("[<>]Nav [OK]OK", 0, hint_y)
+
+    _oled.show()
+
+
+def show_system_info(wifi_connected, ip, mem_free_kb):
+    """渲染系统信息界面。"""
+    if not _check_init():
+        return
+
+    _oled.fill(0)
+
+    wifi_s = "OK" if wifi_connected else "OFF"
+    ip_s = ip or "-"
+
+    _draw_centered("System Info", 0)
+    _draw_text(f"WiFi: {wifi_s}", 0, 16)
+    _draw_text(f"IP:  {ip_s}", 0, 26)
+    _draw_text(f"Mem: {mem_free_kb}KB free", 0, 36)
+    _draw_text("", 0, 46)
+    _draw_text("Long press:Back", 0, 56)
+
+    _oled.show()
+
+
 def power_off():
     """关闭显示（省电）"""
     global _DISPLAY_ON

@@ -110,7 +110,7 @@ These pieces of data are duplicated across files and must move together:
 
 | Datum | Authoritative source | Mirrors to update |
 |---|---|---|
-| Plant count phrasing | `plants.json` (8 entries, exactly matches 3-bit DIP) | `README.md`, `deliverables/评委展示方案.md`, `deliverables/KT板设计文档.md`, `deliverables/KT板展示设计-最新版.md`, `deliverables/KT板打印稿-120x90.html`, `智能种植舱控制器选型报告.md`. Canonical phrasing: **"8 种作物（叶菜 4 + 果菜 4）"**. The earlier 14/8 split has been retired (2026-05-27) to avoid judge confusion. |
+| Plant count phrasing | `plants.json` (8 entries, selectable via HS-S32-L rotary encoder + OLED menu) | `README.md`, `deliverables/评委展示方案.md`, `deliverables/KT板设计文档.md`, `deliverables/KT板展示设计-最新版.md`, `deliverables/KT板打印稿-120x90.html`, `智能种植舱控制器选型报告.md`. Canonical phrasing: **"8 种作物（叶菜 4 + 果菜 4）"**. The earlier 14/8 split has been retired (2026-05-27) to avoid judge confusion. DIP switch replaced by rotary encoder (2026-05-28). |
 | Test count | `py -m pytest` output | README badge + `## 📊 数据见证` table + `测试指南.md` |
 | BOM / cost | `智能种植舱控制器选型报告.md` BOM table (current: ¥140/套 pump+light) | README badge, KT board, judge script |
 | Hardware action set | `action_runtime.py` `valid_actions` tuple (`water`, `light`, `idle`) | `ai_client.SYSTEM_PROMPT`, `tools/ai_proxy._validate_decision`, `tools/dashboard_server._validate_state`, `deliverables/contest-demo-dashboard.html` action labels |

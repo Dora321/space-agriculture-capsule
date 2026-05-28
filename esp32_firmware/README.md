@@ -160,19 +160,18 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 ### 植物类型选择
 
-使用 3 位拨码开关预设 8 种植物（开关 OFF=0, ON=1，取反后编码）：
+使用 HS-KEY4A-P 四位模拟按键选择 8 种植物：
 - 生菜、小白菜、菠菜、韭菜、番茄、辣椒、黄瓜、茄子
 
-| 拨码 1 (GPIO13) | 拨码 2 (GPIO12) | 拨码 3 (GPIO14) | 植物类型 |
-|:---:|:---:|:---:|---|
-| OFF | OFF | OFF | 生菜 |
-| ON | OFF | OFF | 小白菜 |
-| OFF | ON | OFF | 菠菜 |
-| ON | ON | OFF | 韭菜 |
-| OFF | OFF | ON | 番茄 |
-| ON | OFF | ON | 辣椒 |
-| OFF | ON | ON | 黄瓜 |
-| ON | ON | ON | 茄子 |
+| 模块引脚 | ESP32 GPIO | 说明 |
+|:---:|:---:|---|
+| G | GND | 地 |
+| V | 3V3 | 电源，不接 5V |
+| S | GPIO33 | 模拟按键 ADC |
+
+按键映射：红=上一个，黄=下一个，绿=确认，蓝=长按打开菜单/返回。
+
+> 注意：不要把任何菜单输入接到 GPIO12/MTDI。GPIO12 是 ESP32 启动绑带脚，复位时被拉高会选择 1.8V Flash 电压，导致烧录失败或无法启动。
 
 每种植物有独立的：
 - 土壤湿度阈值

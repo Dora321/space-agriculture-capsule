@@ -23,6 +23,7 @@ def run_loop(
     execute_decision=None,
     send_telemetry=None,
     watch_dog=None,
+    check_menu=None,
 ):
     """Run the periodic read, decision, action, telemetry, and reconnect loop."""
     interval = _demo_value("DEMO_READ_INTERVAL", config.READ_INTERVAL) if demo_enabled else config.READ_INTERVAL
@@ -32,6 +33,12 @@ def run_loop(
     while True:
         try:
             now = time.time()
+
+            # 检查按键菜单触发（长按蓝色按钮）
+            if check_menu is not None:
+                triggered = check_menu()
+                if triggered and refresh_display is not None:
+                    refresh_display(force=True, reset_page=True)
 
             if refresh_display is not None:
                 refresh_display()

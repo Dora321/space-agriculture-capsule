@@ -13,12 +13,11 @@ _soil_adc = None
 _soil_pin = None
 _light_adc = None
 _dht_sensor = None
-_dip_pins = None
 
 
 def init():
     """初始化所有传感器"""
-    global _soil_adc, _soil_pin, _light_adc, _dip_pins, _dht_sensor
+    global _soil_adc, _soil_pin, _light_adc, _dht_sensor
     
     # 土壤湿度传感器：支持模拟量 ADC 和比较器数字量两种模块
     if getattr(config, "SOIL_SENSOR_MODE", "adc") == "digital":
@@ -46,9 +45,6 @@ def init():
     except Exception as e:
         print(f"[Sensor] {config.DHT_TYPE} initialization failed: {e}")
         _dht_sensor = None
-    
-    # 拨码开关引脚
-    _dip_pins = [Pin(pin, Pin.IN, Pin.PULL_UP) for pin in config.DIP_SWITCH_PINS]
     
     print("[Sensor] Initialization complete")
     return True
@@ -143,24 +139,20 @@ def read_dht22():
 
 def read_plant_type():
     """
-    读取3位拨码开关，获取植物类型
-    支持编码 0-7，对应 8 种植物
+    获取当前植物类型（从系统状态读取，不再从硬件读取）。
+    植物由 OLED 菜单系统设定。
+
     返回: 植物名称字符串
     """
     try:
-        values = [pin.value() for pin in _dip_pins]
-        # PULL_UP 输入取反: OFF(断开)→1→取反为0, ON(接地)→0→取反为1
-        bits = [1 - v for v in values]
-        # DIP_SWITCH_PINS = [13, 12, 14]  (3位，支持8种植物)
-        # 编码规则: bits[0]=bit0(DIP1), bits[1]=bit1(DIP2), bits[2]=bit2(DIP3)
-        index = (bits[2] << 2) | (bits[1] << 1) | bits[0]
-        
-        plant = config.get_plant_name(index)
-        return plant
-        
-    except Exception as e:
-        print("[Sensor] DIP switch read failed:", e)
-        return config.get_plant_name(0)  # 默认返回生菜（拨码0）
+        # 尝试从全局 state 读取（通过模块引用避免循环导入）
+        import sys
+        state_mod = sys.modules.get("main")
+        if state_mod and hasattr(state_mod, "state"):
+            return state_mod.state.plant_type
+    except Exception:
+        pass
+    return "生菜"  # 默认返回生菜
 
 
 def read_all():
@@ -235,7 +227,7 @@ def test_all():
     temp, hum = read_dht22()
     print(f"  Temp: {temp}C, Hum: {hum}%")
     
-    print("\n[4/4] Testing DIP switch...")
+    print("\n[4/4] Testing plant selection state...")
     plant = read_plant_type()
     print(f"  Current plant: {plant}")
     
