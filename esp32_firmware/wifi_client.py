@@ -4,6 +4,7 @@ WiFi 连接模块
 
 import network
 import time
+import gc
 import config
 
 
@@ -19,12 +20,22 @@ def connect(timeout=30):
     """
     global _wlan
     
-    _wlan = network.WLAN(network.STA_IF)
-    _wlan.active(True)
+    gc.collect()
+    try:
+        _wlan = network.WLAN(network.STA_IF)
+        _wlan.active(True)
+    except OSError as e:
+        print(f"[WiFi] WLAN init failed: {e}")
+        _wlan = None
+        return False
     
     print(f"[WiFi] Connecting to {config.WIFI_SSID}...")
     
-    _wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
+    try:
+        _wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
+    except OSError as e:
+        print(f"[WiFi] Connect failed: {e}")
+        return False
     
     # 等待连接
     start_time = time.time()
@@ -46,9 +57,12 @@ def disconnect():
     """断开 WiFi 连接"""
     global _wlan
     if _wlan:
-        _wlan.disconnect()
-        _wlan.active(False)
-        print("[WiFi] Disconnected")
+        try:
+            _wlan.disconnect()
+            _wlan.active(False)
+            print("[WiFi] Disconnected")
+        except OSError as e:
+            print(f"[WiFi] Disconnect failed: {e}")
 
 
 def is_connected():
@@ -89,9 +103,13 @@ def smart_connect():
     """
     for attempt in range(3):
         print(f"[WiFi] Connection attempt {attempt + 1}/3")
-        if connect(timeout=20):
-            return True
+        try:
+            if connect(timeout=20):
+                return True
+        except OSError as e:
+            print(f"[WiFi] Retry skipped: {e}")
         print(f"[WiFi] Waiting 5s to retry...")
+        gc.collect()
         time.sleep(5)
     
     print("[WiFi] All connection attempts failed")

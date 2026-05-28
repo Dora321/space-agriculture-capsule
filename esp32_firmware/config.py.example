@@ -88,9 +88,12 @@ RELAY_WATER_PIN = 5       # 水泵继电器（12V 蠕动泵）
 RELAY_LIGHT_PIN = 18      # 补光灯继电器（12V COB 灯条）
 
 # 菜单输入设备
-# 四位模拟按键 HS-KEY4A-P
-# G -> GND, V -> 3V3, S -> GPIO33
-KEY4_ADC_PIN = 33
+# 模拟键盘（ADC 电阻分压，所有按键共用 GPIO33）
+# 电路：VCC(3.3V) → R_pullup → GPIO33 → 各按键电阻 → 开关 → GND
+# 不同按键产生不同 ADC 电压，通过阈值区分
+ANALOG_KEYPAD_PIN = 33
+# 可选：自定义 ADC 阈值
+# ANALOG_KEYPAD_THRESHOLDS = {"up": (0, 300), "down": (301, 900), "ok": (901, 1800), "back": (1801, 3200)}
 
 # OLED 显示屏 (I2C)
 OLED_SDA_PIN = 21
@@ -132,7 +135,7 @@ TEMP_LOW_C = 8     # 低温警戒线（℃）
 # PLANT_DB 已迁移至 plants.json（节省 RAM）
 # 如需添加新植物，请编辑 plants.json 文件
 
-# ============ 植物列表（有序，供四位模拟按键菜单使用，含 8 种植物） ============
+# ============ 植物列表（有序，供独立按钮菜单使用，含 8 种植物） ============
 PLANT_LIST = [
     "生菜",      # 0: 叶菜
     "小白菜",    # 1: 叶菜

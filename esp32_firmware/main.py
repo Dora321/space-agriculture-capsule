@@ -1,9 +1,10 @@
 """
 太空农业种植舱 - ESP32 主控板固件
-版本: v1.1
+版本: v1.2
 日期: 2026-05-28
 说明: 基于 MicroPython 的智能种植舱控制系统
-      交互方式升级：拨码开关 → HS-KEY4A-P 四位模拟按键 + OLED 菜单
+      交互方式：模拟键盘(ADC GPIO33) + OLED 菜单
+      变更：四独立按钮 → 单ADC模拟键盘，节省 3 个 GPIO
 """
 
 import machine
@@ -24,7 +25,7 @@ from state import SystemState
 # 全局状态
 state = SystemState()
 
-# 菜单系统（四位模拟按键 + OLED）
+# 菜单系统（独立按钮 + OLED）
 _menu = None
 
 
@@ -76,10 +77,11 @@ def _setup_menu():
     try:
         from menu import Menu
 
-        from key4 import Key4Buttons
-        control = Key4Buttons(config.KEY4_ADC_PIN)
+        from buttons import AnalogKeypad
+        thresholds = getattr(config, "ANALOG_KEYPAD_THRESHOLDS", None)
+        control = AnalogKeypad(config.ANALOG_KEYPAD_PIN, thresholds=thresholds)
         _menu = Menu(_display(), control, config.PLANT_LIST)
-        print("[Menu] Key4 analog menu initialized")
+        print("[Menu] Button menu initialized")
         return True
     except Exception as e:
         print("[Menu] Failed to initialize:", e)
@@ -88,7 +90,7 @@ def _setup_menu():
 
 
 def _select_plant():
-    """启动时使用四位模拟按键选择植物类型。"""
+    """启动时使用独立按钮选择植物类型。"""
     global _menu
     if _menu is None:
         if not _setup_menu():
@@ -166,7 +168,7 @@ def init_system():
     if not ok:
         return False
 
-    # 启动菜单：让用户用四位模拟按键选择植物
+    # 启动菜单：让用户用独立按钮选择植物
     print("[Init] Starting plant selection...")
     _select_plant()
 

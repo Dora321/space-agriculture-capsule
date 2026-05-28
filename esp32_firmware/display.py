@@ -604,7 +604,7 @@ def show_plant_select(plant_list, current_idx):
     # 底部：页码提示 + 操作提示
     hint_y = _MENU_ITEM_Y_START + _MENU_VISIBLE_ITEMS * 10 + 2
     _draw_text(f"{current_idx + 1}/{len(plant_list)}", 0, hint_y)
-    _draw_text("Green:OK", 74, hint_y)
+    _draw_text("OK:Select", 74, hint_y)
 
     _oled.show()
 

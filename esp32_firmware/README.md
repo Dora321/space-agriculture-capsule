@@ -160,18 +160,27 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 
 ### 植物类型选择
 
-使用 HS-KEY4A-P 四位模拟按键选择 8 种植物：
+使用模拟键盘（ADC 电阻分压，GPIO33）选择 8 种植物：
 - 生菜、小白菜、菠菜、韭菜、番茄、辣椒、黄瓜、茄子
 
-| 模块引脚 | ESP32 GPIO | 说明 |
+| 按钮 | 功能 | 说明 |
 |:---:|:---:|---|
-| G | GND | 地 |
-| V | 3V3 | 电源，不接 5V |
-| S | GPIO33 | 模拟按键 ADC |
+| UP (Red) | 上一个 | 按键通过特定电阻接 GND，ADC 分压识别 |
+| DOWN (Yellow) | 下一个 | 同上 |
+| OK (Green) | 确认 | 同上 |
+| BACK (Blue) | 返回/菜单 | 同上，长按触发菜单 |
 
-按键映射：红=上一个，黄=下一个，绿=确认，蓝=长按打开菜单/返回。
+**四个按钮共用一个 ADC 引脚 GPIO33**，通过不同电阻值产生不同分压：
+```
+VCC(3.3V) → R_pullup → GPIO33 ─┬─ R_up ── SW_UP ── GND
+                                ├─ R_dn ── SW_DN ── GND
+                                ├─ R_ok ── SW_OK ── GND
+                                └─ R_bk ── SW_BK ── GND
+```
+代码通过 `AnalogKeypad` 类读取 ADC 值并比对阈值区分按键。
+首次使用可运行 `AnalogKeypad.calibrate(33)` 自动校准阈值。
 
-> 注意：不要把任何菜单输入接到 GPIO12/MTDI。GPIO12 是 ESP32 启动绑带脚，复位时被拉高会选择 1.8V Flash 电压，导致烧录失败或无法启动。
+> 注意：GPIO33 是 ADC1_CH5，支持模拟读取。确认你的 ESP32 开发板 GPIO33 可用作 ADC 输入（大多数 ESP32 DevKit 均可）。
 
 每种植物有独立的：
 - 土壤湿度阈值
