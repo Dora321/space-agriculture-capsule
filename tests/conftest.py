@@ -153,6 +153,9 @@ class MockSH1106_I2C:
     def fill_rect(self, *a):
         pass
 
+    def rect(self, *a):
+        pass
+
     def poweroff(self):
         pass
 

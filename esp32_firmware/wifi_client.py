@@ -23,7 +23,11 @@ def connect(timeout=30):
     gc.collect()
     try:
         _wlan = network.WLAN(network.STA_IF)
+        if _wlan.active():
+            _wlan.active(False)
+            time.sleep(1)
         _wlan.active(True)
+        time.sleep(1)
     except OSError as e:
         print(f"[WiFi] WLAN init failed: {e}")
         _wlan = None

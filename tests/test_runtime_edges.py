@@ -50,6 +50,12 @@ class TestHardwareMocks:
             def fill_rect(self, *a):
                 pass
 
+            def rect(self, *a):
+                pass
+
+            def line(self, *a):
+                pass
+
         recorder = Recorder()
         display._oled = recorder
         monkeypatch.setattr(display.time, "sleep", lambda *args: None)

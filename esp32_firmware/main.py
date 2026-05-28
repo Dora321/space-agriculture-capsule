@@ -11,16 +11,13 @@ import machine
 import time
 import gc
 
-# 本地模块
+# 本地模块（仅保留 WiFi init 前必需的轻量模块）
 import config
 import wifi_client
-import action_runtime
-import boot_runtime
-import decision as decision_engine
 import display_runtime
-import loop_runtime
-import sensor_runtime
 from state import SystemState
+# boot_runtime / sensor_runtime / action_runtime / decision / loop_runtime
+# 均在首次调用时懒加载，确保 WiFi init 前堆碎片最少
 
 # 全局状态
 state = SystemState()
@@ -114,7 +111,7 @@ def _plant_index(plant_name):
 
 
 def _check_menu():
-    """主循环中检测菜单触发（长按蓝色按钮）。
+    """主循环中检测按键：红/黄键切换页面，蓝键长按进入菜单。
 
     Returns:
         bool: True 表示进入并退出了菜单，调用方应刷新显示
@@ -123,11 +120,17 @@ def _check_menu():
     if _menu is None:
         return False
 
+    # 红键(UP=-1) / 黄键(DOWN=+1) → 手动切换 OLED 页面
+    nav = _menu._control.update()
+    if nav != 0:
+        display_runtime.advance_page(nav)
+        _refresh_display(force=True)
+        return False
+
+    # 蓝键单击 → 进入主菜单
     if _menu.check_menu_trigger():
-        print("[Menu] Entering main menu (long press)...")
-        _release_display()
-        # 重新初始化 display 用于菜单渲染
-        _init_display()
+        print("[Menu] Entering main menu...")
+        _menu._display = display_runtime.display()
         _menu.run_main_menu(
             state,
             get_wifi_status=lambda: state.wifi_connected,
@@ -154,9 +157,25 @@ def _refresh_display(force=False, reset_page=False):
 
 def init_system():
     """系统初始化"""
+    import gc as _gc
+
+    # ── WiFi 在所有重模块加载前抢先连接 ──────────────────────
+    # boot_runtime → utils → status_strip (~22KB) 尚未加载，堆碎片最少
+    _gc.collect()
+    _gc.collect()
+    print("[WiFi] Free RAM before connect:", _gc.mem_free(), "bytes")
+    try:
+        state.wifi_connected = wifi_client.connect()
+    except OSError as e:
+        print("[WiFi] WLAN init failed:", e)
+        state.wifi_connected = False
+
+    # ── 现在再 import 重模块 ──────────────────────────────────
+    import boot_runtime
     ok = boot_runtime.init_system(
         state,
         demo_enabled=_demo_enabled(),
+        wifi_already_connected=True,
         init_display=_init_display,
         display=_display,
         release_display=_release_display,
@@ -177,6 +196,7 @@ def init_system():
 
 def read_all_sensors():
     """读取所有传感器数据，检测传感器离线"""
+    import sensor_runtime
     return sensor_runtime.read_all_sensors(
         state,
         demo_enabled=_demo_enabled(),
@@ -191,6 +211,7 @@ def read_demo_sensors():
 
 def make_decision():
     """AI 决策 + 本地规则兜底。保留入口以兼容测试和 REPL 调用。"""
+    import decision as decision_engine
     plant_info = _get_plant_info()
     return decision_engine.make_decision(
         state,
@@ -202,6 +223,7 @@ def make_decision():
 
 def execute_decision(decision):
     """执行决策"""
+    import action_runtime
     return action_runtime.execute_decision(
         state,
         decision,
@@ -214,6 +236,7 @@ def execute_decision(decision):
 
 def safety_check():
     """安全检查 - 防止连续动作导致系统损坏"""
+    import action_runtime
     return action_runtime.safety_check(state, demo_enabled=_demo_enabled())
 
 
@@ -226,6 +249,7 @@ def watch_dog():
 
 def main_loop():
     """主循环"""
+    import loop_runtime
     return loop_runtime.run_loop(
         state,
         demo_enabled=_demo_enabled(),

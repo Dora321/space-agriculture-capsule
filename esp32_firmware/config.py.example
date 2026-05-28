@@ -51,7 +51,7 @@ DASHBOARD_TIMEOUT = 2
 # ============ 系统参数 ============
 READ_INTERVAL = 60        # 传感器读取间隔（秒），不低于 60 秒（正式运行建议 300 秒 = 5 分钟）
 DECISION_INTERVAL = 60    # 本地动作决策间隔（秒），默认每分钟随采样判断一次；云端 AI 另有请求门控
-PAGE_ROTATE_SEC = 5       # OLED 多页轮播间隔（秒）
+PAGE_ROTATE_SEC = 0       # OLED 页面切换：0=手动（红/黄按键），>0=自动轮播秒数
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数
 MAX_ERRORS = 10           # 最大连续错误次数，超过后重启

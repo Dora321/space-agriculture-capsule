@@ -49,8 +49,8 @@ class AnalogKeypad:
     DEFAULT_THRESHOLDS = {
         BACK: (200, 2200),     # Blue   (实测 ~2030)
         OK:   (2201, 2600),    # Green  (实测 ~2305)
-        DOWN: (2601, 3100),    # Yellow (实测 ~2638-2840-3166)
-        UP:   (3101, 3800),    # Red    (实测 ~3246)
+        DOWN: (2601, 3200),    # Yellow (实测 ~2638-2840-3166，上限扩到3200覆盖全范围)
+        UP:   (3201, 3800),    # Red    (实测 ~3246，与DOWN间隔35个单位)
     }
     IDLE_THRESHOLD = 200    # Below this → no button pressed (pull-down to GND)
                             # Above 200 → button pressed (resistor divider to VCC)
@@ -80,11 +80,11 @@ class AnalogKeypad:
     # ── Internal helpers ────────────────────────────────────────
 
     def _read_adc(self):
-        """Read ADC with simple averaging (4 samples) to reduce noise."""
+        """Read ADC with averaging (8 samples) to reduce noise."""
         total = 0
-        for _ in range(4):
+        for _ in range(8):
             total += self._adc.read()
-        return total // 4
+        return total // 8
 
     def _read_button(self):
         """Map current ADC value to a button name, or NONE when idle."""
@@ -148,7 +148,14 @@ class AnalogKeypad:
         if self._pending_event == self.OK:
             self._pending_event = self.NONE
             return True
-        return self._event() == self.OK
+        return False
+
+    def back_pressed(self):
+        """Return True exactly once when the BACK (Blue) button is pressed."""
+        if self._pending_event == self.BACK:
+            self._pending_event = self.NONE
+            return True
+        return False
 
     def is_held(self):
         """Return True if *any* button is currently held down."""

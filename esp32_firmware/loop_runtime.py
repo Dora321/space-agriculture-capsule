@@ -98,7 +98,14 @@ def run_loop(
 
                 gc.collect()
 
-            time.sleep(1)
+            # 以 100ms 间隔轮询按键，保证 1 秒内有 9 次检测机会
+            _t0 = time.ticks_ms()
+            while time.ticks_diff(time.ticks_ms(), _t0) < 900:
+                if check_menu is not None:
+                    _triggered = check_menu()
+                    if _triggered and refresh_display is not None:
+                        refresh_display(force=True, reset_page=True)
+                time.sleep_ms(100)
 
         except KeyboardInterrupt:
             print("\n[System] User interrupted, turning off all actuators")

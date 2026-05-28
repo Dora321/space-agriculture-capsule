@@ -3,15 +3,14 @@
 import gc
 import time
 
-import actuators
 import sensors
-import utils
 import wifi_client
 
 
 def init_system(
     state,
     demo_enabled=False,
+    wifi_already_connected=False,
     init_display=None,
     display=None,
     release_display=None,
@@ -32,13 +31,29 @@ def init_system(
     print("[System] Initializing sensors...")
     sensors.init()
 
+    # actuators / utils / status_strip 在 WiFi 之后再 import，避免占用 WiFi 所需连续内存
+    if wifi_already_connected:
+        print("[WiFi] Using pre-established connection, IP:", wifi_client.get_ip())
+    else:
+        gc.collect()
+        gc.collect()
+        print("[WiFi] Free RAM before connect:", gc.mem_free(), "bytes")
+        try:
+            state.wifi_connected = wifi_client.connect()
+        except OSError as e:
+            print("[WiFi] WLAN init failed (low memory):", e)
+            state.wifi_connected = False
+
+    # WiFi 已处理完，现在加载重模块
+    import actuators
+    import utils
+
     print("[System] Initializing actuators...")
     actuators.init()
 
     print("[System] Initializing status LEDs...")
     utils.init_leds()
 
-    # 先初始化显示，展示启动画面
     print("[System] Initializing OLED display...")
     if init_display is not None:
         init_display()
@@ -46,37 +61,17 @@ def init_system(
     if display is not None:
         display().show_boot()
 
-    # WiFi 连接前释放 OLED 显存（framebuffer ~1KB），
-    # ESP32 空闲 RAM 不足时 network.WLAN() 会抛 OSError("WiFi Out of Memory")
-    if release_display is not None:
-        release_display()
-    gc.collect()
-    print("[WiFi] Free RAM before connect:", gc.mem_free(), "bytes")
-
-    try:
-        state.wifi_connected = wifi_client.connect()
-    except OSError as e:
-        print("[WiFi] WLAN init failed (low memory):", e)
-        state.wifi_connected = False
-
-    # 重新初始化显示
-    if init_display is not None:
-        init_display()
-
     if state.wifi_connected:
         print("[WiFi] Connected, IP:", wifi_client.get_ip())
-        if display is not None:
-            display().show_text("WiFi OK!", 20, 40)
     else:
         print("[WiFi] Connection failed, using local rules")
-        if display is not None:
-            display().show_text("WiFi Failed", 20, 40)
 
-    time.sleep(1)
+    time.sleep(0.8)
 
     if display is not None:
-        display().show_text("System Ready!", 20, 40)
-    time.sleep(1)
+        ip = wifi_client.get_ip() if state.wifi_connected else None
+        display().show_boot_check(state.wifi_connected, ip)
+    time.sleep(1.5)
 
     if read_all_sensors is not None:
         read_all_sensors()

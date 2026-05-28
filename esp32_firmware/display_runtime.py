@@ -52,12 +52,19 @@ def release_display():
     gc.collect()
 
 
+def advance_page(delta):
+    """手动切换页面：delta=-1 往左（红键），+1 往右（黄键）。"""
+    global _page_index, _last_page_time
+    _page_index = (_page_index + delta) % 3
+    _last_page_time = time.time()
+
+
 def refresh_display(state, plant_info, ai_enabled=False, ip=None, force=False, reset_page=False):
-    """Refresh the three-page OLED rotation."""
+    """Refresh the OLED display. Auto-rotates only when PAGE_ROTATE_SEC > 0."""
     global _page_index, _last_page_time
 
     now = time.time()
-    rotate_sec = getattr(config, "PAGE_ROTATE_SEC", 5)
+    rotate_sec = getattr(config, "PAGE_ROTATE_SEC", 0)
 
     if reset_page:
         _page_index = 0
@@ -66,7 +73,7 @@ def refresh_display(state, plant_info, ai_enabled=False, ip=None, force=False, r
     elif _last_page_time == 0:
         _last_page_time = now
         force = True
-    elif now - _last_page_time >= rotate_sec:
+    elif rotate_sec > 0 and now - _last_page_time >= rotate_sec:
         _page_index = (_page_index + 1) % 3
         _last_page_time = now
         force = True
