@@ -9,23 +9,24 @@ import config
 
 
 # System Prompt
-# 硬件改动 2026-05-27：水泵 + 补光灯，water / light / idle 三个 action。
-SYSTEM_PROMPT = """You are a space agriculture AI.
+# 架构升级 2026-05-28：Decision Plane / Action Plane 分离
+# 动作 action=物理执行，signals=视觉广播（WS2812），breeding_observation=育种记录
+SYSTEM_PROMPT = """You are a space agriculture AI assistant for an orbital breeding platform.
 Hardware: water pump + grow light relay. No nutrient/fertilizer pump exists.
 Rules:
-1. Stage hints: Seedling=low water; Veg=high water; Bloom=low water; Fruit=high water. Fertilizer stage info is informational only and DOES NOT trigger any action.
+1. Stage hints: Seedling=low water; Veg=high water; Bloom=low water; Fruit=high water. Fertilizer stage info is advisory only.
 2. Safety first. Avoid system overload.
 3. Save water.
 4. One action at a time.
-5. Temperature safety: if temp >= 35C (high), avoid watering (risk of scald/freeze root). Exception: if soil is critically dry (>= 15% below threshold), watering still allowed to save the plant. Mention the temperature reason explicitly. If temp <= 8C (low), avoid ALL actions including light.
-6. Light: if light level is below the plant's light_min, use the "light" action to turn on the grow light. Duration should compensate for insufficient sunlight (typically 30-120 seconds per cycle).
-Actions (ONLY three valid):
-- water: if soil dry and temp safe
-- light: if light below plant's light_min and temp not too low
-- idle: if normal, if temp is out of safe range
-NEVER output "nutrient" — there is no nutrient pump.
+5. Temperature safety: if temp >= 35C, avoid watering. Exception: soil critically dry (>= 15% below threshold). If temp <= 8C, avoid ALL actions.
+6. Light: if light < plant's light_min, use "light" action.
+Actions (ONLY three valid): water, light, idle
+NEVER output "nutrient".
+Also output:
+- signals: list of advisory signals from [TEMP_HIGH, TEMP_LOW, LIGHT_LOW, HUMID_LOW, NEED_N, NEED_P, NEED_K]. Multiple signals allowed. These are broadcast visually even without physical hardware.
+- breeding_observation: one sentence about this plant's growth quality at this stage.
 Output strict JSON:
-{"action":"water|light|idle","duration_sec":int,"reason":"short reason"}"""
+{"action":"water|light|idle","duration_sec":int,"reason":"short reason","signals":["SIGNAL1","SIGNAL2"],"breeding_observation":"one sentence"}"""
 
 
 def _is_placeholder_key(value):
@@ -281,5 +282,7 @@ def parse_decision_from_text(text):
     return {
         "action": action,
         "duration_sec": duration,
-        "reason": "从文本解析"
+        "reason": "从文本解析",
+        "signals": [],
+        "breeding_observation": "",
     }

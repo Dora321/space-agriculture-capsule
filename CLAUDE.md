@@ -78,7 +78,7 @@ The runtime layers and where to look for each concern:
 | AI HTTP + parsing | `ai_client.py` | Builds prompt, posts, parses JSON, returns `None` on any failure |
 | Action execution + safety | `action_runtime.py` → `actuators.py` | 12V pump + 12V COB grow light (no nutrient pump since 2026-05-27); enforces `PUMP_MAX_RUN_SEC`, `LIGHT_MAX_RUN_SEC`, `MIN_ACTION_INTERVAL`, hourly cap |
 | OLED 3-page rotation | `display_runtime.py` → `display.py` → `sh1106.py` | English-only (built-in ASCII font) |
-| Status indicator | `status_strip.py` (WS2812 11 LEDs) | Soil moisture thermometer + system status. `utils.set_led/blink_led` are thin compat wrappers around it. |
+| Status indicator | `status_strip.py` (WS2812 11 LEDs) | Soil moisture thermometer + system status + **Decision Plane signal animations** (12 signal types). `utils.set_led/blink_led` are thin compat wrappers around it. `utils.play_signal/play_signals` broadcast advisory signals visually. |
 | Dashboard upload | `telemetry.py` | One-way POST to dashboard server; no command channel back |
 
 ### Decision gating (the key non-obvious piece)
@@ -114,6 +114,7 @@ These pieces of data are duplicated across files and must move together:
 | Test count | `py -m pytest` output | README badge + `## 📊 数据见证` table + `测试指南.md` |
 | BOM / cost | `智能种植舱控制器选型报告.md` BOM table (current: ¥140/套 pump+light) | README badge, KT board, judge script |
 | Hardware action set | `action_runtime.py` `valid_actions` tuple (`water`, `light`, `idle`) | `ai_client.SYSTEM_PROMPT`, `tools/ai_proxy._validate_decision`, `tools/dashboard_server._validate_state`, `deliverables/contest-demo-dashboard.html` action labels |
+| Signal types | `status_strip.py` signal constants (WATER, LIGHT_LOW, LIGHT_HIGH, TEMP_HIGH, TEMP_LOW, HUMID_LOW, NEED_N, NEED_P, NEED_K, SENSOR_FAIL, OFFLINE_MODE, BREEDING_GEN_UP) | `ai_proxy._validate_decision` signal whitelist, `contest-demo-dashboard.html` SIGNAL_LABELS |
 | AI model name | `config.py` `AI_MODEL` | judge Q&A in `deliverables/评委展示方案.md`, KT board tech-spec table |
 
 When you change one, grep for the others before committing.
@@ -125,6 +126,7 @@ When you change one, grep for the others before committing.
 - **Telemetry is fire-and-forget** with a short timeout (`DASHBOARD_TIMEOUT=2`); failures are swallowed by design so dashboard outages don't stall the control loop.
 - **Pump + grow light architecture (2026-05-27)** — there is no nutrient pump. The action set is `{water, light, idle}`. `action_runtime` and `ai_proxy._validate_decision` and `dashboard_server._validate_state` all silently remap any legacy `nutrient` action to `idle` for forward-compat with old recordings/AI hallucinations. Don't reintroduce `nutrient` without first adding hardware back and updating all three sites.
 - **WS2812 is the only status indicator on GPIO26** — GPIO27 is free, the old red/green LED pins are gone. If you add new visual signaling, prefer extending `status_strip.py` over re-adding discrete LEDs.
+- **Decision Plane / Action Plane separation (2026-05-28)** — The decision output includes `signals[]` (advisory signals for WS2812 broadcast) and `breeding_observation` (growth observation for telemetry). PHYSICAL_SIGNALS = {WATER, LIGHT_LOW} trigger real actuators; all other signals (TEMP_HIGH, NEED_N, etc.) are advisory-only and broadcast via WS2812 animations. This means the system can diagnose conditions even without corresponding hardware (e.g., "缺氮" signal broadcasts without a nutrient pump). When adding new signal types, update: `status_strip.py` signal constants + animation mapping, `ai_proxy._validate_decision` signal whitelist, `contest-demo-dashboard.html` SIGNAL_LABELS.
 
 ## Source-of-truth notes
 

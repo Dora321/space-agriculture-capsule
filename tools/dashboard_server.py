@@ -55,6 +55,8 @@ def _validate_state(data: dict) -> dict:
         "light_min": int(data.get("light_min", 30)),
         "light_opt": int(data.get("light_opt", 50)),
         "light_hours": data.get("light_hours", [6, 8]),
+        "signals": [s for s in data.get("signals", []) if isinstance(s, str)][:8],
+        "breeding_observation": str(data.get("breeding_observation", ""))[:200],
     }
     state["soil"] = max(0, min(100, state["soil"]))
     state["light"] = max(0, min(100, state["light"]))

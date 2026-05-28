@@ -6,7 +6,7 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-87%2F87%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-101%2F101%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5140-orange)](#)
 
@@ -63,7 +63,7 @@
 | ♻️ 资源浪费不可接受 | **精量滴灌 + 智能补光 + 安全上限** | 最小水量/补光释放，单次最长 60s/120s、每小时最多 12 次动作，避免过量浇水或浪费 |
 | 🧪 多作物轮种需求 | **8 种作物完整数据库** | 每作物独立生长阶段模型（苗期→生长期→花期→果期→采收期），3 位拨码现场一键切换 |
 
-系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵**自动浇水养护 **8 种作物**（3 位拨码现场切换）。OLED 三页轮播 + **WS2812 11 颗灯珠的湿度温度计**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
+系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵 + 12V 补光灯**自动浇水补光养护 **8 种作物**（3 位拨码现场切换）。**Decision Plane / Action Plane 分离架构**：决策层输出多维诊断信号（缺水、缺光、高温、缺肥等），物理执行器仅响应 WATER/LIGHT_LOW 两种信号，其余 advisory 信号通过 WS2812 灯条动画广播——实现「决策能力与执行能力分离」。OLED 三页轮播 + **WS2812 11 颗灯珠**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
 
 项目面向 **STEM 科创教育**与**科技竞赛展示**（科学性 40 分 + 创新性 30 分 + 演讲 20 分 + 展示力 10 分）。
 
@@ -114,7 +114,7 @@ flowchart LR
 
 > **自治边界**：太空舱端（左框）内所有模块——包括 AI 在线/离线两种模式——均独立运行，不依赖地面实时指令。地面遥测站（右框）仅做被动监控，单向接收数据，不向 ESP32 下发控制命令。
 
-**核心循环**：每 60 秒采样一次 → 安全检查（防抖/限频/降级）→ 双引擎决策 → 执行动作 → OLED 刷新 + 大屏遥测上报
+**核心循环**：每 60 秒采样一次 → 安全检查（防抖/限频/降级）→ 双引擎决策 → 执行动作 + WS2812 信号广播 → OLED 刷新 + 大屏遥测上报
 
 **AI 请求门控**：仅在阈值事件、环境明显变化或定时复核时才调用云端 AI。通信中断时自动切换本地规则引擎，模拟深空 4-24 分钟延迟场景下的全自治运行。
 
@@ -127,8 +127,9 @@ flowchart LR
 | 🧠 **AI + 规则双决策引擎** | 网络断了自动切本地规则 | 模拟深空通信延迟——火星 4-24 分钟延迟下，地面无法实时干预，必须本地全自治决策 |
 | 🌱 **8 种作物生长阶段模型** | 拨码开关现场一键切换 | 宇航员无需任何农业知识——一拨开关，系统自动匹配从苗期到采收期的完整水肥策略 |
 | 🛡️ **四级容错与降级机制** | 传感器坏了切安全值 | 在轨无人维修——传感器离线自动降级为安全模式，看门狗死机重启，执行器故障安全跳过 |
-| 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策流水线，超 120s 无数据自动切 DEMO |
-| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，50 用例 ALL PASS |
+| 📊 **Decision Plane / Action Plane 分离** | 决策层广播多维信号，执行层仅响应物理动作 | 决策能力与执行能力分离——缺肥/高温等 advisory 信号即时广播，无需等待执行器就位 |
+| 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策信号面板，超 120s 无数据自动切 DEMO |
+| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，101 用例 ALL PASS |
 
 ---
 
@@ -139,11 +140,11 @@ flowchart LR
 | **主控** | ESP32 DevKit v1 | Xtensa LX6 双核 240MHz, 520KB SRAM, WiFi 内置 |
 | **传感器** | 电容式土壤 v1.2 + HS-S20L-B 光敏 + DHT11 | 土壤湿度/光照/温湿度，共 3 类 4 个传感器 |
 | **执行器** | 12V 蠕动泵 + 12V COB 补光灯 + 双继电器 | 低电平触发，带安全超时 + 温度护栏 |
-| **显示** | SH1106 I2C OLED 128×64 + WS2812 11 灯珠灯条 | 三页轮播 + 湿度温度计可视化 |
+| **显示** | SH1106 I2C OLED 128×64 + WS2812 11 灯珠灯条 | 三页轮播 + 湿度温度计 + 决策信号动画广播 |
 | **固件** | MicroPython · 13 个模块化文件 | 按启动/主循环/感知/决策/执行/显示/遥测拆分，单一职责 |
 | **AI** | DeepSeek V4 Flash + 代理中转 | ¥1/百万 tokens · 支持 HTTP 代理（无 TLS 压力）或直连 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 87 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 101 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
 **硬件成本**：¥140/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
@@ -188,7 +189,7 @@ DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
 py -m pytest
 ```
 
-预期输出：**87 passed**
+预期输出：**101 passed**
 
 ---
 
@@ -196,13 +197,17 @@ py -m pytest
 
 ```text
 太空农业种植舱项目/
+├── ARCHITECTURE.md          # 系统架构设计文档
+├── TASKS.md                 # 当前任务与待办
+├── DEVLOG/                  # 开发日志（按日期）
+│   └── 2026-05-28.md
 ├── esp32_firmware/          # ESP32 MicroPython 固件（13 模块）
 │   ├── main.py              # 主入口 · 依赖注入接线
 │   ├── boot_runtime.py      # 启动序列编排
 │   ├── loop_runtime.py      # 主循环调度（采样→决策→执行→遥测）
 │   ├── sensors.py           # 传感器底层读取（土壤/光照/DHT/拨码）
 │   ├── actuators.py         # 执行器底层控制（12V 水泵 + 12V 补光灯双继电器）
-│   ├── status_strip.py      # WS2812 状态灯条（湿度温度计 + 系统状态）
+│   ├── status_strip.py      # WS2812 状态灯条（湿度温度计 + 决策信号动画）
 │   ├── decision.py          # 决策编排（AI门控 + 本地规则兜底）
 │   ├── action_runtime.py    # 动作执行 + 安全检查
 │   ├── display.py           # OLED 页面绘制（英文三页轮播）
@@ -210,7 +215,7 @@ py -m pytest
 │   ├── ai_client.py         # DeepSeek API 客户端 + 代理中转
 │   ├── config.py.example    # 配置模板（WiFi/AI/引脚）
 │   └── plants.json          # 8 种植物完整参数数据库
-├── tests/                   # pytest 自动化测试（87 用例 ALL PASS）
+├── tests/                   # pytest 自动化测试（101 用例 ALL PASS）
 │   ├── conftest.py          # MicroPython Mock 注入层
 │   ├── test_ai_parse.py     # AI 响应解析
 │   ├── test_config.py       # 配置 + 植物数据库
@@ -241,6 +246,9 @@ py -m pytest
 | 比赛前硬件验收 | [deliverables/实机验收清单.md](./deliverables/实机验收清单.md) |
 | 设计 KT 展板 | [deliverables/KT板展示设计-最新版.md](./deliverables/KT板展示设计-最新版.md) |
 | 了解测试体系 | [测试指南](./测试指南.md) |
+| 查看系统架构设计 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| 查看开发日志 | [DEVLOG/](./DEVLOG/) |
+| 查看当前任务 | [TASKS.md](./TASKS.md) |
 | 查看交付物全貌 | [deliverables/README.md](./deliverables/README.md) |
 
 ---
@@ -251,7 +259,7 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **87 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏故障预案 |
+| 自动化测试 | **101 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |

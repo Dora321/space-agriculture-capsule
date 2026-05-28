@@ -106,6 +106,28 @@
       color: var(--amber);
     }
 
+    .signal-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .signal-chip.physical {
+      border: 1px solid rgba(85, 217, 141, 0.7);
+      background: rgba(85, 217, 141, 0.12);
+      color: #55d98d;
+    }
+    .signal-chip.virtual {
+      border: 1px dashed rgba(168, 195, 186, 0.5);
+      background: rgba(168, 195, 186, 0.08);
+      color: #a8c3ba;
+    }
+
     .pill strong { color: var(--green); }
     .pill.source-local strong { color: var(--green); }
     .pill.source-cloud strong { color: var(--blue); }
@@ -933,6 +955,14 @@
             <div class="decision-stat"><span>上次触发</span><strong id="lastActionAt">暂无</strong></div>
             <div class="decision-stat"><span>连续待机</span><strong id="idleStreak">0 次</strong></div>
           </div>
+          <div id="signalsPanel" style="display:none;margin-top:8px;">
+            <div style="font-size:11px;color:#9e9e9e;margin-bottom:4px;">决策信号（WS2812 广播）</div>
+            <div id="signalsList" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+          </div>
+          <div id="breedingPanel" style="display:none;margin-top:6px;">
+            <div style="font-size:11px;color:#9e9e9e;">育种观察</div>
+            <div id="breedingObs" style="font-size:12px;color:#a5d6a7;margin-top:2px;"></div>
+          </div>
           <div class="decision-actions">
             <button class="demo-button" id="manualWater" type="button">演示浇水</button>
             <div class="demo-note" id="manualWaterNote">仅在演示模式下触发动画，不控制真实水泵。</div>
@@ -989,6 +1019,8 @@
       days: 0,
       hasReportedDays: false,
       action: "idle",
+      signals: [],
+      breedingObservation: "",
       source: "cloud",
       actionCount: 0,
       readCount: 0,
@@ -1334,6 +1366,57 @@
       document.getElementById("idleStreak").textContent = `${state.idleStreak} 次`;
     }
 
+    const SIGNAL_LABELS = {
+      WATER:      { icon: "💧", text: "浇水", physical: true },
+      LIGHT_LOW:  { icon: "💡", text: "缺光", physical: true },
+      LIGHT_HIGH: { icon: "☀️",  text: "强光", physical: false },
+      TEMP_HIGH:  { icon: "🌡️", text: "高温", physical: false },
+      TEMP_LOW:   { icon: "❄️",  text: "低温", physical: false },
+      HUMID_LOW:  { icon: "💨", text: "低湿", physical: false },
+      NEED_N:     { icon: "🌱", text: "缺氮", physical: false },
+      NEED_P:     { icon: "🌱", text: "缺磷", physical: false },
+      NEED_K:     { icon: "🌱", text: "缺钾", physical: false },
+      SENSOR_FAIL:{ icon: "⚠️", text: "传感器故障", physical: false },
+      OFFLINE_MODE:{ icon: "📞", text: "离线模式", physical: false },
+      BREEDING_GEN_UP: { icon: "🪵", text: "育种代际升级", physical: false },
+    };
+
+    function renderSignals() {
+      const panel = document.getElementById("signalsPanel");
+      const list = document.getElementById("signalsList");
+      const sigs = state.signals || [];
+      if (!sigs.length) {
+        panel.style.display = "none";
+        list.innerHTML = "";
+        return;
+      }
+      panel.style.display = "";
+      const physicalFirst = sigs.slice().sort((a, b) => {
+        const pa = SIGNAL_LABELS[a]?.physical ? 0 : 1;
+        const pb = SIGNAL_LABELS[b]?.physical ? 0 : 1;
+        return pa - pb;
+      });
+      list.innerHTML = physicalFirst.map(s => {
+        const info = SIGNAL_LABELS[s];
+        if (!info) return "";
+        const cls = info.physical ? "physical" : "virtual";
+        return `<span class="signal-chip ${cls}">${info.icon} ${info.text}</span>`;
+      }).join("");
+    }
+
+    function renderBreeding() {
+      const panel = document.getElementById("breedingPanel");
+      const obs = document.getElementById("breedingObs");
+      const text = (state.breedingObservation || "").trim();
+      if (!text) {
+        panel.style.display = "none";
+        obs.textContent = "";
+        return;
+      }
+      panel.style.display = "";
+      obs.textContent = text;
+    }
+
     function updateChamberInsights(stage) {
       const displayDays = displayPlantingDays();
       const progress = stageProgress(stage, displayDays);
@@ -1367,6 +1450,8 @@
       state.todayWaterCount += 1;
       state.lastActionAt = new Date();
       state.idleStreak = 0;
+      state.signals = ["WATER"];
+      state.breedingObservation = "手动演示浇水闭环";
       document.getElementById("reason").textContent = "演示触发：手动启动一次浇水闭环，观察水泵执行和湿度恢复。";
       log("演示手动浇水", { level: "warn" });
       pushHistory();
@@ -1421,6 +1506,8 @@
       document.getElementById("sun").textContent = clampSunHours(state.sun).toFixed(1);
       document.getElementById("daysFact").textContent = plantingDayLabel(displayDays);
       updateDecisionStats();
+      renderSignals();
+      renderBreeding();
       updateChamberInsights(document.getElementById("plantSvg").className.baseVal.replace("plant-svg stage-", ""));
 
       drawSpark("soilSpark", "soil", dry ? colors.red : colors.soil);
@@ -1467,6 +1554,8 @@
         state.startedAt = Date.now() - Number(data.uptime_sec) * 1000;
       }
       state.phase = setPhase(state.action, state.soil);
+      state.signals = Array.isArray(data.signals) ? data.signals : [];
+      state.breedingObservation = String(data.breeding_observation || "");
       if (state.action === "water" || state.action === "light") {
         state.lastActionAt = new Date();
         state.todayWaterCount = Math.max(state.todayWaterCount, state.actionCount);
@@ -1527,6 +1616,8 @@
         state.soil -= 4;
         state.action = "idle";
         state.idleStreak += 1;
+        state.signals = state.soil < state.soilThreshold + 8 ? ["NEED_N"] : [];
+        state.breedingObservation = "";
         document.getElementById("reason").textContent = "环境数据持续采集，土壤湿度正在模拟下降。";
         if (state.soil < state.soilThreshold + 2) {
           state.phase = 1;
@@ -1536,6 +1627,8 @@
         state.soil -= 5;
         state.action = "check";
         state.idleStreak = 0;
+        state.signals = ["WATER", "NEED_N"];
+        state.breedingObservation = "土壤含水量持续下降，建议补充氮肥促进根系吸收";
         document.getElementById("reason").textContent = "土壤湿度低于 30%，进入决策阶段。";
         state.phase = 2;
         log("触发缺水判断", { level: "warn" });
@@ -1546,17 +1639,22 @@
         state.todayWaterCount += 1;
         state.lastActionAt = new Date();
         state.idleStreak = 0;
+        state.signals = ["WATER"];
+        state.breedingObservation = "执行浇水，恢复土壤基质水势";
         document.getElementById("reason").textContent = "决策原因：土壤偏干，执行水泵浇水 8 秒。";
         state.phase = 3;
         log("生成浇水决策", { level: "warn" });
       } else {
         state.soil += 18;
         state.action = "water";
+        state.signals = ["WATER"];
         document.getElementById("reason").textContent = "水泵执行中，湿度回升。";
         if (state.soil >= 55) {
           state.soil = 42;
           state.action = "idle";
           state.phase = 0;
+          state.signals = [];
+          state.breedingObservation = "";
           log("浇水完成，系统恢复待机");
         }
       }

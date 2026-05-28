@@ -1,16 +1,32 @@
-"""WS2812 状态灯条驱动 — 育种舱生物指示灯。
+"""WS2812 状态灯条驱动 — 决策广播层。
 
-11 颗可寻址 RGB 灯珠：
-- 平时：按土壤湿度点亮对应数量（每颗 ≈ 9%），颜色梯度暖红→绿→冷蓝
-- 浇水中：整条黄色（兼容旧 set_led("yellow") 语义）
-- 错误/离线：整条红色（兼容旧 set_led("red") 语义）
-- 正常空闲：整条柔和绿（兼容旧 set_led("green") 语义）
-- 关闭：全灭（兼容旧 set_led("off") 语义）
+11 颗可寻址 RGB 灯珠，双重用途：
+- 默认：按土壤湿度点亮对应数量（湿度温度计），颜色梯度暖红→绿→冷蓝
+- 决策广播：整条变色/动画，向所有人展示系统"在想什么"
+
+Decision Plane / Action Plane 分离架构：
+- 物理执行器（水泵/补光灯）执行实际动作
+- WS2812 广播决策信号，包括虚拟信号（风扇/施肥等未接入硬件）
+
+信号类型与灯效映射：
+  WATER           黄色流水       💧 水泵开启
+  LIGHT_LOW       紫色脉冲       💡 补光灯开启
+  LIGHT_HIGH      蓝色脉冲       🟡 建议遮光（虚拟）
+  TEMP_HIGH       红色脉冲       🟡 建议通风（虚拟）
+  TEMP_LOW        冰蓝脉冲       🟡 建议加热（虚拟）
+  HUMID_LOW       青色脉冲       🟡 建议加湿（虚拟）
+  NEED_N          柠檬黄呼吸     🟡 建议补氮肥（虚拟）
+  NEED_P          粉色呼吸       🟡 建议补磷肥（虚拟）
+  NEED_K          橙色呼吸       🟡 建议补钾肥（虚拟）
+  SENSOR_FAIL     红色快闪       ⚠️ 切安全模式
+  OFFLINE_MODE    缓慢黄色呼吸   🛡️ 本地规则接管
+  BREEDING_GEN_UP 彩虹流光       🌱 育种代际进阶
 
 向后兼容：`utils.set_led(color)` 通过该模块实现，无需修改调用点。
 """
 
 import config
+import time
 
 try:
     import neopixel
@@ -23,6 +39,41 @@ except ImportError:
 _np = None
 _count = 0
 _brightness = 0.4
+
+
+# ============ 信号常量 ============
+
+SIGNAL_WATER = "WATER"
+SIGNAL_LIGHT_LOW = "LIGHT_LOW"
+SIGNAL_LIGHT_HIGH = "LIGHT_HIGH"
+SIGNAL_TEMP_HIGH = "TEMP_HIGH"
+SIGNAL_TEMP_LOW = "TEMP_LOW"
+SIGNAL_HUMID_LOW = "HUMID_LOW"
+SIGNAL_NEED_N = "NEED_N"
+SIGNAL_NEED_P = "NEED_P"
+SIGNAL_NEED_K = "NEED_K"
+SIGNAL_SENSOR_FAIL = "SENSOR_FAIL"
+SIGNAL_OFFLINE_MODE = "OFFLINE_MODE"
+SIGNAL_BREEDING_GEN_UP = "BREEDING_GEN_UP"
+
+# 信号是否对应已接入的物理执行器
+PHYSICAL_SIGNALS = {SIGNAL_WATER, SIGNAL_LIGHT_LOW}
+
+# 信号 → 默认动画时长（秒）
+SIGNAL_DURATION = {
+    SIGNAL_WATER: 5,
+    SIGNAL_LIGHT_LOW: 3,
+    SIGNAL_LIGHT_HIGH: 3,
+    SIGNAL_TEMP_HIGH: 3,
+    SIGNAL_TEMP_LOW: 3,
+    SIGNAL_HUMID_LOW: 3,
+    SIGNAL_NEED_N: 3,
+    SIGNAL_NEED_P: 3,
+    SIGNAL_NEED_K: 3,
+    SIGNAL_SENSOR_FAIL: 3,
+    SIGNAL_OFFLINE_MODE: 5,
+    SIGNAL_BREEDING_GEN_UP: 10,
+}
 
 
 def _scale(rgb):
@@ -131,7 +182,6 @@ def set_status(state):
 
 def blink(state, times=3, interval_ms=300):
     """整条闪烁。"""
-    import time
     for _ in range(times):
         set_status(state)
         time.sleep_ms(interval_ms)
@@ -139,14 +189,157 @@ def blink(state, times=3, interval_ms=300):
         time.sleep_ms(interval_ms)
 
 
+# ============ 决策广播动画 ============
+
+def _pulse(rgb, cycles=3, cycle_ms=600):
+    """整条脉冲呼吸动画。"""
+    steps = 20
+    half_ms = cycle_ms // 2
+    for _ in range(cycles):
+        # 渐亮
+        for s in range(steps):
+            frac = s / steps
+            c = _scale((int(rgb[0] * frac), int(rgb[1] * frac), int(rgb[2] * frac)))
+            for i in range(_count):
+                _np[i] = c
+            _np.write()
+            time.sleep_ms(half_ms // steps)
+        # 渐暗
+        for s in range(steps):
+            frac = 1 - s / steps
+            c = _scale((int(rgb[0] * frac), int(rgb[1] * frac), int(rgb[2] * frac)))
+            for i in range(_count):
+                _np[i] = c
+            _np.write()
+            time.sleep_ms(half_ms // steps)
+
+
+def _breathe(rgb, cycles=3, cycle_ms=1200):
+    """缓慢呼吸动画（比 pulse 更慢更柔和）。"""
+    steps = 20
+    half_ms = cycle_ms // 2
+    for _ in range(cycles):
+        for s in range(steps):
+            frac = s / steps
+            c = _scale((int(rgb[0] * frac), int(rgb[1] * frac), int(rgb[2] * frac)))
+            for i in range(_count):
+                _np[i] = c
+            _np.write()
+            time.sleep_ms(half_ms // steps)
+        for s in range(steps):
+            frac = 1 - s / steps
+            c = _scale((int(rgb[0] * frac), int(rgb[1] * frac), int(rgb[2] * frac)))
+            for i in range(_count):
+                _np[i] = c
+            _np.write()
+            time.sleep_ms(half_ms // steps)
+
+
+def _flow(rgb, duration_sec=5):
+    """流水灯动画：亮点从左到右流动。"""
+    head_ms = 80
+    heads = int(duration_sec * 1000 / head_ms / _count) + 1
+    for _ in range(heads):
+        for head in range(_count):
+            for i in range(_count):
+                dist = abs(i - head)
+                brightness = max(0.05, 1.0 - dist * 0.25)
+                c = _scale((int(rgb[0] * brightness), int(rgb[1] * brightness), int(rgb[2] * brightness)))
+                _np[i] = c
+            _np.write()
+            time.sleep_ms(head_ms)
+
+
+def _fast_blink(rgb, times=10, interval_ms=100):
+    """快速闪烁动画。"""
+    for _ in range(times):
+        c = _scale(rgb)
+        for i in range(_count):
+            _np[i] = c
+        _np.write()
+        time.sleep_ms(interval_ms)
+        for i in range(_count):
+            _np[i] = (0, 0, 0)
+        _np.write()
+        time.sleep_ms(interval_ms)
+
+
+def _rainbow(duration_sec=10):
+    """7 色彩虹流光动画。"""
+    colors = [
+        (255, 0, 0), (255, 127, 0), (255, 255, 0),
+        (0, 255, 0), (0, 0, 255), (75, 0, 130), (148, 0, 211),
+    ]
+    offset = 0
+    steps = int(duration_sec * 1000 / 100)
+    for _ in range(steps):
+        for i in range(_count):
+            r, g, b = colors[(i + offset) % len(colors)]
+            _np[i] = _scale((r, g, b))
+        _np.write()
+        offset += 1
+        time.sleep_ms(100)
+
+
+# 信号 → 动画函数映射
+_SIGNAL_ANIMATIONS = {
+    SIGNAL_WATER:           lambda dur: _flow((255, 200, 0), duration_sec=dur),
+    SIGNAL_LIGHT_LOW:       lambda dur: _pulse((180, 0, 255), cycles=3, cycle_ms=600),
+    SIGNAL_LIGHT_HIGH:      lambda dur: _pulse((0, 80, 255), cycles=3, cycle_ms=600),
+    SIGNAL_TEMP_HIGH:       lambda dur: _pulse((255, 0, 0), cycles=3, cycle_ms=600),
+    SIGNAL_TEMP_LOW:        lambda dur: _pulse((100, 180, 255), cycles=3, cycle_ms=600),
+    SIGNAL_HUMID_LOW:       lambda dur: _pulse((0, 220, 220), cycles=3, cycle_ms=600),
+    SIGNAL_NEED_N:          lambda dur: _breathe((255, 255, 0), cycles=3, cycle_ms=1200),
+    SIGNAL_NEED_P:          lambda dur: _breathe((255, 100, 180), cycles=3, cycle_ms=1200),
+    SIGNAL_NEED_K:          lambda dur: _breathe((255, 140, 0), cycles=3, cycle_ms=1200),
+    SIGNAL_SENSOR_FAIL:     lambda dur: _fast_blink((255, 0, 0), times=10, interval_ms=100),
+    SIGNAL_OFFLINE_MODE:    lambda dur: _breathe((255, 180, 0), cycles=3, cycle_ms=1500),
+    SIGNAL_BREEDING_GEN_UP: lambda dur: _rainbow(duration_sec=dur),
+}
+
+
+def play_signal(signal, duration_sec=None):
+    """播放决策信号对应的 WS2812 动画。
+
+    signal: 信号常量（如 SIGNAL_WATER）
+    duration_sec: 动画时长，默认取 SIGNAL_DURATION 映射
+    """
+    if _np is None:
+        return
+    anim = _SIGNAL_ANIMATIONS.get(signal)
+    if anim is None:
+        print(f"[Strip] Unknown signal: {signal}")
+        return
+    if duration_sec is None:
+        duration_sec = SIGNAL_DURATION.get(signal, 3)
+    print(f"[Strip] Signal: {signal} ({duration_sec}s)")
+    try:
+        anim(duration_sec)
+    except Exception as e:
+        print(f"[Strip] Signal animation error: {e}")
+
+
+def play_signals(signals, max_signals=3):
+    """依次播放多个决策信号动画，最多播放 max_signals 个。
+
+    物理执行器信号（WATER/LIGHT_LOW）优先播放。
+    """
+    if not signals:
+        return
+    # 物理信号优先
+    ordered = sorted(signals, key=lambda s: 0 if s in PHYSICAL_SIGNALS else 1)
+    for signal in ordered[:max_signals]:
+        play_signal(signal)
+
+
 def test_sequence():
-    """启动自检：依次显示红/黄/绿/湿度渐变，便于现场快速判断灯条是否正常。"""
-    import time
-    print("[Strip] Self-test: red -> yellow -> green -> moisture sweep")
-    for color in ("red", "yellow", "green"):
-        set_status(color)
-        time.sleep_ms(400)
-    for pct in (0, 20, 40, 60, 80, 100):
-        show_moisture(pct)
-        time.sleep_ms(250)
+    """启动自检：依次显示所有信号动画，便于现场快速判断灯条是否正常。"""
+    print("[Strip] Self-test: all signal animations")
+    for signal in [SIGNAL_WATER, SIGNAL_LIGHT_LOW, SIGNAL_TEMP_HIGH,
+                   SIGNAL_TEMP_LOW, SIGNAL_NEED_N, SIGNAL_NEED_P,
+                   SIGNAL_NEED_K, SIGNAL_BREEDING_GEN_UP]:
+        play_signal(signal, duration_sec=2)
+        time.sleep_ms(300)
+    show_moisture(50)
+    time.sleep_ms(500)
     off()

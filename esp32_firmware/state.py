@@ -25,6 +25,8 @@ class SystemState:
         self.last_action_time = 0
         self.last_decision_reason = "status normal"
         self.last_decision_source = "local"
+        self.last_signals = []
+        self.last_breeding_observation = ""
         self.last_ai_request_time = 0
         self.last_ai_snapshot = None
         self.action_count = 0

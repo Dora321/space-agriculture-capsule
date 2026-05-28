@@ -34,7 +34,50 @@ def show_soil_indicator(pct):
     status_strip.show_moisture(pct)
 
 
+def play_signal(signal, duration_sec=None):
+    """播放决策信号对应的 WS2812 动画。"""
+    status_strip.play_signal(signal, duration_sec)
+
+
+def play_signals(signals, max_signals=3):
+    """依次播放多个决策信号动画。"""
+    status_strip.play_signals(signals, max_signals)
+
+
 # ============ 本地决策规则 ============
+
+def _collect_signals(soil, plant_info, temperature, light, sun_minutes):
+    """收集 advisory signals（WS2812 广播用，不影响动作决策）。"""
+    signals = []
+    temp_high = getattr(config, "TEMP_HIGH_C", 35)
+    temp_low = getattr(config, "TEMP_LOW_C", 8)
+
+    # 温度信号
+    if temperature is not None:
+        if temperature >= temp_high:
+            signals.append("TEMP_HIGH")
+        if temperature <= temp_low:
+            signals.append("TEMP_LOW")
+
+    # 缺肥信号（根据当前生长阶段 fert 字段）
+    stages = plant_info.get("growth_stages", [])
+    current_stage = stages[-1] if stages else {}
+    fert = current_stage.get("fert", "")
+    if "N" in fert and "P" not in fert and "K" not in fert:
+        signals.append("NEED_N")
+    elif "PK" in fert or ("P" in fert and "K" in fert):
+        signals.append("NEED_P")
+    elif "K" in fert and "N" not in fert:
+        signals.append("NEED_K")
+
+    # 光照信号
+    if light is not None:
+        light_min = plant_info.get('light_min', 30)
+        if light < light_min:
+            signals.append("LIGHT_LOW")
+
+    return signals
+
 
 def local_fallback_decision(
     soil, plant_info, last_nutrient=0, current_time=0,
@@ -55,9 +98,12 @@ def local_fallback_decision(
         temperature: 当前舱内温度（℃），None 表示传感器离线
 
     返回:
-        dict: {"action": str, "duration_sec": int, "reason": str}
+        dict: {"action": str, "duration_sec": int, "reason": str,
+               "signals": list, "breeding_observation": str}
 
-    硬件改动 2026-05-27：单水泵架构，不再产出 "nutrient" 动作。
+    架构升级 2026-05-28：Decision Plane / Action Plane 分离。
+        signals 列表包含 advisory signals（WS2812 广播用）。
+        breeding_observation 记录生长观察（1 句话）。
     """
 
     soil_threshold = plant_info['soil_threshold']
@@ -65,13 +111,20 @@ def local_fallback_decision(
     temp_high = getattr(config, "TEMP_HIGH_C", 35)
     temp_low = getattr(config, "TEMP_LOW_C", 8)
 
+    # 收集 advisory signals
+    signals = _collect_signals(soil, plant_info, temperature, light, sun_minutes)
+    observation = ""
+
     # 决策优先级
     # 1. 土壤极度干燥 -> 立即浇水（即使温度异常也要救命）
     if soil < soil_threshold - 15:
+        action_signals = ["WATER"] + [s for s in signals if s != "WATER"]
         return {
             "action": "water",
-            "duration_sec": water_sec + 3,  # 延长一点
-            "reason": "soil very dry"
+            "duration_sec": water_sec + 3,
+            "reason": "soil very dry",
+            "signals": action_signals,
+            "breeding_observation": observation,
         }
 
     # 2. 低温 -> 跳过所有执行器动作（补光灯升温对低温植物不利）
@@ -79,7 +132,9 @@ def local_fallback_decision(
         return {
             "action": "idle",
             "duration_sec": 0,
-            "reason": f"temp LOW {temperature}C<={temp_low}C, skip all actions"
+            "reason": f"temp LOW {temperature}C<={temp_low}C, skip all actions",
+            "signals": signals,
+            "breeding_observation": observation,
         }
 
     # 3. 高温标记：仅跳过浇水（避免闷根），补光不受影响
@@ -89,10 +144,13 @@ def local_fallback_decision(
 
     # 4. 土壤干燥（非极度）-> 温度安全时浇水
     if soil < soil_threshold and not high_temp_skip_water:
+        action_signals = ["WATER"] + [s for s in signals if s != "WATER"]
         return {
             "action": "water",
             "duration_sec": water_sec,
-            "reason": "soil dry"
+            "reason": "soil dry",
+            "signals": action_signals,
+            "breeding_observation": observation,
         }
 
     # 5. 光照不足 -> 补光（不受高温浇水限制影响）
@@ -102,21 +160,26 @@ def local_fallback_decision(
         light_max_run = getattr(config, "LIGHT_MAX_RUN_SEC", 120)
         sun_hours = sun_minutes / 60
         if light < light_min:
-            # 补光时长 = 缺少日照时长的一半，上限 LIGHT_MAX_RUN_SEC，下限 30 秒
             deficit_h = max(0, light_hours[0] - sun_hours)
             light_dur = int(min(light_max_run, max(30, deficit_h * 3600 / 2)))
+            action_signals = ["LIGHT_LOW"] + [s for s in signals if s != "LIGHT_LOW"]
             return {
                 "action": "light",
                 "duration_sec": light_dur,
-                "reason": f"light LOW {light}%<{light_min}%"
+                "reason": f"light LOW {light}%<{light_min}%",
+                "signals": action_signals,
+                "breeding_observation": observation,
             }
         if uptime_sec > 43200 and sun_hours < light_hours[0]:
             deficit_h = light_hours[0] - sun_hours
             light_dur = int(min(light_max_run, max(30, deficit_h * 3600 / 2)))
+            action_signals = ["LIGHT_LOW"] + [s for s in signals if s != "LIGHT_LOW"]
             return {
                 "action": "light",
                 "duration_sec": light_dur,
-                "reason": f"sun LOW {sun_hours:.1f}h/{light_hours[0]}h"
+                "reason": f"sun LOW {sun_hours:.1f}h/{light_hours[0]}h",
+                "signals": action_signals,
+                "breeding_observation": observation,
             }
 
     # 6. 高温但土壤不干、光照也不缺 -> 跳过浇水
@@ -124,14 +187,18 @@ def local_fallback_decision(
         return {
             "action": "idle",
             "duration_sec": 0,
-            "reason": f"temp HIGH {temperature}C>={temp_high}C, skip watering"
+            "reason": f"temp HIGH {temperature}C>={temp_high}C, skip watering",
+            "signals": signals,
+            "breeding_observation": observation,
         }
 
     # 7. 一切正常
     return {
         "action": "idle",
         "duration_sec": 0,
-        "reason": "status normal"
+        "reason": "status normal",
+        "signals": signals,
+        "breeding_observation": observation,
     }
 
 
@@ -164,13 +231,6 @@ def is_daytime():
 # ============ 数据处理 ============
 
 def moving_average(values, new_value, window=5):
-    """
-    计算移动平均
-    values: 历史值列表
-    new_value: 新值
-    window: 窗口大小
-    返回: 平均值
-    """
     values.append(new_value)
     if len(values) > window:
         values.pop(0)
@@ -178,12 +238,6 @@ def moving_average(values, new_value, window=5):
 
 
 def smooth_value(current, target, factor=0.3):
-    """
-    平滑值变化（用于显示）
-    current: 当前值
-    target: 目标值
-    factor: 平滑因子 (0-1)
-    """
     return current + (target - current) * factor
 
 
@@ -199,22 +253,22 @@ def get_free_memory():
 def system_info(start_time=0):
     """获取系统信息"""
     import sys
-    
+
     uptime_seconds = time.time() - start_time if start_time > 0 else 0
-    
+
     info = {
         "platform": sys.platform,
         "python_version": sys.version,
         "free_memory": get_free_memory(),
         "uptime": format_uptime(uptime_seconds),
     }
-    
+
     try:
         import machine
         info["chip"] = machine.reset_cause()
     except:
         pass
-    
+
     return info
 
 
@@ -235,8 +289,6 @@ def deep_sleep(seconds):
 def dump_pins():
     """打印所有 GPIO 引脚状态（调试用）"""
     print("=== GPIO Status ===")
-    
-    # 可以扩展为读取所有引脚状态
     print("Note: ESP32 ADC/GPIO check simplified")
     print("Suggest using digitalio for detailed check")
 
@@ -253,12 +305,12 @@ def memory_stats():
 def benchmark(func, iterations=100):
     """性能基准测试"""
     import time
-    
+
     start = time.ticks_us()
     for _ in range(iterations):
         func()
     end = time.ticks_us()
-    
+
     avg_us = time.ticks_diff(end, start) / iterations
     print(f"[Benchmark] {func.__name__}: {avg_us:.2f}us (avg, {iterations} iterations)")
     return avg_us

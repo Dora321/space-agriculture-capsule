@@ -68,3 +68,20 @@ class TestEdgeCases:
         """单泵架构下，仅 water 是合法关键词；其它一律 idle"""
         d = parse_decision_from_text("water and then nutrient")
         assert d["action"] == "water"
+
+
+class TestParseSignalsAndObservation:
+    """关键词解析兜底时 signals 和 breeding_observation 的默认值"""
+
+    def test_default_signals_is_empty_list(self):
+        d = parse_decision_from_text("water now")
+        assert d["signals"] == []
+
+    def test_default_breeding_observation_is_empty(self):
+        d = parse_decision_from_text("water now")
+        assert d["breeding_observation"] == ""
+
+    def test_idle_also_has_signals_key(self):
+        d = parse_decision_from_text("一切正常")
+        assert "signals" in d
+        assert "breeding_observation" in d

@@ -78,10 +78,18 @@ def _validate_decision(decision: dict) -> dict:
     duration = max(0, duration)
     if action == "idle":
         duration = 0
+    # 信号验证：只保留已知信号类型
+    valid_signals = {"WATER", "LIGHT_LOW", "LIGHT_HIGH", "TEMP_HIGH", "TEMP_LOW",
+                     "HUMID_LOW", "NEED_N", "NEED_P", "NEED_K",
+                     "SENSOR_FAIL", "OFFLINE_MODE", "BREEDING_GEN_UP"}
+    raw_signals = decision.get("signals", [])
+    signals = [s for s in raw_signals if isinstance(s, str) and s in valid_signals]
     return {
         "action": action,
         "duration_sec": duration,
         "reason": str(decision.get("reason", ""))[:120],
+        "signals": signals,
+        "breeding_observation": str(decision.get("breeding_observation", ""))[:200],
     }
 
 

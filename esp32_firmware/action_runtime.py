@@ -15,10 +15,18 @@ def execute_decision(
     show_action=None,
     refresh_display=None,
 ):
-    """Execute a water/light/idle decision and update runtime state."""
+    """Execute a water/light/idle decision and update runtime state.
+
+    Decision Plane / Action Plane:
+    - action = physical execution (pump/light)
+    - signals = advisory signals broadcast on WS2812
+    - breeding_observation = growth observation for telemetry
+    """
     action = decision.get("action", "idle")
     duration = min(decision.get("duration_sec", 0), config.PUMP_MAX_RUN_SEC)
     reason = decision.get("reason", "")
+    signals = decision.get("signals", [])
+    breeding_observation = decision.get("breeding_observation", "")
     valid_actions = ("water", "light", "idle")
 
     # 兼容历史/AI 误返：把 nutrient 静默映射为 idle，避免单泵架构下行为不一致
@@ -41,12 +49,24 @@ def execute_decision(
         state.last_action_duration = 0
         state.last_action_time = time.time()
         state.last_decision_reason = reason
+        state.last_signals = signals
+        state.last_breeding_observation = breeding_observation
+        # 即使 idle 也播放 advisory signals（如 TEMP_HIGH、NEED_N 等）
+        if signals:
+            utils.play_signals(signals)
         if refresh_display is not None:
             refresh_display(force=True, reset_page=True)
         return
 
     print(f"[Action] Executing: {action} ({duration}s) Reason: {reason}")
-    utils.set_led("yellow")
+    if signals:
+        print(f"[Action] Signals: {signals}")
+
+    # 播放主动作对应的信号动画（执行前短暂展示，告诉观察者即将做什么）
+    if action == "water":
+        utils.play_signal("WATER", duration_sec=min(3, duration))
+    elif action == "light":
+        utils.play_signal("LIGHT_LOW", duration_sec=min(3, duration))
 
     if show_action is not None:
         show_action(action, duration, reason)
@@ -64,7 +84,14 @@ def execute_decision(
     state.last_action_duration = duration
     state.last_action_time = time.time()
     state.last_decision_reason = reason
+    state.last_signals = signals
+    state.last_breeding_observation = breeding_observation
     state.action_count += 1
+
+    # 执行后播放 advisory signals（如 TEMP_HIGH、NEED_K 等）
+    advisory = [s for s in signals if s not in ("WATER", "LIGHT_LOW")]
+    if advisory:
+        utils.play_signals(advisory)
 
     utils.set_led("green")
     if refresh_display is not None:

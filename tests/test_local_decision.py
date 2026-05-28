@@ -229,3 +229,75 @@ class TestTemperatureSafety:
             temperature=None,
         )
         assert d["action"] == "water"
+
+
+class TestSignals:
+    """Decision Plane 信号生成测试"""
+
+    def test_water_action_includes_water_signal(self):
+        """浇水动作的 signals 列表包含 WATER 信号"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] - 5,
+            plant_info=info,
+            current_time=1000,
+        )
+        assert "WATER" in d["signals"]
+
+    def test_light_action_includes_light_low_signal(self):
+        """补光动作的 signals 列表包含 LIGHT_LOW 信号"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            light=info["light_min"] - 1,
+            plant_info=info,
+            current_time=1000,
+        )
+        assert "LIGHT_LOW" in d["signals"]
+
+    def test_high_temp_adds_temp_high_signal(self):
+        """高温时 signals 包含 TEMP_HIGH"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=1000,
+            temperature=config.TEMP_HIGH_C + 2,
+            light=info["light_min"] + 20,
+        )
+        assert "TEMP_HIGH" in d["signals"]
+
+    def test_low_temp_adds_temp_low_signal(self):
+        """低温时 signals 包含 TEMP_LOW"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=1000,
+            temperature=config.TEMP_LOW_C - 1,
+        )
+        assert "TEMP_LOW" in d["signals"]
+
+    def test_normal_idle_has_no_physical_signals(self):
+        """正常待机时 signals 不包含物理执行器信号"""
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=1000,
+            light=info["light_min"] + 20,
+        )
+        assert "WATER" not in d["signals"]
+        assert "LIGHT_LOW" not in d["signals"]
+
+    def test_decision_dict_has_signals_and_breeding_keys(self):
+        """所有决策返回值都包含 signals 和 breeding_observation 键"""
+        info = _plant()
+        for soil, light in [(80, 70), (10, 70), (80, 10)]:
+            d = local_fallback_decision(
+                soil=soil, light=light, plant_info=info, current_time=1000,
+            )
+            assert "signals" in d
+            assert isinstance(d["signals"], list)
+            assert "breeding_observation" in d
+            assert isinstance(d["breeding_observation"], str)

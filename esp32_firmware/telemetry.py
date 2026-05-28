@@ -44,6 +44,8 @@ def send_state(state, ai_enabled=False):
         payload["light_min"] = plant_info.get("light_min", 30)
         payload["light_opt"] = plant_info.get("light_opt", 50)
         payload["light_hours"] = plant_info.get("light_hours", [6, 8])
+        payload["signals"] = getattr(state, "last_signals", [])
+        payload["breeding_observation"] = getattr(state, "last_breeding_observation", "")
         try:
             import time
             if getattr(state, "start_time", 0):
