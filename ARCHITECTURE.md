@@ -220,7 +220,82 @@ AI 返回格式：
 
 ---
 
-## 5. 安全机制
+## 5. 启动顺序与内存管理
+
+### 5.1 WiFi 优先启动
+
+ESP32 WiFi 驱动初始化需要约 130KB 连续堆内存（10 个 rx 缓冲区 × 1600B）。
+若 `utils.py` / `status_strip.py`（合计 22KB）先被加载，堆碎片会导致 OOM。
+
+**启动顺序约定（严禁乱序）**：
+
+```
+main.py 顶层 import：仅 config / wifi_client / display_runtime / state（轻量）
+    ↓
+init_system() 开始：gc.collect() × 2 → wifi_client.connect()  ← 此时堆最干净
+    ↓
+import boot_runtime（拉入 utils / status_strip / actuators）
+    ↓
+boot_runtime.init_system()：sensors → actuators → utils.init_leds() → display init
+```
+
+`boot_runtime / sensor_runtime / action_runtime / decision / loop_runtime`
+均改为首次调用时懒加载（函数内 `import`），不在 `main.py` 顶层 import。
+违反此约定会导致 WiFi init 可用内存下降，出现 "Expected to init N rx buffer, actual is M" OOM。
+
+### 5.2 AI 请求内存管理
+
+AI 请求（直连 HTTPS TLS 握手）需要约 110KB 自由堆（`AI_MIN_FREE_MEM = 110000`）。
+请求前 `decision.py` 调用 `release_display()` 释放 OLED 模块与帧缓冲（约 2KB）。
+返回后 display 通过 `display_runtime.display()` 惰性重初始化。
+
+**注意**：`release_display()` 会从 `sys.modules` 删除 `display` 模块，
+`Menu._display` 持有的是旧模块引用（`_oled = None`）。
+每次进入菜单前必须执行 `_menu._display = display_runtime.display()` 同步引用。
+
+---
+
+## 6. 按键交互
+
+### 6.1 硬件
+
+单 ADC 引脚（GPIO33）模拟键盘，4 个按键串联不同阻值产生不同电压：
+
+| 颜色 | 功能 | ADC 实测 | 阈值范围 |
+|------|------|---------|---------|
+| 红 (UP) | 上翻 / 上一项 | ~3246 | 3201–3800 |
+| 黄 (DOWN) | 下翻 / 下一项 | ~2840（最大 3166）| 2601–3200 |
+| 绿 (OK) | 确认 / 进入 | ~2305 | 2201–2600 |
+| 蓝 (BACK) | 返回 / 退出 | ~2030 | 200–2200 |
+
+闲置时 ADC < 200（下拉到 GND）。
+
+### 6.2 交互规则（全局统一，无长按）
+
+```
+红 / 黄  →  上下导航（主界面翻页 / 菜单滚动）
+绿       →  确认 / 进入子菜单 / 执行手动动作
+蓝       →  退出 / 返回上一层（任何层级均有效）
+```
+
+从主界面按蓝键直接进入主菜单，在任意菜单内按蓝键直接退出一层，无长按逻辑。
+
+### 6.3 主循环按键轮询
+
+`loop_runtime.run_loop()` 末尾以 100ms 为间隔轮询按键，持续约 900ms（即 1s 周期内有 9 次检测机会）：
+
+```python
+_t0 = time.ticks_ms()
+while time.ticks_diff(time.ticks_ms(), _t0) < 900:
+    if check_menu is not None:
+        _triggered = check_menu()
+        ...
+    time.sleep_ms(100)
+```
+
+---
+
+## 7. 安全机制
 
 ### 5.1 执行器安全
 
