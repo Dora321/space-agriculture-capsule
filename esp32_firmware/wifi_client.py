@@ -78,11 +78,12 @@ def is_connected():
 
 
 def get_ip():
-    """获取 IP 地址"""
+    """获取 IP 地址，未分配时返回 None。"""
     global _wlan
     if _wlan and _wlan.isconnected():
-        return _wlan.ifconfig()[0]
-    return "0.0.0.0"
+        ip = _wlan.ifconfig()[0]
+        return ip if ip != "0.0.0.0" else None
+    return None
 
 
 def get_rssi():

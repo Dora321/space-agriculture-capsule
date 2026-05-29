@@ -35,3 +35,4 @@ class SystemState:
         self.error_count = 0
         self.start_time = 0
         self.demo_soil_moisture = None
+        self.manual_day = None      # 手动设置的种植天数；None 则按 config.PLANTING_DATE 计算

@@ -87,11 +87,11 @@ def _setup_menu():
 
 
 def _select_plant():
-    """启动时使用独立按钮选择植物类型。"""
+    """启动时选择植物类型。"""
     global _menu
     if _menu is None:
         if not _setup_menu():
-            return  # 菜单不可用，使用默认值
+            return
 
     print("[Menu] Entering plant selection...")
     selected = _menu.run_plant_selection(
@@ -100,6 +100,24 @@ def _select_plant():
     state.plant_type = selected
     state.plant_info = config.get_plant_info(selected)
     print(f"[Menu] Plant selected: {selected}")
+
+
+def _select_day():
+    """启动时选择当前种植天数。"""
+    global _menu
+    if _menu is None:
+        return
+
+    import config as _cfg
+    default_day = _cfg.calc_days_since_planting()
+    print("[Menu] Entering day selection...")
+    chosen = _menu.run_day_selection(
+        current_day=default_day,
+        plant_info=state.plant_info,
+    )
+    state.manual_day = chosen
+    state.days_since_planting = chosen
+    print(f"[Menu] Day selected: {chosen}")
 
 
 def _plant_index(plant_name):
@@ -180,16 +198,22 @@ def init_system():
         display=_display,
         release_display=_release_display,
         read_all_sensors=read_all_sensors,
-        refresh_display=_refresh_display,
+        refresh_display=None,       # 不在这里渲染，避免仪表盘在选蔬菜前闪一下
         send_telemetry=_send_telemetry,
     )
 
     if not ok:
         return False
 
-    # 启动菜单：让用户用独立按钮选择植物
+    # 启动菜单：选植物 → 选天数
     print("[Init] Starting plant selection...")
     _select_plant()
+
+    print("[Init] Starting day selection...")
+    _select_day()
+
+    # 选完后首次渲染仪表盘
+    _refresh_display(force=True, reset_page=True)
 
     return True
 

@@ -75,7 +75,7 @@ def read_all_sensors(state, demo_enabled=False, show_error=None):
             temp,
             hum,
             plant,
-            config.calc_days_since_planting(),
+            state.manual_day if state.manual_day is not None else config.calc_days_since_planting(),
             int(config.READ_INTERVAL / 60),
         )
 

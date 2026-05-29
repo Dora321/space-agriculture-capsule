@@ -59,9 +59,51 @@ class Menu:
 
             time.sleep_ms(50)
 
+    def run_day_selection(self, current_day=0, plant_info=None):
+        """天数选择：红/黄 ±1（持续按住加速），绿确认，蓝跳过保留原值。
+
+        Args:
+            current_day: 当前天数（默认值）
+            plant_info: 可选，用于显示对应生长阶段名称
+
+        Returns:
+            int: 选择的天数（蓝键取消时返回 current_day）
+        """
+        import config as _cfg
+        day = max(0, int(current_day))
+        MAX_DAY = 365
+
+        def _stage_for(d):
+            if not plant_info:
+                return None
+            s = _cfg.get_growth_stage(plant_info, d)
+            return s.get("stage") if s else None
+
+        self._display.show_day_select(day, _stage_for(day))
+
+        while True:
+            delta = self._control.nav_held()
+
+            if delta != 0:
+                day = max(0, min(MAX_DAY, day + delta))
+                self._display.show_day_select(day, _stage_for(day))
+
+            # 绿键确认
+            self._control.update()   # 排干 pending_event 以检测 OK/BACK
+            if self._control.pressed():
+                self._control.reset_press()
+                return day
+
+            # 蓝键跳过
+            if self._control.back_pressed():
+                self._control.reset_press()
+                return current_day
+
+            time.sleep_ms(50)
+
     def run_main_menu(self, state, get_wifi_status, get_ip):
-        """主菜单：Plant / Manual / System Info。蓝键直接退出。"""
-        items = ["Plant Select", "Manual Ctrl", "System Info"]
+        """主菜单：Plant / Set Day / Manual / System Info。蓝键直接退出。"""
+        items = ["Plant Select", "Set Day", "Manual Ctrl", "System Info"]
         idx = 0
         self._control.set_value(0)
         self._display.show_complete_menu("Menu", items, idx)
@@ -76,17 +118,26 @@ class Menu:
 
             if self._control.pressed():
                 self._control.reset_press()
-                if idx == 0:
+                if idx == 0:   # Plant Select
                     new_plant = self.run_plant_selection(
                         default_index=self._plant_index(state.plant_type)
                     )
                     state.plant_type = new_plant
                     state.plant_info = None
                     self._display.show_complete_menu("Menu", items, idx)
-                elif idx == 1:
+                elif idx == 1:  # Set Day
+                    plant_info = state.plant_info
+                    new_day = self.run_day_selection(
+                        current_day=state.days_since_planting,
+                        plant_info=plant_info,
+                    )
+                    state.manual_day = new_day
+                    state.days_since_planting = new_day
+                    self._display.show_complete_menu("Menu", items, idx)
+                elif idx == 2:  # Manual Ctrl
                     self._run_manual_control(state)
                     self._display.show_complete_menu("Menu", items, idx)
-                elif idx == 2:
+                elif idx == 3:  # System Info
                     self._run_system_info(get_wifi_status, get_ip)
                     self._display.show_complete_menu("Menu", items, idx)
 
@@ -97,7 +148,10 @@ class Menu:
             time.sleep_ms(50)
 
     def _run_manual_control(self, state):
-        """手动控制：Water Pump / Grow Light。绿确认执行，蓝返回。"""
+        """手动控制：Water Pump / Grow Light。绿确认立即执行，蓝返回。"""
+        import actuators
+        import config as _cfg
+
         items = ["Water Pump", "Grow Light"]
         idx = 0
         self._control.set_value(0)
@@ -114,11 +168,13 @@ class Menu:
             if self._control.pressed():
                 self._control.reset_press()
                 if idx == 0:
-                    self._show_action_confirm("Water Pump", "WATER")
-                    state._manual_action = "water"
+                    dur = _cfg.PUMP_WATER_DEFAULT_SEC
+                    self._show_running("Water Pump", "WATER", dur)
+                    actuators.run_water_pump(dur)
                 elif idx == 1:
-                    self._show_action_confirm("Grow Light", "LIGHT")
-                    state._manual_action = "light"
+                    dur = getattr(_cfg, "MANUAL_LIGHT_SEC", 30)
+                    self._show_running("Grow Light", "LIGHT", dur)
+                    actuators.run_light(dur)
                 return
 
             if self._control.back_pressed():
@@ -146,18 +202,18 @@ class Menu:
                 return
             time.sleep_ms(100)
 
-    def _show_action_confirm(self, title, action):
-        """执行确认画面（1.5s 后自动消失）。"""
+    def _show_running(self, title, action, duration_sec):
+        """执行中画面：标题 + 动作 + 时长，在 actuator 阻塞期间保持显示。"""
         try:
             import display
             if not hasattr(display, "_check_init") or not display._check_init():
                 return
             display._oled.fill(0)
-            display._draw_centered(title, 8)
-            display._draw_centered("Executing...", 28)
-            display._draw_centered(">{}< ".format(action), 44)
+            display._draw_inverted(">> {}".format(title))
+            display._draw_centered(">{}< ".format(action), 22)
+            display._draw_centered("{}s".format(duration_sec), 36)
+            display._draw_centered("Running...", 50)
             display._oled.show()
-            time.sleep_ms(1500)
         except Exception:
             pass
 

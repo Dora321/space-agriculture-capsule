@@ -37,6 +37,33 @@ _STAGE_CODES = {
     "harvesting": "HRV",
 }
 
+# 5x5 阶段像素图标（坐标为相对偏移，绘制在反色标题栏右侧）
+_STAGE_ICON_PIXELS = {
+    "SGL": [(2,0),(1,1),(3,1),(2,2),(2,3),(2,4)],             # 幼苗：Y 形茎叶
+    "VEG": [(1,0),(3,0),(0,1),(1,1),(2,1),(3,1),(4,1),         # 叶片：宽叶轮廓
+            (0,2),(1,2),(2,2),(3,2),(4,2),
+            (1,3),(2,3),(3,3),(2,4)],
+    "FLR": [(2,0),(0,1),(4,1),(1,2),(2,2),(3,2),(0,3),(4,3),   # 花朵：六瓣星形
+            (1,4),(3,4)],
+    "FRT": [(1,0),(2,0),(3,0),(0,1),(1,1),(2,1),(3,1),(4,1),   # 果实：实心圆
+            (0,2),(1,2),(2,2),(3,2),(4,2),
+            (0,3),(1,3),(2,3),(3,3),(4,3),
+            (1,4),(2,4),(3,4)],
+    "HRV": [(4,0),(3,1),(4,1),(2,2),(3,2),(1,3),(2,3),(0,4),(1,4)],  # 收获：勾形
+}
+
+
+def _draw_stage_icon(stage_code, x, y, color=1):
+    """在 (x, y) 处绘制 5x5 阶段像素图标。"""
+    pixels = _STAGE_ICON_PIXELS.get(stage_code)
+    if not pixels:
+        return
+    for dx, dy in pixels:
+        px, py = x + dx, y + dy
+        if 0 <= px < _OLED_WIDTH and 0 <= py < _OLED_HEIGHT:
+            _oled.pixel(px, py, color)
+
+
 _ACTION_NAMES = {
     "water": "WATER",
     "light": "LIGHT",
@@ -483,11 +510,11 @@ def show_page1(
 
     _oled.fill(0)
 
-    # ── 反色标题栏 ──────────────────────────────────────
+    # ── 反色标题栏 + 阶段图标 ────────────────────────────
     plant5 = _plant_short(plant, 5)
     stage_s = _stage_code(growth_stage)
-    wifi_ch = "W" if wifi_connected else " "
-    _draw_inverted("{} D{}  {}  {}".format(plant5, days_since_planting, stage_s, wifi_ch))
+    _draw_inverted("{} D{}  {}".format(plant5, days_since_planting, stage_s))
+    _draw_stage_icon(stage_s, 120, 2, color=0)  # 白底黑色图标，右侧 5x5
 
     # ── 土壤湿度 2x 大字（居中）─────────────────────────
     soil_thr = plant_info.get("soil_threshold", 30) if plant_info else 30
@@ -585,16 +612,15 @@ def show_page2_full(
     plant, light, plant_info=None, growth_stage=None, days_since_planting=0,
     sun_minutes_today=0, temp=None, hum=None
 ):
-    """Page 2 — GROW 生长视图。全宽阶段进度条为主视觉。
+    """Page 2 — GROW 生长视图，与 Page 1 结构完全一致。
 
     y= 0- 9: 反色标题（植物 + 天数 + 当前→下阶段剩余天数）
-    y=11-17: LITE 光照进度条
-    y=20-27: T / H / Sun 紧凑环境行
-    y=29:    分隔线
-    y=31-38: 阶段名 + 完成百分比（文字标注）
-    y=40-46: 全宽阶段进度条（视觉主体）
-    y=48-55: 施肥 + 水分需求
-    y=58:    页码点
+    y=11-26: 2x 阶段进度百分比（主视觉大数字）
+    y=28-35: "VEG   63% done" 居中状态行
+    y=37-43: 全宽阶段进度条
+    y=45-52: LITE 光照进度条（label+bar+value）
+    y=54:    分隔线
+    y=56-63: 施肥 + 水分需求
     """
     if not _check_init():
         return
@@ -617,32 +643,25 @@ def show_page2_full(
         header = "{} D{}  {} FINAL".format(plant5, days_since_planting, stage_s)
     _draw_inverted(header)
 
-    # ── 光照进度条 ──────────────────────────────────────
+    # ── 阶段进度 2x 大字（居中）─────────────────────────
+    _draw_centered_2x("{}%".format(pct), 11)
+
+    # ── 状态行 ──────────────────────────────────────────
+    _draw_centered("{} {}% done".format(stage_s, pct), 28)
+
+    # ── 全宽阶段进度条 ───────────────────────────────────
+    _draw_wide_bar(pct, 37)
+
+    # ── LITE 光照进度条（与 Page 1 辅助行同风格）──────────
     light_opt = plant_info.get("light_opt", 50) if plant_info else 50
-    _draw_bar("LITE", light, light_opt, 11)
+    _draw_bar("LITE", light, light_opt, 45)
 
-    # ── 环境紧凑行：温度 / 湿度 / 日照 ─────────────────
-    light_hours = plant_info.get("light_hours", [6, 8]) if plant_info else [6, 8]
-    sun_h = sun_minutes_today / 60
-    sun_ok = "OK" if sun_h >= light_hours[0] else "LO"
-    temp_s = "{}C".format(temp) if temp is not None else "--"
-    hum_s = "{}%".format(hum) if hum is not None else "--"
-    _draw_text("T:{}  H:{}  Sun:{:.1f}h{}".format(
-        temp_s, hum_s, sun_h, sun_ok), 0, 20)
-
-    # ── 分隔线 ──────────────────────────────────────────
-    _draw_hline(29)
-
-    # ── 阶段进度标注 + 全宽进度条（主视觉）─────────────
-    _draw_centered("{} stage  {:d}% done".format(stage_s, pct), 31)
-    _draw_wide_bar(pct, 40)
-
-    # ── 施肥 + 水分需求 ─────────────────────────────────
+    # ── 分隔线 + 施肥 / 水分需求 ─────────────────────────
+    _draw_hline(54)
     fert = growth_stage.get("fert", "---") if growth_stage else "---"
     water_need = growth_stage.get("water_need", "---") if growth_stage else "---"
-    _draw_text("F:{:<3}  Water:{}".format(fert, _clip(water_need, 6)), 0, 48)
+    _draw_text("F:{:<3}  Water:{}".format(fert, _clip(water_need, 6)), 0, 56)
 
-    _draw_page_dots(1)
     _oled.show()
 
 
@@ -651,44 +670,61 @@ def show_page3(
     action_count=0, read_count=0, last_action="idle",
     last_action_duration=0, last_action_time=0
 ):
-    """Page 3 — SYS 系统视图。
+    """Page 3 — SYS 系统视图，与 Page 1 结构完全一致。
 
-    y= 0- 9: [WIFI:OK  AI:ON] 反色标题
-    y=12-19: IP 地址（或 "no connection"）
-    y=22-29: Mem / 运行时长
-    y=31:    分隔线
-    y=33-41: 上次执行（反色行）：动作名 + 时间戳
-    y=44-51: 持续时长 + 动作频率
-    y=58:    页码点
+    y= 0- 9: 反色标题（WIFI + AI 状态）
+    y=11-26: 2x 运行时长（"2h" 或 "45m"）
+    y=28-35: "UP  2h 15min" 居中状态行
+    y=37-43: MEM 内存余量进度条（label+bar+value）
+    y=45-52: IP 地址
+    y=54:    分隔线
+    y=56-63: 上次执行记录
     """
     if not _check_init():
         return
 
     _oled.fill(0)
 
-    # ── 反色标题 ─────────────────────────────────────
+    # ── 反色标题：WiFi + AI 状态 ─────────────────────
     wifi_s = "WIFI:OK " if wifi_connected else "WIFI:OFF"
     ai_s = "AI:ON" if (ai_enabled and wifi_connected) else "AI:OFF"
     _draw_inverted("{} {}".format(wifi_s, ai_s))
 
-    # ── 网络 + 系统健康 ──────────────────────────────
-    _draw_text(_clip(ip if ip else "no connection", 16), 0, 12)
-
+    # ── 内存 2x 大字（空闲 KB）──────────────────────
     try:
         import gc
         gc.collect()
-        mem_kb = int(gc.mem_free() / 1024)
+        mem_free = gc.mem_free()
+        mem_total = mem_free + gc.mem_alloc()
+        mem_pct = int(mem_free * 100 / mem_total) if mem_total > 0 else 0
+        mem_kb = int(mem_free / 1024)
     except Exception:
-        mem_kb = 0
-    uptime = max(0, int(time.time() - start_time)) if start_time else 0
-    up_h = int(uptime / 3600)
-    up_m = int((uptime % 3600) / 60)
-    _draw_text("Mem:{}KB  Up:{:d}h{:02d}m".format(mem_kb, up_h, up_m), 0, 22)
+        mem_pct, mem_kb = 0, 0
+    _draw_centered_2x("{}K".format(mem_kb), 11)
 
-    # ── 分隔线 ────────────────────────────────────────
-    _draw_hline(31)
+    # ── 状态行 ───────────────────────────────────────
+    if mem_pct >= 50:
+        mem_status = " OK "
+    elif mem_pct >= 30:
+        mem_status = " LOW"
+    else:
+        mem_status = "CRIT"
+    _draw_centered("MEM {}".format(mem_status), 28)
 
-    # ── 上次执行（反色行，突出最近操作）────────────────
+    # ── 全宽内存余量条（与 Page 1 土壤条同风格）──────
+    _draw_wide_bar(mem_pct, 37)
+
+    # ── IP 地址 ──────────────────────────────────────
+    if ip:
+        ip_line = ip
+    elif wifi_connected:
+        ip_line = "DHCP pending..."
+    else:
+        ip_line = "no connection"
+    _draw_text(_clip(ip_line, 16), 0, 45)
+
+    # ── 分隔线 + 上次执行 ────────────────────────────
+    _draw_hline(54)
     action_s = _action_en(last_action)
     if last_action_time:
         try:
@@ -696,17 +732,10 @@ def show_page3(
             time_s = "{:02d}:{:02d}".format(t[3], t[4])
         except Exception:
             time_s = "--:--"
-        action_line = "Last: {}  @{}".format(action_s, time_s)
+        _draw_text("> {} @{}".format(action_s, time_s), 0, 56)
     else:
-        action_line = "Last: {}".format(action_s)
-    _oled.fill_rect(0, 33, 128, 9, 1)
-    _draw_text(action_line, 0, 34, 0)
+        _draw_text("> {}".format(action_s), 0, 56)
 
-    # ── 持续时长 + 动作频率 ──────────────────────────
-    dur_s = "{}s".format(last_action_duration) if last_action_duration else "--"
-    _draw_text("Duration:{}  Acts:{}/h".format(dur_s, action_count), 0, 44)
-
-    _draw_page_dots(2)
     _oled.show()
 
 
@@ -833,6 +862,28 @@ def show_plant_select(plant_list, current_idx):
         else:
             _draw_text("  {}".format(name), 0, y, 1)
 
+    _oled.show()
+
+
+def show_day_select(day, stage_name=None):
+    """天数选择界面。
+
+    布局（128x64）：
+      y= 0- 9  反色标题栏 "Set Day"
+      y=14-29  2x 放大天数数字，居中
+      y=32     分隔线
+      y=36-43  生长阶段（如有）
+      y=54-63  提示 "<>:±1  G:OK  B:Skip"
+    """
+    if not _check_init():
+        return
+    _oled.fill(0)
+    _draw_inverted("Set Day")
+    _draw_centered_2x("{}".format(day), 14)
+    _draw_hline(32)
+    if stage_name:
+        _draw_centered("Stage: {}".format(stage_name), 36)
+    _draw_text("<>:+-1  G:OK  B:Skip", 0, 54)
     _oled.show()
 
 

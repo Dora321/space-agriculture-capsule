@@ -34,11 +34,14 @@ def run_loop(
         try:
             now = time.time()
 
-            # 检查按键菜单触发（长按蓝色按钮）
+            # 检查按键菜单触发
             if check_menu is not None:
                 triggered = check_menu()
-                if triggered and refresh_display is not None:
-                    refresh_display(force=True, reset_page=True)
+                if triggered:
+                    # 菜单退出：重置 last_read，防止立刻触发传感器读取 + AI 请求
+                    last_read = int(time.time())
+                    if refresh_display is not None:
+                        refresh_display(force=True, reset_page=True)
 
             if refresh_display is not None:
                 refresh_display()
@@ -88,7 +91,7 @@ def run_loop(
                         send_telemetry()
 
                 if refresh_display is not None:
-                    refresh_display(force=True, reset_page=True)
+                    refresh_display(force=True)  # 刷新数据但保留当前页码，不强制跳回第 0 页
                 if send_telemetry is not None:
                     send_telemetry()
 
@@ -103,8 +106,10 @@ def run_loop(
             while time.ticks_diff(time.ticks_ms(), _t0) < 900:
                 if check_menu is not None:
                     _triggered = check_menu()
-                    if _triggered and refresh_display is not None:
-                        refresh_display(force=True, reset_page=True)
+                    if _triggered:
+                        last_read = int(time.time())  # 同上，菜单退出后延迟传感器读取
+                        if refresh_display is not None:
+                            refresh_display(force=True, reset_page=True)
                 time.sleep_ms(100)
 
         except KeyboardInterrupt:

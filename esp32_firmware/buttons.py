@@ -74,6 +74,10 @@ class AnalogKeypad:
         self._debounce_ms = 30
         self._pending_event = self.NONE
         self._value = 0
+        # nav_held 专用：与 _event() 状态完全独立
+        self._hold_button = self.NONE
+        self._hold_start_ms = 0
+        self._hold_last_ms = 0
 
         print(f"[AnalogKeypad] GPIO{adc_pin} ADC, idle < {self.IDLE_THRESHOLD}")
 
@@ -156,6 +160,35 @@ class AnalogKeypad:
             self._pending_event = self.NONE
             return True
         return False
+
+    def nav_held(self):
+        """数字输入专用：首次按下立即响应，持续按住 600ms 后每 150ms 重复一次。
+        返回 -1（UP/红）、+1（DOWN/黄）或 0（无事件）。与 _event() 状态完全独立。
+        """
+        button = self._read_button()
+        now = time.ticks_ms()
+
+        if button not in (self.UP, self.DOWN):
+            self._hold_button = self.NONE
+            self._hold_start_ms = 0
+            return 0
+
+        direction = -1 if button == self.UP else 1
+
+        if self._hold_button != button:
+            # 新按键：立即触发一次
+            self._hold_button = button
+            self._hold_start_ms = now
+            self._hold_last_ms = now
+            return direction
+
+        # 同一键持续按住
+        if time.ticks_diff(now, self._hold_start_ms) < 600:
+            return 0
+        if time.ticks_diff(now, self._hold_last_ms) >= 150:
+            self._hold_last_ms = now
+            return direction
+        return 0
 
     def is_held(self):
         """Return True if *any* button is currently held down."""
