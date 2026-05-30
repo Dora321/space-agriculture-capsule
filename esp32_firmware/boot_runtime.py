@@ -1,29 +1,27 @@
-"""System boot sequence orchestration."""
+"""System boot sequence orchestration (dual-layer: ESP32 flight controller).
 
-import gc
+ESP32 does not connect WiFi — the Raspberry Pi handles networking. Boot brings up
+sensors, actuators, status LEDs, OLED and the first sensor read.
+"""
+
 import time
 
 import sensors
-import wifi_client
-import config
 
 
 def init_system(
     state,
     demo_enabled=False,
-    wifi_already_connected=False,
     init_display=None,
     display=None,
-    release_display=None,
     read_all_sensors=None,
     refresh_display=None,
-    send_telemetry=None,
 ):
-    """Initialize hardware modules, first sensor read, display, and telemetry."""
+    """Initialize hardware modules, first sensor read and display."""
     print("=" * 50)
     if demo_enabled:
         print("[Demo] DEMO_MODE enabled: using simulated contest data")
-    print("  Space Agriculture Growth Chamber System v1.1")
+    print("  Space Agriculture Growth Chamber System v2.0")
     print("=" * 50)
 
     state.start_time = time.time()
@@ -32,20 +30,7 @@ def init_system(
     print("[System] Initializing sensors...")
     sensors.init()
 
-    # actuators / utils / status_strip 在 WiFi 之后再 import，避免占用 WiFi 所需连续内存
-    if wifi_already_connected:
-        print("[WiFi] Using pre-established connection, IP:", wifi_client.get_ip())
-    else:
-        gc.collect()
-        gc.collect()
-        print("[WiFi] Free RAM before connect:", gc.mem_free(), "bytes")
-        try:
-            state.wifi_connected = wifi_client.connect()
-        except OSError as e:
-            print("[WiFi] WLAN init failed (low memory):", e)
-            state.wifi_connected = False
-
-    # WiFi 已处理完，现在加载重模块
+    # actuators / utils / status_strip 在轻量启动早期之后再 import
     import actuators
     import utils
 
@@ -62,16 +47,11 @@ def init_system(
     if display is not None:
         display().show_boot()
 
-    if state.wifi_connected:
-        print("[WiFi] Connected, IP:", wifi_client.get_ip())
-    else:
-        print("[WiFi] Connection failed, using local rules")
-
+    print("[Net] ESP32 networking disabled: Raspberry Pi handles WiFi/AI/dashboard")
     time.sleep(0.8)
 
     if display is not None:
-        ip = wifi_client.get_ip() if state.wifi_connected else None
-        display().show_boot_check(state.wifi_connected, ip)
+        display().show_boot_check(False, None)
     time.sleep(1.5)
 
     if read_all_sensors is not None:
@@ -80,8 +60,6 @@ def init_system(
 
     if refresh_display is not None:
         refresh_display(force=True, reset_page=True)
-    if send_telemetry is not None and getattr(config, "TELEMETRY_ON_BOOT", False):
-        send_telemetry()
 
     print("[System] Initialization complete, starting main loop")
     print("=" * 50)
