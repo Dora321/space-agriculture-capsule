@@ -35,6 +35,7 @@
 
 | 日期 | 任务 | 详见 |
 |------|------|------|
+| 2026-05-30 | #42 砍单层老路 + DeepSeek 搬到树莓派（分支 `refactor/remove-wifi-only-path`，133 测试绿）：删 wifi_client/telemetry/ai_client，固件固定走双层；新增 `tools/pi_advisor.py` + `serial_gateway --ai-advice` 让 Pi 调 DeepSeek；三层降级成型 | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-30 | 树莓派端实机验收完成（#39-41）：`/dev/serial0` 全链路跑通（report/ping/pong/advice，`ai_src=pi`）；清掉共地松动、mini-UART 控制台争用（移除 `console=serial0`）、openclaw 看门狗 `board` 误杀三坑；`serial_gateway` 做成开机自启 systemd 服务转发云端大屏 | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-30 | 树莓派双层架构阶段二：ESP32 UART 主循环接入 + Pi 网关 auto/test advice 下发 + 实机 UART 初始化；UART 模式跳过 ESP32 WiFi | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-29 | #33 Brownout 根因定位 + 软件兜底：BOD 禁用 + 水泵脉冲 + is_connected 基于 IP + machine.reset 兜底 | [DEVLOG/2026-05-29.md](./DEVLOG/2026-05-29.md) |

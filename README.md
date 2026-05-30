@@ -167,23 +167,17 @@ powershell -ExecutionPolicy Bypass -File tools\start_dashboard_server.ps1
 
 > 详细部署说明见 [大屏部署指南](./deliverables/realtime-dashboard-guide.md)
 
-### 2. 可选：启动树莓派 UART 网关
+### 2. 启动树莓派 UART 网关（双层架构的核心，必需）
 
-启用双层架构时，先在 ESP32 `config.py` 设置 `UART_ENABLED = True`，并按架构文档连接 UART2：
-ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，GND 共地。
+ESP32 不再自己联网——联网、大屏、AI 全部由树莓派经 UART 承担。按架构文档连接 UART2：
+ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，**GND 共地**。
 
-实机建议同时设置：
-
-```python
-UART_ENABLED = True
-UART_SKIP_WIFI = True
-UART_RXBUF = 256
-```
-
-`UART_SKIP_WIFI=True` 表示 ESP32 跳过 WiFi，由树莓派负责联网、大屏、AI 和后续数据库。这样能避免 ESP32 同时启用 WiFi/OLED/UART 时的堆内存不足。
+树莓派上运行网关（DeepSeek 在 Pi 侧调用，key 走环境变量）：
 
 ```bash
-python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --auto-advice
+export SPACEFARM_AI_API_KEY="sk-..."                 # DeepSeek key（不进命令行）
+export SPACEFARM_DASHBOARD="http://43.156.68.157:8790/api/state"
+python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --ai-advice
 ```
 
 Windows 调试串口可用：
@@ -192,7 +186,7 @@ Windows 调试串口可用：
 py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 ```
 
-`--auto-advice` 会在收到 ESP32 `report` 后下发保守规则建议；`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
+决策三层降级：`--ai-advice` 让 Pi 调 **DeepSeek**（最聪明）；AI 失败自动回退 `--auto-advice` 的**阈值规则**；UART 断了 ESP32 还有**本地规则**兜底。`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
 
 > ✅ **2026-05-30 实机验收通过**：`/dev/serial0` report/ping/pong/advice 全链路跑通，ESP32 `ai_src` 变 `pi`。部署时按顺序排查三点（详见 [ARCHITECTURE.md §1.2](./ARCHITECTURE.md#12-树莓派端部署要点2026-05-30-实机验收通过)）：
 > 1. **共地接牢、TX/RX 交叉**——否则 Pi 的 RX 悬空，只读到持续 `0xFF` 噪声；
@@ -206,14 +200,9 @@ py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 ```bash
 # 复制配置模板
 cp esp32_firmware/config.py.example esp32_firmware/config.py
-
-# 编辑 config.py，填写 WiFi 和 AI API 密钥
 ```
 
-```python
-AI_PROXY_URL = "http://43.156.68.157:8787/decision"  # 代理中转（推荐）
-DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
-```
+ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这些都搬到了树莓派侧）。`config.py` 只剩 UART、传感器/执行器引脚、安全护栏、作物列表等。DeepSeek 的 key/model 改在树莓派用 `SPACEFARM_AI_*` 环境变量配置（见上一步）。
 
 > 完整烧录和接线说明见 [固件 README](./esp32_firmware/README.md)
 
