@@ -282,6 +282,7 @@ py -m pytest
 
 | 你需要… | 去看… |
 |:---------|:------|
+| **30 秒看懂全局（项目地图）** | [**项目总览.md**](./项目总览.md) |
 | 了解项目如何接线和选型 | [智能种植舱控制器选型报告](./智能种植舱控制器选型报告.md) |
 | 烧录固件、配置 ESP32 | [esp32_firmware/README.md](./esp32_firmware/README.md) |
 | 部署 Web 实时大屏 | [deliverables/realtime-dashboard-guide.md](./deliverables/realtime-dashboard-guide.md) |
