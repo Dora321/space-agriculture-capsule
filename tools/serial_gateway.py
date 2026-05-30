@@ -269,6 +269,14 @@ def main(argv=None):
     parser.add_argument("--test-advice", choices=("water", "light_on", "idle"),
                         default="", help="send one fixed advice after first report")
     parser.add_argument("--test-duration", type=int, default=8)
+    parser.add_argument("--ai-advice", action="store_true",
+                        help="ask DeepSeek (tools/pi_advisor) for advice on each report; "
+                             "falls back to the conservative heuristic on AI failure. "
+                             "Key/model come from SPACEFARM_AI_* env vars.")
+    parser.add_argument("--plants-json",
+                        default=os.environ.get("SPACEFARM_PLANTS_JSON", ""),
+                        help="path to plants.json for plant thresholds (optional, "
+                             "improves AI prompt quality)")
     args = parser.parse_args(argv)
 
     _install_sigpipe_guard()
@@ -295,6 +303,15 @@ def main(argv=None):
         on_report=on_report,
         on_pong=on_pong,
     )
+
+    advisor = None
+    pi_advisor = None
+    if args.ai_advice:
+        import pi_advisor  # noqa: F811  (stdlib-only DeepSeek advisor)
+        advisor = pi_advisor.DeepSeekAdvisor()
+        print("[GW] AI advice enabled (DeepSeek):",
+              "configured" if advisor.configured()
+              else "NOT configured -> heuristic fallback")
 
     ser = serial.Serial(args.port, args.baud, timeout=0.2)
     print("[GW] gateway up on %s @ %d" % (args.port, args.baud))
@@ -324,6 +341,22 @@ def main(argv=None):
                         "note": "manual UART test",
                     }
                     args.test_advice = ""  # send once
+                elif advisor is not None:
+                    # ① DeepSeek (the smart brain on the Pi)
+                    plant_info = (
+                        pi_advisor.load_plant_info(msg.get("plant", ""), args.plants_json)
+                        if args.plants_json else None
+                    )
+                    advice = advisor.advise(msg, plant_info)
+                    if advice is None:
+                        # ② fall back to the conservative heuristic
+                        advice = _heuristic_advice_from_report(
+                            msg,
+                            soil_threshold=args.soil_threshold,
+                            light_threshold=args.light_threshold,
+                            water_sec=args.water_sec,
+                            light_sec=args.light_sec,
+                        )
                 elif args.auto_advice:
                     advice = _heuristic_advice_from_report(
                         msg,
@@ -339,6 +372,7 @@ def main(argv=None):
                             advice["duration"],
                             signals=advice.get("signals", []),
                             note=advice.get("note", ""),
+                            breeding_observation=advice.get("breeding_observation", ""),
                         )
                         ser.write(line)
                         print("[GW] advice:", decode_line(line))
@@ -349,8 +383,6 @@ def main(argv=None):
                     ser.write(line)
                 except (BrokenPipeError, ConnectionResetError, OSError) as e:
                     print("[GW] serial write error:", e)
-            # NOTE (Stage 3): when an advice provider is wired in, call
-            # core.make_advice(...) here and ser.write() it back to the ESP32.
             time.sleep(0.05)
     except KeyboardInterrupt:
         print("\n[GW] stopped")
