@@ -12,6 +12,7 @@ import argparse
 import importlib.util
 import json
 import os
+import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -51,6 +52,11 @@ API_MODEL = _config_value("AI_MODEL", "deepseek-v4-flash")
 API_TIMEOUT = int(_config_value("AI_TIMEOUT", "20"))
 PROXY_TOKEN = _config_value("AI_PROXY_TOKEN")
 MAX_REQUEST_BYTES = int(os.getenv("AI_PROXY_MAX_REQUEST_BYTES", "8192"))
+
+try:
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+except Exception:
+    pass
 
 
 def _strip_code_fence(text: str) -> str:
@@ -158,7 +164,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
 
 def main() -> None:

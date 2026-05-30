@@ -2,11 +2,11 @@
 
 **Space Agriculture Smart Planting Cabin**
 
-> 基于 ESP32 + 云端 AI 的全自动植物养护 IoT 系统 | 8 种作物 · 双引擎决策 · 四级测试体系
+> 基于 ESP32 + 树莓派/云端 AI 的全自动植物养护 IoT 系统 | 8 种作物 · 双层自治 · 四级测试体系
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-101%2F101%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-144%2F144%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5140-orange)](#)
 
@@ -129,7 +129,7 @@ flowchart LR
 | 🛡️ **四级容错与降级机制** | 传感器坏了切安全值 | 在轨无人维修——传感器离线自动降级为安全模式，看门狗死机重启，执行器故障安全跳过 |
 | 📊 **Decision Plane / Action Plane 分离** | 决策层广播多维信号，执行层仅响应物理动作 | 决策能力与执行能力分离——缺肥/高温等 advisory 信号即时广播，无需等待执行器就位 |
 | 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策信号面板，超 120s 无数据自动切 DEMO |
-| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，101 用例 ALL PASS |
+| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，144 用例 ALL PASS |
 
 ---
 
@@ -144,7 +144,7 @@ flowchart LR
 | **固件** | MicroPython · 13 个模块化文件 | 按启动/主循环/感知/决策/执行/显示/遥测拆分，单一职责 |
 | **AI** | DeepSeek V4 Flash + 代理中转 | ¥1/百万 tokens · 支持 HTTP 代理（无 TLS 压力）或直连 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 101 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 144 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
 **硬件成本**：¥140/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
@@ -167,7 +167,34 @@ powershell -ExecutionPolicy Bypass -File tools\start_dashboard_server.ps1
 
 > 详细部署说明见 [大屏部署指南](./deliverables/realtime-dashboard-guide.md)
 
-### 2. 配置 ESP32
+### 2. 可选：启动树莓派 UART 网关
+
+启用双层架构时，先在 ESP32 `config.py` 设置 `UART_ENABLED = True`，并按架构文档连接 UART2：
+ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，GND 共地。
+
+实机建议同时设置：
+
+```python
+UART_ENABLED = True
+UART_SKIP_WIFI = True
+UART_RXBUF = 256
+```
+
+`UART_SKIP_WIFI=True` 表示 ESP32 跳过 WiFi，由树莓派负责联网、大屏、AI 和后续数据库。这样能避免 ESP32 同时启用 WiFi/OLED/UART 时的堆内存不足。
+
+```bash
+python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --auto-advice
+```
+
+Windows 调试串口可用：
+
+```powershell
+py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
+```
+
+`--auto-advice` 会在收到 ESP32 `report` 后下发保守规则建议；`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
+
+### 3. 配置 ESP32
 
 ```bash
 # 复制配置模板
@@ -183,13 +210,17 @@ DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
 
 > 完整烧录和接线说明见 [固件 README](./esp32_firmware/README.md)
 
-### 3. 运行自动化测试
+> ⚠️ **电源建议**：12V 水泵/灯继电器与 ESP32 共用 USB 5V 时会触发 brownout 复位；
+> 强烈建议 12V 走独立适配器，ESP32 VIN 加 1000µF 退耦电容，继电器线圈反接 1N4007。
+> 详见 [ARCHITECTURE.md §12](./ARCHITECTURE.md#12-电源域与已知硬件干扰风险) 与 [DEVLOG/2026-05-29.md](./DEVLOG/2026-05-29.md) #33。
+
+### 4. 运行自动化测试
 
 ```powershell
 py -m pytest
 ```
 
-预期输出：**101 passed**
+预期输出：**144 passed**
 
 ---
 
@@ -211,13 +242,15 @@ py -m pytest
 │   ├── decision.py          # 决策编排（AI门控 + 本地规则兜底）
 │   ├── action_runtime.py    # 动作执行 + 安全检查
 │   ├── display.py           # OLED 页面绘制（英文三页轮播 + 菜单渲染）
-│   ├── rotary.py             # HS-S32-L 旋转编码器驱动
-│   ├── menu.py               # OLED 旋转编码器菜单系统
+│   ├── display_runtime.py   # OLED 生命周期管理（懒初始化 + advance_page）
+│   ├── buttons.py            # ADC 模拟键盘驱动（单 GPIO33 四键 + nav_held 长按加速）
+│   ├── menu.py               # OLED 菜单系统（植物/天数/手动控制/系统信息，蓝键统一返回）
 │   ├── telemetry.py         # Web 大屏实时遥测上报
+│   ├── uart_link.py         # ESP32<->树莓派 UART JSON-over-Line 协议层
 │   ├── ai_client.py         # DeepSeek API 客户端 + 代理中转
 │   ├── config.py.example    # 配置模板（WiFi/AI/引脚）
 │   └── plants.json          # 8 种植物完整参数数据库
-├── tests/                   # pytest 自动化测试（101 用例 ALL PASS）
+├── tests/                   # pytest 自动化测试（144 用例 ALL PASS）
 │   ├── conftest.py          # MicroPython Mock 注入层
 │   ├── test_ai_parse.py     # AI 响应解析
 │   ├── test_config.py       # 配置 + 植物数据库
@@ -225,6 +258,7 @@ py -m pytest
 │   └── test_loop_runtime.py # 主循环边界
 ├── tools/                   # PC 端辅助工具
 │   ├── dashboard_server.py  # 实时大屏 HTTP 服务器
+│   ├── serial_gateway.py    # 树莓派串口网关（收 report / 发 advice / 心跳）
 │   └── ai_proxy.py          # AI HTTP 代理中转服务器
 ├── deliverables/            # 比赛交付物（大屏/KT板/评委材料）
 │   ├── contest-demo-dashboard.html  # Web 实时大屏
@@ -261,7 +295,7 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **101 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
+| 自动化测试 | **144 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |

@@ -17,17 +17,24 @@ def test_loop_runs_one_successful_cycle_and_reconnects(monkeypatch):
 
     monkeypatch.setattr(loop_runtime.config, "READ_INTERVAL", 60, raising=False)
     monkeypatch.setattr(loop_runtime.config, "DECISION_INTERVAL", 60, raising=False)
+    monkeypatch.setattr(loop_runtime.config, "WIFI_RECONNECT_AFTER_MISSES", 1, raising=False)
     monkeypatch.setattr(loop_runtime.time, "time", lambda: 60)
     monkeypatch.setattr(loop_runtime.gc, "collect", lambda: calls.append("gc"))
-    monkeypatch.setattr(loop_runtime.wifi_client, "is_connected", lambda: False)
+    monkeypatch.setattr(loop_runtime.wifi_client, "is_connected", lambda **kwargs: False)
     monkeypatch.setattr(loop_runtime.wifi_client, "smart_connect", lambda: True)
+    monkeypatch.setattr(loop_runtime.wifi_client, "connect", lambda timeout=8, reset=False, allow_full_reset=True: True)
     monkeypatch.setattr(loop_runtime.actuators, "all_off", lambda: calls.append("all_off"))
+    monkeypatch.setattr(loop_runtime.time, "ticks_ms", lambda: 0, raising=False)
+    monkeypatch.setattr(loop_runtime.time, "ticks_diff", lambda now, start: 0, raising=False)
 
     def fake_sleep(seconds):
         calls.append(("sleep", seconds))
+
+    def fake_sleep_ms(ms):
         raise KeyboardInterrupt
 
     monkeypatch.setattr(loop_runtime.time, "sleep", fake_sleep)
+    monkeypatch.setattr(loop_runtime.time, "sleep_ms", fake_sleep_ms, raising=False)
 
     loop_runtime.run_loop(
         state,
@@ -62,13 +69,19 @@ def test_loop_reports_sensor_failure_without_decision(monkeypatch):
     monkeypatch.setattr(loop_runtime.config, "READ_INTERVAL", 60, raising=False)
     monkeypatch.setattr(loop_runtime.time, "time", lambda: 60)
     monkeypatch.setattr(loop_runtime.actuators, "all_off", lambda: calls.append("all_off"))
+    monkeypatch.setattr(loop_runtime.time, "ticks_ms", lambda: 0, raising=False)
+    monkeypatch.setattr(loop_runtime.time, "ticks_diff", lambda now, start: 0, raising=False)
 
     def fake_sleep(seconds):
         sleep_calls.append(seconds)
         if len(sleep_calls) >= 2:
             raise KeyboardInterrupt
 
+    def fake_sleep_ms(ms):
+        raise KeyboardInterrupt
+
     monkeypatch.setattr(loop_runtime.time, "sleep", fake_sleep)
+    monkeypatch.setattr(loop_runtime.time, "sleep_ms", fake_sleep_ms, raising=False)
 
     loop_runtime.run_loop(
         state,
@@ -87,3 +100,34 @@ def test_loop_reports_sensor_failure_without_decision(monkeypatch):
     assert "safe" not in calls
     assert "decision" not in calls
     assert "telemetry" not in calls
+
+
+def test_loop_polls_uart_and_sends_reports(monkeypatch):
+    state = SystemState()
+    calls = []
+
+    monkeypatch.setattr(loop_runtime.config, "READ_INTERVAL", 60, raising=False)
+    monkeypatch.setattr(loop_runtime.config, "DECISION_INTERVAL", 60, raising=False)
+    monkeypatch.setattr(loop_runtime.config, "WIFI_RECONNECT_AFTER_MISSES", 99, raising=False)
+    monkeypatch.setattr(loop_runtime.time, "time", lambda: 60)
+    monkeypatch.setattr(loop_runtime.wifi_client, "is_connected", lambda **kwargs: True)
+    monkeypatch.setattr(loop_runtime.actuators, "all_off", lambda: calls.append("all_off"))
+    monkeypatch.setattr(loop_runtime.gc, "collect", lambda: None)
+    monkeypatch.setattr(loop_runtime.time, "ticks_ms", lambda: 0, raising=False)
+    monkeypatch.setattr(loop_runtime.time, "ticks_diff", lambda now, start: 0, raising=False)
+    monkeypatch.setattr(loop_runtime.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(loop_runtime.time, "sleep_ms", lambda ms: (_ for _ in ()).throw(KeyboardInterrupt), raising=False)
+
+    loop_runtime.run_loop(
+        state,
+        read_all_sensors=lambda: True,
+        safety_check=lambda: True,
+        make_decision=lambda: {"action": "idle"},
+        execute_decision=lambda decision: calls.append(("execute", decision["action"])),
+        uart_poll=lambda: calls.append("uart_poll"),
+        uart_send_report=lambda: calls.append("uart_report"),
+    )
+
+    assert "uart_poll" in calls
+    assert calls.count("uart_report") == 2
+    assert ("execute", "idle") in calls

@@ -23,7 +23,12 @@ def execute_decision(
     - breeding_observation = growth observation for telemetry
     """
     action = decision.get("action", "idle")
-    duration = min(decision.get("duration_sec", 0), config.PUMP_MAX_RUN_SEC)
+    max_duration = (
+        getattr(config, "LIGHT_MAX_RUN_SEC", 120)
+        if action == "light"
+        else getattr(config, "PUMP_MAX_RUN_SEC", 60)
+    )
+    duration = min(decision.get("duration_sec", 0), max_duration)
     reason = decision.get("reason", "")
     signals = decision.get("signals", [])
     breeding_observation = decision.get("breeding_observation", "")
@@ -44,15 +49,16 @@ def execute_decision(
 
     if action == "idle":
         print("[Action] Idle")
-        actuators.all_off()
+        if actuators.is_any_running():
+            actuators.all_off()
         state.last_action = "idle"
         state.last_action_duration = 0
         state.last_action_time = time.time()
         state.last_decision_reason = reason
         state.last_signals = signals
         state.last_breeding_observation = breeding_observation
-        # 即使 idle 也播放 advisory signals（如 TEMP_HIGH、NEED_N 等）
-        if signals:
+        # 比赛稳定模式：idle 时只记录建议类信号，不每分钟播放灯条动画。
+        if signals and getattr(config, "WS2812_PLAY_IDLE_ADVISORY", False):
             utils.play_signals(signals)
         if refresh_display is not None:
             refresh_display(force=True, reset_page=True)
@@ -69,7 +75,10 @@ def execute_decision(
         utils.play_signal("LIGHT_LOW", duration_sec=min(3, duration))
 
     if show_action is not None:
-        show_action(action, duration, reason)
+        try:
+            show_action(action, duration, reason)
+        except Exception as e:
+            print("[Action] show_action skipped:", e)
 
     if action == "water":
         actuators.run_water_pump(duration)
@@ -90,12 +99,15 @@ def execute_decision(
 
     # 执行后播放 advisory signals（如 TEMP_HIGH、NEED_K 等）
     advisory = [s for s in signals if s not in ("WATER", "LIGHT_LOW")]
-    if advisory:
+    if advisory and getattr(config, "WS2812_PLAY_ACTION_ADVISORY", False):
         utils.play_signals(advisory)
 
     utils.set_led("green")
     if refresh_display is not None:
-        refresh_display(force=True, reset_page=True)
+        try:
+            refresh_display(force=True, reset_page=True)
+        except Exception as e:
+            print("[Action] refresh skipped:", e)
 
 
 def safety_check(state, demo_enabled=False):

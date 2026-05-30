@@ -152,14 +152,14 @@ class AnalogKeypad:
         if self._pending_event == self.OK:
             self._pending_event = self.NONE
             return True
-        return False
+        return self._event() == self.OK
 
     def back_pressed(self):
         """Return True exactly once when the BACK (Blue) button is pressed."""
         if self._pending_event == self.BACK:
             self._pending_event = self.NONE
             return True
-        return False
+        return self._event() == self.BACK
 
     def nav_held(self):
         """数字输入专用：首次按下立即响应，持续按住 600ms 后每 150ms 重复一次。

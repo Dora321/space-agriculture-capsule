@@ -3,6 +3,59 @@
 import ujson
 import config
 
+_fail_count = 0
+_backoff_until = 0
+
+
+def _parse_http_url(url):
+    if not url.startswith("http://"):
+        raise ValueError("only http:// dashboard URLs are supported")
+    rest = url[7:]
+    if "/" in rest:
+        host_port, path = rest.split("/", 1)
+        path = "/" + path
+    else:
+        host_port = rest
+        path = "/"
+    if ":" in host_port:
+        host, port_text = host_port.rsplit(":", 1)
+        port = int(port_text)
+    else:
+        host = host_port
+        port = 80
+    return host, port, path
+
+
+def _post_http_json(url, data, headers, timeout):
+    import socket
+
+    host, port, path = _parse_http_url(url)
+    sock = None
+    try:
+        addr = socket.getaddrinfo(host, port)[0][-1]
+        sock = socket.socket()
+        sock.settimeout(timeout)
+        sock.connect(addr)
+        header_lines = [
+            "POST %s HTTP/1.0" % path,
+            "Host: %s" % host,
+            "Content-Length: %d" % len(data),
+            "Connection: close",
+        ]
+        for key, value in headers.items():
+            header_lines.append("%s: %s" % (key, value))
+        request_head = ("\r\n".join(header_lines) + "\r\n\r\n").encode("utf-8")
+        sock.write(request_head)
+        sock.write(data)
+        response_head = sock.recv(64)
+        return 200 if b" 200 " in response_head[:20] else 0
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
 
 def enabled():
     return bool(getattr(config, "DASHBOARD_URL", ""))
@@ -10,13 +63,22 @@ def enabled():
 
 def send_state(state, ai_enabled=False):
     """Post a compact state snapshot to the local dashboard server."""
+    global _fail_count, _backoff_until
     url = getattr(config, "DASHBOARD_URL", "")
     if not url:
         return False
 
-    response = None
     try:
-        import urequests
+        import time
+        now = time.time()
+        if _backoff_until and now < _backoff_until:
+            return False
+    except Exception:
+        now = 0
+
+    try:
+        import gc
+        gc.collect()
 
         growth_stage = state.growth_stage or {}
         payload = {
@@ -57,22 +119,36 @@ def send_state(state, ai_enabled=False):
         if token:
             headers["X-Dashboard-Token"] = token
 
-        response = urequests.post(
+        data = ujson.dumps(payload).encode("utf-8")
+        del payload
+        gc.collect()
+        status_code = _post_http_json(
             url,
-            data=ujson.dumps(payload).encode("utf-8"),
-            headers=headers,
-            timeout=getattr(config, "DASHBOARD_TIMEOUT", 2),
+            data,
+            headers,
+            getattr(config, "DASHBOARD_TIMEOUT", 2),
         )
-        ok = response.status_code == 200
+        ok = status_code == 200
         if not ok:
-            print("[Telemetry] HTTP error:", response.status_code)
+            print("[Telemetry] HTTP error:", status_code)
+            _fail_count += 1
+        else:
+            _fail_count = 0
+            _backoff_until = 0
+            print("[Telemetry] sent")
         return ok
     except Exception as e:
         print("[Telemetry] send failed:", e)
-        return False
-    finally:
-        if response is not None:
+        _fail_count += 1
+        if _fail_count >= getattr(config, "TELEMETRY_BACKOFF_AFTER", 2):
             try:
-                response.close()
+                _backoff_until = now + getattr(config, "TELEMETRY_BACKOFF_SEC", 180)
+                print("[Telemetry] backing off")
             except Exception:
                 pass
+        return False
+    finally:
+        try:
+            gc.collect()
+        except Exception:
+            pass

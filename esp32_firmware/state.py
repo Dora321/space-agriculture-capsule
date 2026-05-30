@@ -10,6 +10,7 @@ class SystemState:
 
     def __init__(self):
         self.wifi_connected = False
+        self.pi_online = False
         self.soil_moisture = 0
         self.light_level = 0
         self.temperature = 0.0
@@ -29,6 +30,7 @@ class SystemState:
         self.last_breeding_observation = ""
         self.last_ai_request_time = 0
         self.last_ai_snapshot = None
+        self.pending_pi_decision = None
         self.action_count = 0
         self.action_count_start = 0
         self.read_count = 0

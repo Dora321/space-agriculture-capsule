@@ -127,15 +127,91 @@ class TestExecuteDecision:
         assert main.state.action_count == 1
         assert called["duration"] == 60
 
+    def test_light_duration_uses_light_max_not_pump_max(self, monkeypatch):
+        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 60, raising=False)
+        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 120, raising=False)
+        monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
+        monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
+        called = {"duration": None}
+        monkeypatch.setattr(actuators, "run_light", lambda d: called.__setitem__("duration", d) or True)
+
+        main.execute_decision({
+            "action": "light",
+            "duration_sec": 100,
+            "reason": "pi advice",
+        })
+
+        assert called["duration"] == 100
+
+
+class TestPiAdvice:
+    def teardown_method(self):
+        main._uart_link = None
+        main.state.pending_pi_decision = None
+        main.state.last_decision_source = "local"
+
+    def test_pi_advice_takes_priority_when_online(self, monkeypatch):
+        class OnlineLink:
+            def is_online(self):
+                return True
+
+        monkeypatch.setattr(main.config, "DEMO_MODE", False, raising=False)
+        main._uart_link = OnlineLink()
+        main.state.pending_pi_decision = {
+            "action": "water",
+            "duration_sec": 8,
+            "reason": "pi says dry",
+        }
+
+        decision = main.make_decision()
+
+        assert decision["action"] == "water"
+        assert main.state.pending_pi_decision is None
+        assert main.state.last_decision_source == "pi"
+
+    def test_stale_pi_advice_is_dropped(self, monkeypatch):
+        class OfflineLink:
+            def is_online(self):
+                return False
+
+        monkeypatch.setattr(main.config, "DEMO_MODE", False, raising=False)
+        monkeypatch.setattr(main.state, "wifi_connected", False)
+        main._uart_link = OfflineLink()
+        main.state.pending_pi_decision = {
+            "action": "water",
+            "duration_sec": 8,
+            "reason": "old",
+        }
+        main.state.plant_info = main.config.get_plant_info(main.state.plant_type)
+        main.state.soil_moisture = 80
+        main.state.light_level = 80
+        main.state.temperature = 24
+        main.state.humidity = 60
+        main.state.sun_minutes_today = 360
+        main.state.start_time = time.time()
+
+        decision = main.make_decision()
+
+        assert decision["action"] == "idle"
+        assert main.state.pending_pi_decision is None
+        assert main.state.last_decision_source == "local"
+
+
+def _enable_status_strip():
+    import status_strip
+    status_strip.config.WS2812_ENABLED = True
+
 
 class TestStatusStrip:
     """WS2812 育种舱状态灯条"""
 
     def test_strip_init_returns_true_with_mock(self):
+        _enable_status_strip()
         import status_strip
         assert status_strip.init() is True
 
     def test_show_moisture_lights_correct_count(self):
+        _enable_status_strip()
         import status_strip
         status_strip.init()
         status_strip.show_moisture(50)
@@ -144,6 +220,7 @@ class TestStatusStrip:
         assert 5 <= lit <= 7
 
     def test_show_moisture_offline_lights_warn_endpoints(self):
+        _enable_status_strip()
         import status_strip
         status_strip.init()
         status_strip.show_moisture(None)
@@ -155,6 +232,7 @@ class TestStatusStrip:
             assert px == (0, 0, 0)
 
     def test_set_status_yellow_writes_all_leds(self):
+        _enable_status_strip()
         import status_strip
         status_strip.init()
         status_strip.set_status("yellow")
@@ -298,27 +376,21 @@ class TestTelemetry:
     def test_telemetry_posts_compact_state(self, monkeypatch):
         calls = []
 
-        class Response:
-            status_code = 200
-
-            def close(self):
-                pass
-
-        def fake_post(url, data=None, headers=None, timeout=None):
+        def fake_post(url, data, headers, timeout):
             calls.append({
                 "url": url,
                 "data": data,
                 "headers": headers,
                 "timeout": timeout,
             })
-            return Response()
-
-        import urequests
+            return 200
 
         monkeypatch.setattr(main.config, "DASHBOARD_URL", "http://127.0.0.1:8790/api/state", raising=False)
         monkeypatch.setattr(main.config, "DASHBOARD_TOKEN", "token", raising=False)
         monkeypatch.setattr(main.config, "DASHBOARD_TIMEOUT", 2, raising=False)
-        monkeypatch.setattr(urequests, "post", fake_post, raising=False)
+        monkeypatch.setattr(telemetry, "_post_http_json", fake_post, raising=False)
+        telemetry._fail_count = 0
+        telemetry._backoff_until = 0
 
         main.state.soil_moisture = 41
         main.state.light_level = 70

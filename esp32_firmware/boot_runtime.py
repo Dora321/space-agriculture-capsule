@@ -5,6 +5,7 @@ import time
 
 import sensors
 import wifi_client
+import config
 
 
 def init_system(
@@ -79,7 +80,7 @@ def init_system(
 
     if refresh_display is not None:
         refresh_display(force=True, reset_page=True)
-    if send_telemetry is not None:
+    if send_telemetry is not None and getattr(config, "TELEMETRY_ON_BOOT", False):
         send_telemetry()
 
     print("[System] Initialization complete, starting main loop")

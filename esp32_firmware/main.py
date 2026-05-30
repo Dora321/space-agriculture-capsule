@@ -25,6 +25,10 @@ state = SystemState()
 # 菜单系统（独立按钮 + OLED）
 _menu = None
 
+# Optional Raspberry Pi UART uplink/downlink. Kept disabled by config default so
+# the existing WiFi-only runtime remains the stable baseline.
+_uart_link = None
+
 
 def _init_display():
     """按需初始化 OLED，避免显示模块长期占用 AI TLS 所需内存。"""
@@ -58,14 +62,186 @@ def _demo_value(name, default):
     return getattr(config, name, default)
 
 
+def _uart_enabled():
+    return bool(getattr(config, "UART_ENABLED", False))
+
+
+def _uart_skip_wifi():
+    return _uart_enabled() and bool(getattr(config, "UART_SKIP_WIFI", True))
+
+
+def _init_uart_link():
+    """Initialize ESP32 UART2 for the Raspberry Pi payload computer."""
+    global _uart_link
+    if not _uart_enabled():
+        return False
+    if _uart_link is not None:
+        return True
+    try:
+        from machine import UART
+        import uart_link
+
+        uart = UART(
+            getattr(config, "UART_ID", 2),
+            baudrate=getattr(config, "UART_BAUD", 115200),
+            bits=8,
+            parity=None,
+            stop=1,
+            tx=getattr(config, "UART_TX_PIN", 17),
+            rx=getattr(config, "UART_RX_PIN", 16),
+            rxbuf=getattr(config, "UART_RXBUF", 96),
+            timeout=0,
+        )
+        _uart_link = uart_link.UartLink(
+            uart,
+            time.ticks_ms,
+            offline_timeout_ms=getattr(config, "UART_OFFLINE_TIMEOUT_MS", 30000),
+        )
+        print("[UART] Pi link initialized")
+        return True
+    except Exception as e:
+        print("[UART] init skipped:", e)
+        _uart_link = None
+        state.pi_online = False
+        return False
+
+
+def _guard_pi_decision(decision):
+    """Apply local ESP32 guardrails to a Pi advisory decision."""
+    if not decision:
+        return None
+    guarded = dict(decision)
+    action = guarded.get("action", "idle")
+    if action == "water":
+        temp = state.temperature
+        if temp >= getattr(config, "TEMP_HIGH_C", 35) or temp <= getattr(config, "TEMP_LOW_C", 8):
+            guarded["action"] = "idle"
+            guarded["duration_sec"] = 0
+            guarded["reason"] = "pi advice rejected by temp guard"
+            return guarded
+    max_sec = (
+        getattr(config, "LIGHT_MAX_RUN_SEC", 120)
+        if action == "light"
+        else getattr(config, "PUMP_MAX_RUN_SEC", 60)
+    )
+    try:
+        duration = int(guarded.get("duration_sec", 0))
+    except (ValueError, TypeError):
+        duration = 0
+    if duration < 0:
+        duration = 0
+    if duration > max_sec:
+        duration = max_sec
+    guarded["duration_sec"] = duration
+    return guarded
+
+
+def _poll_uart():
+    """Poll Pi messages without letting serial noise crash the control loop."""
+    if _uart_link is None:
+        return False
+    try:
+        import uart_link
+
+        msgs = _uart_link.poll()
+        state.pi_online = _uart_link.is_online()
+        for msg in msgs:
+            if msg.get("t") == uart_link.MSG_ADVICE:
+                decision = uart_link.advice_to_decision(msg)
+                decision = _guard_pi_decision(decision)
+                if decision is not None:
+                    state.pending_pi_decision = decision
+                    print("[UART] Pi advice queued:", decision.get("action"))
+        return bool(msgs)
+    except Exception as e:
+        print("[UART] poll skipped:", e)
+        state.pi_online = False
+        return False
+
+
+def _send_uart_report():
+    if _uart_link is None:
+        return False
+    try:
+        state.pi_online = _uart_link.is_online()
+        return _uart_link.send_report(state, online=state.pi_online)
+    except Exception as e:
+        print("[UART] report skipped:", e)
+        return False
+
+
+def _take_pi_decision():
+    decision = getattr(state, "pending_pi_decision", None)
+    if decision is None:
+        return None
+    state.pending_pi_decision = None
+    if _uart_link is not None and not _uart_link.is_online():
+        print("[UART] stale Pi advice dropped")
+        state.pi_online = False
+        return None
+    state.last_decision_source = "pi"
+    return decision
+
+
+_wifi_fail_streak = 0  # 连续 WiFi 失败次数，到阈值后 machine.reset() 兜底
+
+
 def _send_telemetry():
+    global _wifi_fail_streak
     if not getattr(config, "DASHBOARD_URL", ""):
-        return
+        return False
+    # 主循环里若 WiFi 已断，主动同步重连一次
+    link_grace_ms = getattr(config, "WIFI_LINK_GRACE_MS", 5000)
+    if not state.wifi_connected and not wifi_client.is_connected(grace_ms=0):
+        print("[Telemetry] skipped: WiFi not ready")
+        state.wifi_connected = False
+        return False
+        print("[Telemetry] WiFi lost, reconnecting before send...")
+        try:
+            ok = wifi_client.connect(
+                timeout=getattr(config, "WIFI_RECONNECT_TIMEOUT", 20),
+                allow_full_reset=False,
+                reset=False,  # 软重连优先，避免 OOM；失败时函数内部自动回退硬复位
+            )
+        except Exception as e:
+            print("[Telemetry] reconnect exc:", e)
+            ok = False
+        if not ok:
+            _wifi_fail_streak += 1
+            print("[Telemetry] reconnect failed (streak={})".format(_wifi_fail_streak))
+            # 连续 3 次重连失败 → 硬复位（启动时 WiFi 总能连上，复位是有效的恢复手段）
+            if _wifi_fail_streak >= 3:
+                print("[Telemetry] WiFi unrecoverable, machine.reset()")
+                time.sleep(1)
+                machine.reset()
+            state.wifi_connected = False
+            return False
+    _wifi_fail_streak = 0
+    state.wifi_connected = True
+    release_display = getattr(config, "TELEMETRY_RELEASE_DISPLAY", True)
+    if release_display:
+        _release_display()
+    gc.collect()
+    min_free = getattr(config, "TELEMETRY_MIN_FREE_MEM", 32000)
+    if gc.mem_free() < min_free:
+        print("[Telemetry] skipped: low memory")
+        return False
     try:
         import telemetry
-        telemetry.send_state(state, ai_enabled=_ai_enabled())
+        ok = telemetry.send_state(state, ai_enabled=_ai_enabled())
+        state.wifi_connected = bool(ok) or wifi_client.is_connected(grace_ms=0)
+        return ok
     except Exception as e:
         print("[Telemetry] skipped:", e)
+        state.wifi_connected = wifi_client.is_connected(grace_ms=0)
+        return False
+    finally:
+        gc.collect()
+        if release_display:
+            try:
+                _refresh_display(force=True)
+            except Exception as e:
+                print("[Telemetry] display restore skipped:", e)
 
 
 def _setup_menu():
@@ -136,7 +312,8 @@ def _check_menu():
     """
     global _menu
     if _menu is None:
-        return False
+        if not _setup_menu():
+            return False
 
     # 红键(UP=-1) / 黄键(DOWN=+1) → 手动切换 OLED 页面
     nav = _menu._control.update()
@@ -177,16 +354,27 @@ def init_system():
     """系统初始化"""
     import gc as _gc
 
-    # ── WiFi 在所有重模块加载前抢先连接 ──────────────────────
-    # boot_runtime → utils → status_strip (~22KB) 尚未加载，堆碎片最少
-    _gc.collect()
-    _gc.collect()
-    print("[WiFi] Free RAM before connect:", _gc.mem_free(), "bytes")
-    try:
-        state.wifi_connected = wifi_client.connect()
-    except OSError as e:
-        print("[WiFi] WLAN init failed:", e)
+    # ── WiFi 在所有重模块加载前抢先连接；UART 双层模式下则跳过 ─────────
+    # 双层架构让树莓派负责联网/大屏，ESP32 保留飞控职责，避免 WiFi 驱动
+    # 占用堆内存导致 UART/OLED 初始化失败。
+    if _uart_skip_wifi():
+        print("[WiFi] Skipped: UART mode uses Raspberry Pi networking")
         state.wifi_connected = False
+    else:
+        # boot_runtime → utils → status_strip (~22KB) 尚未加载，堆碎片最少
+        _gc.collect()
+        _gc.collect()
+        print("[WiFi] Free RAM before connect:", _gc.mem_free(), "bytes")
+        try:
+            state.wifi_connected = wifi_client.connect(
+                timeout=getattr(config, "WIFI_CONNECT_TIMEOUT", 12),
+                reset=True,
+            )
+        except OSError as e:
+            print("[WiFi] WLAN init failed:", e)
+            state.wifi_connected = False
+
+    _init_uart_link()
 
     # ── 现在再 import 重模块 ──────────────────────────────────
     import boot_runtime
@@ -205,12 +393,17 @@ def init_system():
     if not ok:
         return False
 
-    # 启动菜单：选植物 → 选天数
-    print("[Init] Starting plant selection...")
-    _select_plant()
+    _setup_menu()
+    if getattr(config, "STARTUP_MENU_ON_BOOT", False):
+        # Optional startup menu. Competition-stable mode skips this so boot
+        # cannot block forever waiting for button input.
+        print("[Init] Starting plant selection...")
+        _select_plant()
 
-    print("[Init] Starting day selection...")
-    _select_day()
+        print("[Init] Starting day selection...")
+        _select_day()
+    else:
+        print("[Init] Startup menu skipped; press Blue for menu")
 
     # 选完后首次渲染仪表盘
     _refresh_display(force=True, reset_page=True)
@@ -235,6 +428,12 @@ def read_demo_sensors():
 
 def make_decision():
     """AI 决策 + 本地规则兜底。保留入口以兼容测试和 REPL 调用。"""
+    if not _demo_enabled():
+        pi_decision = _take_pi_decision()
+        if pi_decision is not None:
+            print("[UART Decision] using Pi advice")
+            return pi_decision
+
     import decision as decision_engine
     plant_info = _get_plant_info()
     return decision_engine.make_decision(
@@ -286,6 +485,9 @@ def main_loop():
         send_telemetry=_send_telemetry,
         watch_dog=watch_dog,
         check_menu=_check_menu,
+        uart_poll=_poll_uart if _uart_link is not None else None,
+        uart_send_report=_send_uart_report if _uart_link is not None else None,
+        manage_wifi=not _uart_skip_wifi(),
     )
 
 

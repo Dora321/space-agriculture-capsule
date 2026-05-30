@@ -102,6 +102,10 @@ def init():
     global _np, _count, _brightness
     _count = getattr(config, "WS2812_LED_COUNT", 11)
     _brightness = float(getattr(config, "WS2812_BRIGHTNESS", 0.4))
+    if not getattr(config, "WS2812_ENABLED", True):
+        _np = None
+        print("[Strip] WS2812 disabled via config, stub mode")
+        return True
     if not _HAS_HARDWARE:
         print("[Strip] neopixel module not available, status strip in stub mode")
         return False

@@ -97,12 +97,16 @@ def make_decision(state, plant_info, demo_enabled=False, release_display=None):
             return fallback
 
         use_proxy = bool(getattr(config, "AI_PROXY_URL", ""))
-        if not use_proxy and release_display is not None:
+        if release_display is not None:
             release_display()
         gc.collect()
         free_mem = gc.mem_free()
-        min_ai_mem = getattr(config, "AI_MIN_FREE_MEM", 110000)
-        if use_proxy or free_mem >= min_ai_mem:
+        min_ai_mem = (
+            getattr(config, "AI_PROXY_MIN_FREE_MEM", 65000)
+            if use_proxy
+            else getattr(config, "AI_MIN_FREE_MEM", 110000)
+        )
+        if free_mem >= min_ai_mem:
             import ai_client
 
             ai_result = ai_client.query_decision(

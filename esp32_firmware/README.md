@@ -23,6 +23,7 @@ esp32_firmware/
 ├── ai_client.py         # AI API 客户端
 ├── display.py           # OLED 显示模块（英文模式）
 ├── telemetry.py         # 实时大屏遥测上报
+├── uart_link.py         # 树莓派 UART JSON-over-Line 协议层
 ├── utils.py             # 工具函数（LED控制、本地决策、时间格式化）
 ├── diagnostics/         # 设备端诊断脚本，不属于生产启动链路
 └── README.md            # 说明文档
@@ -103,6 +104,7 @@ py -m mpremote connect COM3 cp display.py :
 py -m mpremote connect COM3 cp sh1106.py :
 py -m mpremote connect COM3 cp status_strip.py :
 py -m mpremote connect COM3 cp telemetry.py :
+py -m mpremote connect COM3 cp uart_link.py :
 py -m mpremote connect COM3 cp utils.py :
 ```
 
@@ -157,6 +159,41 @@ py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
 - `AI_SOIL_DELTA` / `AI_LIGHT_DELTA` / `AI_TEMP_DELTA` / `AI_HUM_DELTA`：环境明显变化阈值
 
 这意味着系统每分钟仍会执行本地安全判断，但不会在环境稳定时每分钟都请求云端 AI。
+
+### 树莓派 UART 上位机（可选）
+
+`UART_ENABLED = True` 后，ESP32 会通过 UART2 与树莓派交换 JSON-over-Line：
+
+- ESP32 → Pi：每轮采样后发送 `report`，包含传感器、作物、动作、决策来源
+- Pi → ESP32：发送 `ping` 心跳和 `advice` 建议
+- ESP32 30 秒收不到 Pi 消息时，`pi_online=False`，继续使用本地规则引擎自治
+
+实机推荐配置：
+
+```python
+UART_ENABLED = True
+UART_SKIP_WIFI = True
+UART_RXBUF = 256
+STARTUP_MENU_ON_BOOT = True
+```
+
+`UART_SKIP_WIFI=True` 时，ESP32 会跳过 WiFi 初始化，OLED 第三页显示 WiFi offline/AI off 属于正常状态。树莓派负责联网、大屏和后续 AI/数据库；ESP32 保留传感器、OLED、执行器、本地规则和安全护栏。实机验证表明，如果 ESP32 同时启用 WiFi、OLED/I2C、UART2，会因堆内存压力导致 `UART driver malloc error` 或底层崩溃。
+
+接线：
+
+```text
+ESP32 GPIO17 (U2 TX) -> Raspberry Pi GPIO15/RXD pin 10
+ESP32 GPIO16 (U2 RX) <- Raspberry Pi GPIO14/TXD pin 8
+ESP32 GND            -> Raspberry Pi GND pin 6
+```
+
+树莓派运行：
+
+```bash
+python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --auto-advice
+```
+
+Pi 的 `advice` 永远只是建议；ESP32 会先做本地护栏检查（温度、动作时长上限、动作限频），再决定是否执行。
 
 ### 植物类型选择
 
