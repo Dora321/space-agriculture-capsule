@@ -217,25 +217,28 @@ loop_runtime.run(
 
 ## 4. 决策引擎
 
-### 4.1 双引擎架构
+> **2026-05-30 重构**：云 AI（DeepSeek）已从 ESP32 移到树莓派侧（`tools/pi_advisor.py`）。
+> ESP32 上不再有 `_should_request_ai` / `AI_*_DELTA` / `AI_MIN_FREE_MEM` / TLS 内存门控——
+> 这些随 `ai_client.py` 一起删除。下面的 4.1 改为"三层降级"。
+
+### 4.1 三层降级架构
+
+决策从聪明到可靠分三层，上层挂了下层接住：
 
 ```
-         ┌──────────────┐
-         │ make_decision │
-         └──────┬───────┘
-                │
-    1. 始终计算本地规则（local_fallback_decision）
-                │
-    2. _should_request_ai 检查三个触发条件
-       ├── 阈值事件（土壤/光照/温度越界）
-       ├── 传感器变化量 > AI_*_DELTA
-       └── 周期复核（距上次 AI 请求 > AI_MIN_REQUEST_INTERVAL）
-                │
-    3. AI 允许时，额外检查 free heap ≥ AI_MIN_FREE_MEM
-       └── 使用代理时跳过 heap 检查（代理走 HTTP，无 TLS 开销）
-                │
-    4. AI 成功 → 返回 AI 决策；AI 失败 → 返回本地规则结果
+① DeepSeek（树莓派 tools/pi_advisor.py，serial_gateway --ai-advice 调用）
+      └ 用 ESP32 report 建 prompt → 调 DeepSeek → advice 经 UART 回 ESP32
+        ↓ 超时 / 没网 / 没 key
+② 树莓派阈值规则（serial_gateway._heuristic_advice_from_report）
+        ↓ UART 断 / 树莓派没了
+③ ESP32 本地规则（utils.local_fallback_decision，板上常驻兜底）
+
+ESP32 侧 main.make_decision：
+    1. _take_pi_decision()：有在线 Pi advice 则经 _guard_pi_decision 安全门后优先采用
+    2. 否则 decision.make_decision() → local_fallback_decision（②/① 不可达时的 ③）
 ```
+
+ESP32 收到的每条 Pi advice 仍要过本地安全护栏（温度/时长）才会驱动执行器——Pi 只是建议者。
 
 ### 4.2 本地决策优先级
 
@@ -477,23 +480,28 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 - `_validate_state` 白名单校验 + 范围钳位 + signals 过滤
 - 超 120s 无数据标记为 stale，大屏自动切 DEMO 模式
 
-### 9.2 ai_proxy.py
+### 9.2 ai_proxy.py（legacy）
 
-- 端口 8787，ESP32 发 HTTP（非 HTTPS）到此代理
-- 代理转发 HTTPS 到 DeepSeek/OpenAI，避免 ESP32 TLS 内存压力
-- `_validate_decision` 白名单校验 action + signals + 截断 reason/observation
-- nutrient 动作静默 remap 为 idle
+- 端口 8787，HTTP→DeepSeek 的独立中转。早期供 ESP32 直发明文请求、代理替它扛 HTTPS。
+- 2026-05-30 重构后 ESP32 不再调 AI，网关直接调 DeepSeek（见 9.4），此代理转为可选/历史工具。
+- `_validate_decision` 白名单校验 action + signals + 截断 reason/observation；nutrient 静默 remap 为 idle。
 
 ### 9.3 serial_gateway.py
 
 - 运行在树莓派，连接 `/dev/serial0`，默认 `115200 8N1`
 - 收 ESP32 `report`，转为 dashboard `/api/state`
 - 每 10 秒发送 `ping`，ESP32 自动返回 `pong`
-- `--auto-advice`：根据土壤/光照阈值生成保守建议
+- **`--ai-advice`**：收到 report 后调 DeepSeek（经 9.4 的 `pi_advisor`）→ advice 回 ESP32；AI 失败自动回退 `--auto-advice` 启发式
+- `--auto-advice`：根据土壤/光照阈值生成保守建议（也是 `--ai-advice` 的本地兜底）
 - `--test-advice water --test-duration 8`：收到首条 report 后只下发一次固定建议，用于验收“树莓派能让 ESP32 执行动作”
-- `--dashboard` 默认值取自环境变量 `SPACEFARM_DASHBOARD`，以便 URL 通过环境而非命令行传入（规避 openclaw 看门狗对 `board` 子串的误杀，见 §1.2 与 DEVLOG #41）
+- `--dashboard` 默认取自环境变量 `SPACEFARM_DASHBOARD`（规避 openclaw 看门狗对 `board` 子串的误杀，见 §1.2 与 DEVLOG #41）
 - 已做成开机自启服务 `spacefarm-gateway.service`（实机验收通过）
-- 后续阶段三：把 AI 决策、SQLite、视觉模块接入此网关侧
+
+### 9.4 pi_advisor.py（DeepSeek 大脑，2026-05-30 从 ESP32 搬来）
+
+- 树莓派侧的云 AI：`build_messages(report)` 建 prompt（镜像原 `ai_client.SYSTEM_PROMPT`）→ `DeepSeekAdvisor.advise()` 调 DeepSeek → `validate_decision` 归一为 advice
+- key/model 走环境变量 `SPACEFARM_AI_API_KEY` / `SPACEFARM_AI_MODEL`（不进 argv：既避看门狗，也不让 key 出现在 `ps`）
+- 纯 stdlib，HTTP 依赖注入，`tests/test_pi_advisor.py` 无网络可测；信号白名单与 `uart_link.VALID_SIGNALS` 跨端一致
 
 ---
 
@@ -503,15 +511,15 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 |---------|-------|---------|
 | test_config.py | 22 | 植物数据库完整性、安全常量、拨码编码 |
 | test_local_decision.py | 24 | 本地决策优先级、温度安全、Decision Plane 信号 |
-| test_ai_parse.py | 15 | AI 关键词解析、light/nutrient 动作、signals 默认值 |
-| test_runtime_edges.py | 23 | 硬件 mock、执行动作分支、WS2812、AI 门控、遥测、Pi advice |
+| test_runtime_edges.py | 16 | 硬件 mock、执行动作分支、WS2812、Pi advice、demo |
+| test_pi_advisor.py | 11 | 树莓派 DeepSeek advisor：prompt/校验/HTTP注入/降级/信号白名单跨端一致 |
 | test_dashboard_server.py | 7 | 遥测校验、nutrient remap、signals/breeding 透传 |
 | test_utils.py | 9 | 时间格式化、移动平均、平滑值 |
 | test_docs_quality.py | 2 | Markdown UTF-8 完整性、链接有效性 |
 | test_loop_runtime.py | 3 | 主循环周期、传感器故障降级、UART poll/report 注入 |
 | test_serial_gateway.py | 18 | 树莓派串口网关、心跳、advice、跨端协议兼容 |
 | test_uart_link.py | 21 | ESP32 UART 编解码、ping/pong、advice 转换、在线超时 |
-| **合计** | **144** | |
+| **合计** | **133** | |
 
 ---
 

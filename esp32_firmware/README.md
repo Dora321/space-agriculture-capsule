@@ -12,18 +12,15 @@ esp32_firmware/
 ├── plants.json          # 植物数据库（8种作物的养护参数和生长阶段）
 ├── state.py             # 主循环共享运行状态
 ├── action_runtime.py    # 执行动作、安全检查和动作计数
-├── boot_runtime.py      # 系统启动初始化流程编排
-├── decision.py          # 本地规则、AI 请求门控和云端决策编排
+├── boot_runtime.py      # 系统启动初始化流程编排（不联网）
+├── decision.py          # 本地规则兜底决策（云 AI 已移到树莓派侧）
 ├── display_runtime.py   # OLED 初始化、释放和分页刷新编排
-├── loop_runtime.py      # 主循环采样、决策、执行、上报和重连调度
+├── loop_runtime.py      # 主循环采样、决策、执行、UART 上报/收建议调度
 ├── sensor_runtime.py    # 传感器读取编排、离线降级和生长统计
 ├── sensors.py           # 传感器读取模块
 ├── actuators.py         # 执行器控制模块
-├── wifi_client.py       # WiFi 连接模块
-├── ai_client.py         # AI API 客户端
 ├── display.py           # OLED 显示模块（英文模式）
-├── telemetry.py         # 实时大屏遥测上报
-├── uart_link.py         # 树莓派 UART JSON-over-Line 协议层
+├── uart_link.py         # 树莓派 UART JSON-over-Line 协议层（唯一上下行通道）
 ├── utils.py             # 工具函数（LED控制、本地决策、时间格式化）
 ├── diagnostics/         # 设备端诊断脚本，不属于生产启动链路
 └── README.md            # 说明文档
@@ -98,14 +95,14 @@ py -m mpremote connect COM3 cp loop_runtime.py :
 py -m mpremote connect COM3 cp sensor_runtime.py :
 py -m mpremote connect COM3 cp sensors.py :
 py -m mpremote connect COM3 cp actuators.py :
-py -m mpremote connect COM3 cp wifi_client.py :
-py -m mpremote connect COM3 cp ai_client.py :
 py -m mpremote connect COM3 cp display.py :
 py -m mpremote connect COM3 cp sh1106.py :
 py -m mpremote connect COM3 cp status_strip.py :
-py -m mpremote connect COM3 cp telemetry.py :
 py -m mpremote connect COM3 cp uart_link.py :
 py -m mpremote connect COM3 cp utils.py :
+py -m mpremote connect COM3 cp buttons.py :
+py -m mpremote connect COM3 cp menu.py :
+py -m mpremote connect COM3 cp state.py :
 ```
 
 > **注意**：MicroPython 默认不内置 `neopixel` 模块的某些版本——ESP32 官方 MicroPython 是内置的；若使用裁剪固件需先 `import neopixel` 验证。
@@ -126,12 +123,11 @@ py -m mpremote connect COM3 exec "import actuators; actuators.init(); actuators.
 # 显示测试
 py -m mpremote connect COM3 exec "import display; display.init(); display.show_boot(); display.show_data(45, 65, 24.5, 65, 'Tomato', 'idle'); display.show_error('DHT OFFLINE'); display.show_graphic(); print('Display OK')"
 
-# WiFi 测试
-py -m mpremote connect COM3 exec "import wifi_client; wifi_client.connect(); wifi_client.test_connection()"
-
-# AI API 测试
-py -m mpremote connect COM3 exec "import ai_client; ai_client.test_api()"
+# UART 链路测试（树莓派端用 tools/serial_gateway.py 配合）
+py -m mpremote connect COM3 exec "import uart_link; print('UART link module OK')"
 ```
+
+> AI（DeepSeek）现在跑在树莓派侧，不在 ESP32 上测；见 `tools/serial_gateway.py --ai-advice` 与 `tools/pi_advisor.py`。
 
 > 如果 ESP32 正在运行 main.py，mpremote 会报 `could not enter raw repl`，先执行 `py -m mpremote connect COM3 soft-reset` 中断程序。
 
