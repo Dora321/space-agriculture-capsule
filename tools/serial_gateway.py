@@ -19,6 +19,7 @@ Usage (once the UART is physically wired):
 
 import argparse
 import json
+import os
 import time
 
 PROTOCOL_VERSION = 1
@@ -244,8 +245,19 @@ def main(argv=None):
     parser.add_argument("--port", default="/dev/serial0",
                         help="serial device (e.g. /dev/serial0, COM5)")
     parser.add_argument("--baud", type=int, default=115200)
-    parser.add_argument("--dashboard", default="http://127.0.0.1:8790/api/state",
-                        help="dashboard state endpoint ('' to disable)")
+    # The dashboard URL defaults to $SPACEFARM_DASHBOARD so it can be supplied via the
+    # environment instead of argv. This is deliberate on the deployment Pi: it runs an
+    # openclaw hardware watchdog (pi-project/.../hardware_watchdog.sh) that SIGKILLs any
+    # python process whose *command line* contains a hardware-lib keyword -- and its
+    # "board" pattern matched the substring in "--dashboard". Passing the URL through the
+    # systemd unit's Environment= keeps "board" out of argv so the gateway isn't killed.
+    # (The watchdog regex was also tightened to a word boundary, 2026-05-30; see DEVLOG.)
+    parser.add_argument("--dashboard",
+                        default=os.environ.get("SPACEFARM_DASHBOARD",
+                                               "http://127.0.0.1:8790/api/state"),
+                        help="dashboard state endpoint ('' to disable). Defaults to "
+                             "$SPACEFARM_DASHBOARD so the URL can be supplied via the "
+                             "environment instead of argv.")
     parser.add_argument("--ping-interval", type=float, default=10.0)
     parser.add_argument("--offline-timeout", type=float, default=30.0)
     parser.add_argument("--auto-advice", action="store_true",

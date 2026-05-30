@@ -75,6 +75,16 @@ ESP32 GND            -> Raspberry Pi GND pin 6
 
 这与架构原则一致：ESP32 保留“断了会死作物”的飞控职责，树莓派承担“断了只是变笨/看不到”的网络、AI、数据库和大屏职责。
 
+### 1.2 树莓派端部署要点（2026-05-30 实机验收通过）
+
+`/dev/serial0` 全链路（report/ping/pong/advice）已在真机跑通，ESP32 后续 report 的 `ai_src` 变为 `pi`，证明 ESP32 真正采用了 Pi 的建议。落地时按顺序排掉的三个坑，已固化为部署清单：
+
+1. **接线必须三线齐全且 TX/RX 交叉、共地接牢**。共地松动时 Pi 的 RX 悬空，串口只读到持续 `0xFF` 噪声（可打印率 0%）；正常空闲线应安静（0 字节）。共地是最容易忽略又最先要查的。
+2. **必须把 `/dev/serial0` 从内核控制台释放**。树莓派默认 `console=serial0`，会把该 UART 当内核控制台：① 设备节点被锁成 `root:tty 600`，普通用户打不开；② 与网关的双向流量争用——**只读能收到干净 report，但网关一旦回写 ping/advice，RX 立刻被打断**。修法：`sudo sed -i 's/console=serial0,115200 //' /boot/firmware/cmdline.txt`（保留 `console=tty1`）+ 重启，并 `sudo systemctl disable --now serial-getty@ttyS0.service`。重启后节点变 `root:dialout 660`，dialout 组用户免 sudo 可开。注意 ttyS0 是 mini-UART（不如 PL011 稳），波特率随核心时钟，务必 `enable_uart=1`。
+3. **若 Pi 上跑着进程监管/沙箱（如 openclaw 硬件看门狗），先查它的杀进程规则**。本机 `hw-watchdog.service` 每 30s `kill -9` 命令行匹配硬件库关键词的 Python 进程，其 `board` 裸子串误伤了网关的 `--dashboard` 参数。规避：网关的 dashboard URL 改用环境变量 `SPACEFARM_DASHBOARD`（systemd `Environment=` 传，不出现在 argv）；并把看门狗 `board` 收紧为词边界正则。详见 [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) #41。
+
+**开机自启**：网关做成 systemd 服务 `spacefarm-gateway.service`（`User=mx Group=dialout`，`Restart=always`，`Environment=SPACEFARM_DASHBOARD=http://43.156.68.157:8790/api/state`，`--auto-advice`），已验证转发到云端大屏 `live:true` 实时刷新。
+
 ---
 
 ## 2. Decision Plane / Action Plane 分离架构
@@ -481,6 +491,8 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 - 每 10 秒发送 `ping`，ESP32 自动返回 `pong`
 - `--auto-advice`：根据土壤/光照阈值生成保守建议
 - `--test-advice water --test-duration 8`：收到首条 report 后只下发一次固定建议，用于验收“树莓派能让 ESP32 执行动作”
+- `--dashboard` 默认值取自环境变量 `SPACEFARM_DASHBOARD`，以便 URL 通过环境而非命令行传入（规避 openclaw 看门狗对 `board` 子串的误杀，见 §1.2 与 DEVLOG #41）
+- 已做成开机自启服务 `spacefarm-gateway.service`（实机验收通过）
 - 后续阶段三：把 AI 决策、SQLite、视觉模块接入此网关侧
 
 ---

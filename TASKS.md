@@ -18,8 +18,7 @@
 - [ ] **比赛现场彩排** — 验证菜单交互流程（蓝键进/退/蓝键返回），确认评委能独立操作
 - [ ] **config.py.example 检查** — `PAGE_ROTATE_SEC=0` 表示关闭自动翻页，与 display_runtime.py 逻辑对齐
 - [ ] **决定是否开启 NTP** — `NTP_SYNC_ON_CONNECT` 当前 False 导致 Day 永远=0、生长阶段算错；现场如演示天数则改 True
-- [ ] **树莓派端串口验收** — Raspberry Pi 开启 `/dev/serial0`（关闭 login shell），跑 `tools/serial_gateway.py --auto-advice`，确认 report/ping/pong/advice 全链路
-- [ ] **树莓派大屏接管** — 在树莓派上同时跑 `dashboard_server.py` 与 `serial_gateway.py`，确认浏览器访问树莓派 IP 能看到 ESP32 report
+- [ ] **现场目视确认浇水执行** — `--test-advice water` 的 advice 已实机下发，但 8s 水泵是否真出水仅剩现场目视确认（遥测侧 round-trip 已通，`ai_src=pi`）
 
 ## P1 待办
 
@@ -36,6 +35,7 @@
 
 | 日期 | 任务 | 详见 |
 |------|------|------|
+| 2026-05-30 | 树莓派端实机验收完成（#39-41）：`/dev/serial0` 全链路跑通（report/ping/pong/advice，`ai_src=pi`）；清掉共地松动、mini-UART 控制台争用（移除 `console=serial0`）、openclaw 看门狗 `board` 误杀三坑；`serial_gateway` 做成开机自启 systemd 服务转发云端大屏 | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-30 | 树莓派双层架构阶段二：ESP32 UART 主循环接入 + Pi 网关 auto/test advice 下发 + 实机 UART 初始化；UART 模式跳过 ESP32 WiFi | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-29 | #33 Brownout 根因定位 + 软件兜底：BOD 禁用 + 水泵脉冲 + is_connected 基于 IP + machine.reset 兜底 | [DEVLOG/2026-05-29.md](./DEVLOG/2026-05-29.md) |
 | 2026-05-29 | #32 WiFi 重连冻结根治：单次 8s 替代 smart_connect 3×25s，最长冻结 77s→9s | [DEVLOG/2026-05-29.md](./DEVLOG/2026-05-29.md) |

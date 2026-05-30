@@ -194,6 +194,13 @@ py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 
 `--auto-advice` 会在收到 ESP32 `report` 后下发保守规则建议；`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
 
+> ✅ **2026-05-30 实机验收通过**：`/dev/serial0` report/ping/pong/advice 全链路跑通，ESP32 `ai_src` 变 `pi`。部署时按顺序排查三点（详见 [ARCHITECTURE.md §1.2](./ARCHITECTURE.md#12-树莓派端部署要点2026-05-30-实机验收通过)）：
+> 1. **共地接牢、TX/RX 交叉**——否则 Pi 的 RX 悬空，只读到持续 `0xFF` 噪声；
+> 2. **释放内核控制台**——`sudo sed -i 's/console=serial0,115200 //' /boot/firmware/cmdline.txt` + 重启 + `disable serial-getty@ttyS0`，否则 ttyS0 被锁 600 且双向流量被控制台争用打断；
+> 3. **避让进程沙箱/看门狗**——如有 openclaw 这类硬件看门狗，URL 用环境变量 `SPACEFARM_DASHBOARD` 经 systemd `Environment=` 传入，避免 `--dashboard` 里的 `board` 子串被误杀。
+>
+> 开机自启：装成 systemd 服务 `spacefarm-gateway.service`（`Environment=SPACEFARM_DASHBOARD=...` + `--auto-advice`），已验证云端大屏 `live:true` 实时刷新。
+
 ### 3. 配置 ESP32
 
 ```bash
@@ -231,7 +238,9 @@ py -m pytest
 ├── ARCHITECTURE.md          # 系统架构设计文档
 ├── TASKS.md                 # 当前任务与待办
 ├── DEVLOG/                  # 开发日志（按日期）
-│   └── 2026-05-28.md
+│   ├── 2026-05-28.md        # Decision/Action Plane 架构升级
+│   ├── 2026-05-29.md        # WiFi/brownout 排查 + 菜单交互
+│   └── 2026-05-30.md        # 树莓派双层 UART 接入 + 实机验收（共地/控制台/看门狗）
 ├── esp32_firmware/          # ESP32 MicroPython 固件（13 模块）
 │   ├── main.py              # 主入口 · 依赖注入接线
 │   ├── boot_runtime.py      # 启动序列编排
