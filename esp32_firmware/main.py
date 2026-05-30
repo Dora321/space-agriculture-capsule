@@ -1,37 +1,35 @@
 """
 太空农业种植舱 - ESP32 主控板固件
-版本: v1.2
-日期: 2026-05-28
-说明: 基于 MicroPython 的智能种植舱控制系统
+版本: v2.0
+日期: 2026-05-30
+说明: 基于 MicroPython 的智能种植舱控制系统（双层架构 / 单一路线）
+      ESP32 为舱内飞控：感知 / 本地规则 + 树莓派 advice / 执行 / 安全护栏。
+      联网、大屏、AI 全部由树莓派经 UART 承担——ESP32 不再使用 WiFi。
       交互方式：模拟键盘(ADC GPIO33) + OLED 菜单
-      变更：四独立按钮 → 单ADC模拟键盘，节省 3 个 GPIO
 """
 
 import machine
 import time
-import gc
 
-# 本地模块（仅保留 WiFi init 前必需的轻量模块）
+# 本地模块（仅保留启动早期必需的轻量模块）
 import config
-import wifi_client
 import display_runtime
 from state import SystemState
 # boot_runtime / sensor_runtime / action_runtime / decision / loop_runtime
-# 均在首次调用时懒加载，确保 WiFi init 前堆碎片最少
+# 均在首次调用时懒加载，保持启动早期堆碎片最少。
 
 # 全局状态
 state = SystemState()
 
-# 菜单系统（独立按钮 + OLED）
+# 菜单系统（模拟键盘 + OLED）
 _menu = None
 
-# Optional Raspberry Pi UART uplink/downlink. Kept disabled by config default so
-# the existing WiFi-only runtime remains the stable baseline.
+# 树莓派 UART 上下行链路。双层架构下为强制链路：联网/大屏/AI 全在树莓派侧。
 _uart_link = None
 
 
 def _init_display():
-    """按需初始化 OLED，避免显示模块长期占用 AI TLS 所需内存。"""
+    """按需初始化 OLED。"""
     return display_runtime.init_display()
 
 
@@ -39,19 +37,10 @@ def _display():
     return display_runtime.display()
 
 
-def _release_display():
-    """AI 请求前释放 OLED 模块和帧缓冲，给 TLS 握手腾出堆内存。"""
-    display_runtime.release_display()
-
-
 def _get_plant_info():
     if state.plant_info is None:
         state.plant_info = config.get_plant_info(state.plant_type)
     return state.plant_info
-
-
-def _ai_enabled():
-    return bool(getattr(config, "AI_PROXY_URL", "") or getattr(config, "AI_API_KEY", ""))
 
 
 def _demo_enabled():
@@ -62,19 +51,9 @@ def _demo_value(name, default):
     return getattr(config, name, default)
 
 
-def _uart_enabled():
-    return bool(getattr(config, "UART_ENABLED", False))
-
-
-def _uart_skip_wifi():
-    return _uart_enabled() and bool(getattr(config, "UART_SKIP_WIFI", True))
-
-
 def _init_uart_link():
     """Initialize ESP32 UART2 for the Raspberry Pi payload computer."""
     global _uart_link
-    if not _uart_enabled():
-        return False
     if _uart_link is not None:
         return True
     try:
@@ -89,7 +68,7 @@ def _init_uart_link():
             stop=1,
             tx=getattr(config, "UART_TX_PIN", 17),
             rx=getattr(config, "UART_RX_PIN", 16),
-            rxbuf=getattr(config, "UART_RXBUF", 96),
+            rxbuf=getattr(config, "UART_RXBUF", 256),
             timeout=0,
         )
         _uart_link = uart_link.UartLink(
@@ -183,67 +162,6 @@ def _take_pi_decision():
     return decision
 
 
-_wifi_fail_streak = 0  # 连续 WiFi 失败次数，到阈值后 machine.reset() 兜底
-
-
-def _send_telemetry():
-    global _wifi_fail_streak
-    if not getattr(config, "DASHBOARD_URL", ""):
-        return False
-    # 主循环里若 WiFi 已断，主动同步重连一次
-    link_grace_ms = getattr(config, "WIFI_LINK_GRACE_MS", 5000)
-    if not state.wifi_connected and not wifi_client.is_connected(grace_ms=0):
-        print("[Telemetry] skipped: WiFi not ready")
-        state.wifi_connected = False
-        return False
-        print("[Telemetry] WiFi lost, reconnecting before send...")
-        try:
-            ok = wifi_client.connect(
-                timeout=getattr(config, "WIFI_RECONNECT_TIMEOUT", 20),
-                allow_full_reset=False,
-                reset=False,  # 软重连优先，避免 OOM；失败时函数内部自动回退硬复位
-            )
-        except Exception as e:
-            print("[Telemetry] reconnect exc:", e)
-            ok = False
-        if not ok:
-            _wifi_fail_streak += 1
-            print("[Telemetry] reconnect failed (streak={})".format(_wifi_fail_streak))
-            # 连续 3 次重连失败 → 硬复位（启动时 WiFi 总能连上，复位是有效的恢复手段）
-            if _wifi_fail_streak >= 3:
-                print("[Telemetry] WiFi unrecoverable, machine.reset()")
-                time.sleep(1)
-                machine.reset()
-            state.wifi_connected = False
-            return False
-    _wifi_fail_streak = 0
-    state.wifi_connected = True
-    release_display = getattr(config, "TELEMETRY_RELEASE_DISPLAY", True)
-    if release_display:
-        _release_display()
-    gc.collect()
-    min_free = getattr(config, "TELEMETRY_MIN_FREE_MEM", 32000)
-    if gc.mem_free() < min_free:
-        print("[Telemetry] skipped: low memory")
-        return False
-    try:
-        import telemetry
-        ok = telemetry.send_state(state, ai_enabled=_ai_enabled())
-        state.wifi_connected = bool(ok) or wifi_client.is_connected(grace_ms=0)
-        return ok
-    except Exception as e:
-        print("[Telemetry] skipped:", e)
-        state.wifi_connected = wifi_client.is_connected(grace_ms=0)
-        return False
-    finally:
-        gc.collect()
-        if release_display:
-            try:
-                _refresh_display(force=True)
-            except Exception as e:
-                print("[Telemetry] display restore skipped:", e)
-
-
 def _setup_menu():
     """初始化菜单输入系统。"""
     global _menu
@@ -305,7 +223,7 @@ def _plant_index(plant_name):
 
 
 def _check_menu():
-    """主循环中检测按键：红/黄键切换页面，蓝键长按进入菜单。
+    """主循环中检测按键：红/黄键切换页面，蓝键单击进入菜单。
 
     Returns:
         bool: True 表示进入并退出了菜单，调用方应刷新显示
@@ -328,8 +246,8 @@ def _check_menu():
         _menu._display = display_runtime.display()
         _menu.run_main_menu(
             state,
-            get_wifi_status=lambda: state.wifi_connected,
-            get_ip=lambda: wifi_client.get_ip() if state.wifi_connected else None,
+            get_wifi_status=lambda: state.pi_online,
+            get_ip=lambda: None,
         )
         print("[Menu] Exited main menu")
         return True
@@ -339,41 +257,22 @@ def _check_menu():
 def _refresh_display(force=False, reset_page=False):
     """刷新 OLED 三页轮播。force=True 时立即重绘当前页。"""
     plant_info = _get_plant_info()
-    ip = wifi_client.get_ip() if state.wifi_connected else None
     display_runtime.refresh_display(
         state,
         plant_info=plant_info,
-        ip=ip,
-        ai_enabled=_ai_enabled(),
+        ip=None,
+        ai_enabled=False,
         force=force,
         reset_page=reset_page,
     )
 
 
 def init_system():
-    """系统初始化"""
-    import gc as _gc
-
-    # ── WiFi 在所有重模块加载前抢先连接；UART 双层模式下则跳过 ─────────
-    # 双层架构让树莓派负责联网/大屏，ESP32 保留飞控职责，避免 WiFi 驱动
-    # 占用堆内存导致 UART/OLED 初始化失败。
-    if _uart_skip_wifi():
-        print("[WiFi] Skipped: UART mode uses Raspberry Pi networking")
-        state.wifi_connected = False
-    else:
-        # boot_runtime → utils → status_strip (~22KB) 尚未加载，堆碎片最少
-        _gc.collect()
-        _gc.collect()
-        print("[WiFi] Free RAM before connect:", _gc.mem_free(), "bytes")
-        try:
-            state.wifi_connected = wifi_client.connect(
-                timeout=getattr(config, "WIFI_CONNECT_TIMEOUT", 12),
-                reset=True,
-            )
-        except OSError as e:
-            print("[WiFi] WLAN init failed:", e)
-            state.wifi_connected = False
-
+    """系统初始化。双层架构：ESP32 不联网，UART 链路在重模块加载前先建立。"""
+    # UART 在 boot_runtime（utils/status_strip ~22KB）加载前先初始化，
+    # 避免堆碎片导致 UART driver malloc error。
+    print("[Net] ESP32 networking disabled: Raspberry Pi handles WiFi/AI/dashboard")
+    state.wifi_connected = False
     _init_uart_link()
 
     # ── 现在再 import 重模块 ──────────────────────────────────
@@ -381,13 +280,10 @@ def init_system():
     ok = boot_runtime.init_system(
         state,
         demo_enabled=_demo_enabled(),
-        wifi_already_connected=True,
         init_display=_init_display,
         display=_display,
-        release_display=_release_display,
         read_all_sensors=read_all_sensors,
         refresh_display=None,       # 不在这里渲染，避免仪表盘在选蔬菜前闪一下
-        send_telemetry=_send_telemetry,
     )
 
     if not ok:
@@ -423,11 +319,12 @@ def read_all_sensors():
 
 def read_demo_sensors():
     """Generate fast-changing contest demo data without physical sensor changes."""
+    import sensor_runtime
     return sensor_runtime.read_demo_sensors(state)
 
 
 def make_decision():
-    """AI 决策 + 本地规则兜底。保留入口以兼容测试和 REPL 调用。"""
+    """决策入口：优先采用树莓派在线 advice，否则走 ESP32 本地规则兜底。"""
     if not _demo_enabled():
         pi_decision = _take_pi_decision()
         if pi_decision is not None:
@@ -440,7 +337,6 @@ def make_decision():
         state,
         plant_info,
         demo_enabled=_demo_enabled(),
-        release_display=_release_display,
     )
 
 
@@ -482,12 +378,10 @@ def main_loop():
         safety_check=safety_check,
         make_decision=make_decision,
         execute_decision=execute_decision,
-        send_telemetry=_send_telemetry,
         watch_dog=watch_dog,
         check_menu=_check_menu,
         uart_poll=_poll_uart if _uart_link is not None else None,
         uart_send_report=_send_uart_report if _uart_link is not None else None,
-        manage_wifi=not _uart_skip_wifi(),
     )
 
 
