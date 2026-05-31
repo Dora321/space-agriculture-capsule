@@ -215,44 +215,6 @@ def _post_json(url, payload, timeout=2):
         return resp.read()
 
 
-def _heuristic_advice_from_report(report, soil_threshold=30, light_threshold=30,
-                                  water_sec=8, light_sec=20):
-    """Tiny Pi-side rule advisor for UART bring-up and offline demos.
-
-    This is intentionally conservative. The ESP32 still performs the final
-    safety checks before actuators move.
-    """
-    try:
-        soil = float(report.get("soil", 100))
-    except (TypeError, ValueError):
-        soil = 100
-    try:
-        light = float(report.get("light", 100))
-    except (TypeError, ValueError):
-        light = 100
-
-    if soil < soil_threshold:
-        return {
-            "primary": "water",
-            "duration": int(water_sec),
-            "signals": ["WATER"],
-            "note": "Pi rule: soil below threshold",
-        }
-    if light < light_threshold:
-        return {
-            "primary": "light_on",
-            "duration": int(light_sec),
-            "signals": ["LIGHT_LOW"],
-            "note": "Pi rule: light below threshold",
-        }
-    return {
-        "primary": "idle",
-        "duration": 0,
-        "signals": [],
-        "note": "Pi rule: stable",
-    }
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description="ESP32<->Pi UART gateway")
     parser.add_argument("--port", default="/dev/serial0",
@@ -273,19 +235,13 @@ def main(argv=None):
                              "environment instead of argv.")
     parser.add_argument("--ping-interval", type=float, default=10.0)
     parser.add_argument("--offline-timeout", type=float, default=30.0)
-    parser.add_argument("--auto-advice", action="store_true",
-                        help="send a conservative Pi rule advice after each report")
-    parser.add_argument("--soil-threshold", type=float, default=30.0)
-    parser.add_argument("--light-threshold", type=float, default=30.0)
-    parser.add_argument("--water-sec", type=int, default=8)
-    parser.add_argument("--light-sec", type=int, default=20)
     parser.add_argument("--test-advice", choices=("water", "light_on", "idle"),
                         default="", help="send one fixed advice after first report")
     parser.add_argument("--test-duration", type=int, default=8)
     parser.add_argument("--ai-advice", action="store_true",
-                        help="ask DeepSeek (tools/pi_advisor) for advice on each report; "
-                             "falls back to the conservative heuristic on AI failure. "
-                             "Key/model come from SPACEFARM_AI_* env vars.")
+                        help="ask DeepSeek (tools/pi_advisor) for advice on each report. "
+                             "On AI failure no advice is sent — the ESP32 falls back to its "
+                             "resident local rule engine. Key/model come from SPACEFARM_AI_* env vars.")
     parser.add_argument("--plants-json",
                         default=os.environ.get("SPACEFARM_PLANTS_JSON", ""),
                         help="path to plants.json for plant thresholds (optional, "
@@ -357,29 +313,14 @@ def main(argv=None):
                     }
                     args.test_advice = ""  # send once
                 elif advisor is not None:
-                    # ① DeepSeek (the smart brain on the Pi)
+                    # DeepSeek on the Pi. On failure, advice stays None and no
+                    # advice is sent — the ESP32 falls back to its resident local
+                    # rule engine (two-layer degradation: DeepSeek → ESP32 local).
                     plant_info = (
                         pi_advisor.load_plant_info(msg.get("plant", ""), args.plants_json)
                         if args.plants_json else None
                     )
                     advice = advisor.advise(msg, plant_info)
-                    if advice is None:
-                        # ② fall back to the conservative heuristic
-                        advice = _heuristic_advice_from_report(
-                            msg,
-                            soil_threshold=args.soil_threshold,
-                            light_threshold=args.light_threshold,
-                            water_sec=args.water_sec,
-                            light_sec=args.light_sec,
-                        )
-                elif args.auto_advice:
-                    advice = _heuristic_advice_from_report(
-                        msg,
-                        soil_threshold=args.soil_threshold,
-                        light_threshold=args.light_threshold,
-                        water_sec=args.water_sec,
-                        light_sec=args.light_sec,
-                    )
                 if advice is not None:
                     last_advice = advice
                     advised_action = _dashboard_action_from_advice(advice)

@@ -83,13 +83,12 @@ The runtime layers and where to look for each concern:
 | OLED 3-page rotation | `display_runtime.py` → `display.py` → `sh1106.py` | English-only (built-in ASCII font) |
 | Status indicator | `status_strip.py` (WS2812 11 LEDs) | Soil moisture thermometer + system status + **Decision Plane signal animations** (12 signal types). `utils.set_led/blink_led` are thin compat wrappers around it. `utils.play_signal/play_signals` broadcast advisory signals visually. |
 
-### Decision: three-layer degradation (the key non-obvious piece)
+### Decision: two-layer degradation (the key non-obvious piece)
 
-Since the 2026-05-30 dual-layer refactor, the cloud AI no longer runs on the ESP32. Decisions degrade across three layers (smartest → most reliable):
+Since the 2026-05-30 dual-layer refactor, the cloud AI no longer runs on the ESP32. Decisions degrade across two layers (smartest → most reliable):
 
-1. **DeepSeek** — runs on the **Raspberry Pi** (`tools/pi_advisor.py`, called by `serial_gateway --ai-advice`). The Pi builds the prompt from the ESP32 `report`, calls DeepSeek, and sends the decision back as a UART `advice`.
-2. **Pi heuristic** — `serial_gateway._heuristic_advice_from_report` (a tiny soil/light threshold rule). Used automatically when DeepSeek fails.
-3. **ESP32 local rules** — `utils.local_fallback_decision`, the resident on-board fallback used whenever no online Pi advice is present.
+1. **DeepSeek** — runs on the **Raspberry Pi** (`tools/pi_advisor.py`, called by `serial_gateway --ai-advice`). The Pi builds the prompt from the ESP32 `report`, calls DeepSeek, and sends the decision back as a UART `advice`. **On DeepSeek failure the gateway sends no advice** (the Pi-side soil/light heuristic was removed 2026-05-31 as unnecessary).
+2. **ESP32 local rules** — `utils.local_fallback_decision`, the resident on-board fallback used whenever no online Pi advice is present (including when DeepSeek fails or the Pi/UART is gone).
 
 On the ESP32, `main.make_decision` first takes any online Pi advice (`_take_pi_decision`, guarded by `_guard_pi_decision` for temp/duration safety), otherwise falls back to `decision.make_decision` → `utils.local_fallback_decision`. **There is no cloud-AI call, no AI gating, no TLS heap management on the ESP32 anymore** (all removed with `ai_client.py`/`wifi_client.py`/`telemetry.py`).
 

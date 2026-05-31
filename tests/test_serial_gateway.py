@@ -157,36 +157,6 @@ def test_dashboard_action_from_advice_normalizes_primary():
     assert gw._dashboard_action_from_advice({"primary": "idle"}) == "idle"
 
 
-def test_heuristic_advice_waters_when_soil_low():
-    advice = gw._heuristic_advice_from_report(
-        {"soil": 20, "light": 80},
-        soil_threshold=30,
-        light_threshold=30,
-        water_sec=9,
-    )
-    assert advice["primary"] == "water"
-    assert advice["duration"] == 9
-    assert advice["signals"] == ["WATER"]
-
-
-def test_heuristic_advice_lights_when_light_low():
-    advice = gw._heuristic_advice_from_report(
-        {"soil": 80, "light": 10},
-        soil_threshold=30,
-        light_threshold=30,
-        light_sec=50,
-    )
-    assert advice["primary"] == "light_on"
-    assert advice["duration"] == 50
-    assert advice["signals"] == ["LIGHT_LOW"]
-
-
-def test_heuristic_advice_idles_when_stable():
-    advice = gw._heuristic_advice_from_report({"soil": 80, "light": 80})
-    assert advice["primary"] == "idle"
-    assert advice["duration"] == 0
-
-
 # --------------------------------------------------------------------------
 # CROSS-SIDE wire compatibility (the key guarantee)
 # --------------------------------------------------------------------------
