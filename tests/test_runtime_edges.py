@@ -58,6 +58,52 @@ class TestHardwareMocks:
             assert 0 <= y <= 56
             assert x + len(text) * 8 <= 128
 
+    def test_display_page3_uart_mode_labels_pi_link(self, monkeypatch):
+        class Recorder:
+            def __init__(self):
+                self.text_calls = []
+
+            def fill(self, c):
+                pass
+
+            def show(self):
+                pass
+
+            def text(self, t, x, y, *a):
+                self.text_calls.append((str(t), x, y))
+
+            def pixel(self, *a):
+                pass
+
+            def fill_rect(self, *a):
+                pass
+
+            def rect(self, *a):
+                pass
+
+            def line(self, *a):
+                pass
+
+        recorder = Recorder()
+        display._oled = recorder
+
+        display.show_data(
+            soil=72,
+            light=97,
+            temp=24,
+            hum=52,
+            plant="生菜",
+            action="idle",
+            page_index=2,
+            uart_enabled=True,
+            pi_online=False,
+        )
+
+        texts = [t for t, _x, _y in recorder.text_calls]
+        assert any("PI:OFF" in t for t in texts)
+        assert any("AI:LOCAL" in t for t in texts)
+        assert any("UART waiting Pi" in t for t in texts)
+
 
 class TestExecuteDecision:
     def setup_method(self):
@@ -98,6 +144,7 @@ class TestExecuteDecision:
 
     def test_light_action_calls_run_light(self, monkeypatch):
         """light 动作正确调用 actuators.run_light"""
+        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 20, raising=False)
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
         monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
         called = {"duration": None}
@@ -105,18 +152,18 @@ class TestExecuteDecision:
 
         main.execute_decision({
             "action": "light",
-            "duration_sec": 60,
+            "duration_sec": 15,
             "reason": "light LOW 20%<30%",
         })
 
         assert main.state.last_action == "light"
-        assert main.state.last_action_duration == 60
+        assert main.state.last_action_duration == 15
         assert main.state.action_count == 1
-        assert called["duration"] == 60
+        assert called["duration"] == 15
 
     def test_light_duration_uses_light_max_not_pump_max(self, monkeypatch):
-        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 60, raising=False)
-        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 120, raising=False)
+        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 10, raising=False)
+        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 20, raising=False)
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
         monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
         called = {"duration": None}
@@ -124,11 +171,11 @@ class TestExecuteDecision:
 
         main.execute_decision({
             "action": "light",
-            "duration_sec": 100,
+            "duration_sec": 25,
             "reason": "pi advice",
         })
 
-        assert called["duration"] == 100
+        assert called["duration"] == 20
 
 
 class TestPiAdvice:
@@ -255,7 +302,7 @@ class TestDemoMode:
     def test_demo_decision_and_recovery_cycle(self, monkeypatch):
         monkeypatch.setattr(main.config, "DEMO_MODE", True, raising=False)
         monkeypatch.setattr(main.config, "DEMO_RECOVER_SOIL", 55, raising=False)
-        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 60, raising=False)
+        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 20, raising=False)
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
         monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
         monkeypatch.setattr(actuators, "run_water_pump", lambda duration: True)

@@ -76,7 +76,7 @@ def run_light(duration_sec):
     """运行补光灯 duration_sec 秒。分段 sleep 便于检测中断。"""
     global _light_running
 
-    max_sec = getattr(config, "LIGHT_MAX_RUN_SEC", 120)
+    max_sec = getattr(config, "LIGHT_MAX_RUN_SEC", 20)
     duration = _validate_duration(duration_sec, max_sec=max_sec)
     if duration == 0:
         return False

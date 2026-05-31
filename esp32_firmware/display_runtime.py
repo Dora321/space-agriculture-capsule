@@ -96,6 +96,8 @@ def refresh_display(state, plant_info, ai_enabled=False, ip=None, force=False, r
         wifi_connected=state.wifi_connected,
         ip=ip,
         ai_enabled=ai_enabled,
+        uart_enabled=getattr(config, "UART_ENABLED", False),
+        pi_online=getattr(state, "pi_online", False),
         start_time=state.start_time,
         action_count=state.action_count,
         read_count=state.read_count,

@@ -99,9 +99,9 @@ def _guard_pi_decision(decision):
             guarded["reason"] = "pi advice rejected by temp guard"
             return guarded
     max_sec = (
-        getattr(config, "LIGHT_MAX_RUN_SEC", 120)
+        getattr(config, "LIGHT_MAX_RUN_SEC", 20)
         if action == "light"
-        else getattr(config, "PUMP_MAX_RUN_SEC", 60)
+        else getattr(config, "PUMP_MAX_RUN_SEC", 20)
     )
     try:
         duration = int(guarded.get("duration_sec", 0))

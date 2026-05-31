@@ -187,10 +187,23 @@ def _report_to_dashboard_state(report):
         "stage": report.get("stage", ""),
         "days": report.get("day", 0),
         "action": report.get("action", "idle"),
+        "duration": report.get("duration_sec", 0),
+        "read_count": report.get("read_count", 0),
+        "action_count": report.get("action_count", 0),
+        "error_count": report.get("error_count", 0),
         "wifi": report.get("online", False),
         "ai": report.get("ai_src") == "pi",
         "decision_source": report.get("ai_src", "local"),
     }
+
+
+def _dashboard_action_from_advice(advice):
+    primary = str(advice.get("primary", "idle"))
+    if primary == "light_on":
+        return "light"
+    if primary in {"water", "light"}:
+        return primary
+    return "idle"
 
 
 def _post_json(url, payload, timeout=2):
@@ -203,7 +216,7 @@ def _post_json(url, payload, timeout=2):
 
 
 def _heuristic_advice_from_report(report, soil_threshold=30, light_threshold=30,
-                                  water_sec=8, light_sec=45):
+                                  water_sec=8, light_sec=20):
     """Tiny Pi-side rule advisor for UART bring-up and offline demos.
 
     This is intentionally conservative. The ESP32 still performs the final
@@ -265,7 +278,7 @@ def main(argv=None):
     parser.add_argument("--soil-threshold", type=float, default=30.0)
     parser.add_argument("--light-threshold", type=float, default=30.0)
     parser.add_argument("--water-sec", type=int, default=8)
-    parser.add_argument("--light-sec", type=int, default=45)
+    parser.add_argument("--light-sec", type=int, default=20)
     parser.add_argument("--test-advice", choices=("water", "light_on", "idle"),
                         default="", help="send one fixed advice after first report")
     parser.add_argument("--test-duration", type=int, default=8)
@@ -313,6 +326,7 @@ def main(argv=None):
     # Last AI advice, merged into the dashboard payload so the AI panel reflects the
     # real decision (reason / signals / breeding), not just the report.
     last_advice = {"primary": "idle", "duration": 0, "signals": [], "note": "", "breeding_observation": ""}
+    active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
 
     ser = serial.Serial(args.port, args.baud, timeout=0.2)
     print("[GW] gateway up on %s @ %d" % (args.port, args.baud))
@@ -368,6 +382,16 @@ def main(argv=None):
                     )
                 if advice is not None:
                     last_advice = advice
+                    advised_action = _dashboard_action_from_advice(advice)
+                    advised_duration = int(advice.get("duration", 0) or 0)
+                    if advised_action in {"water", "light"} and advised_duration > 0:
+                        active_action = {
+                            "action": advised_action,
+                            "duration": advised_duration,
+                            "started_at": time.time(),
+                        }
+                    elif advised_action == "idle":
+                        active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
                     try:
                         line = core.make_advice(
                             advice["primary"],
@@ -383,7 +407,19 @@ def main(argv=None):
                 # forward report + active AI decision to the dashboard
                 if args.dashboard:
                     payload = _report_to_dashboard_state(msg)
-                    payload["duration"] = int(last_advice.get("duration", 0) or 0)
+                    now = time.time()
+                    if (
+                        active_action["action"] in {"water", "light"}
+                        and now <= active_action["started_at"] + active_action["duration"]
+                    ):
+                        payload["action"] = active_action["action"]
+                        payload["duration"] = active_action["duration"]
+                        payload["action_started_at"] = active_action["started_at"]
+                    else:
+                        active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
+                        payload["action"] = "idle"
+                        payload["duration"] = 0
+                        payload["action_started_at"] = 0
                     payload["reason"] = last_advice.get("note", "")
                     payload["signals"] = [
                         (s.get("sig") if isinstance(s, dict) else s)

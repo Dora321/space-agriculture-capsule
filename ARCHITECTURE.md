@@ -380,8 +380,8 @@ while time.ticks_diff(time.ticks_ms(), _t0) < 900:
 
 | 安全规则 | 常量 | 默认值 |
 |---------|------|-------|
-| 水泵单次最长运行 | `PUMP_MAX_RUN_SEC` | 60s |
-| 补光灯单次最长运行 | `LIGHT_MAX_RUN_SEC` | 120s |
+| 水泵单次最长运行 | `PUMP_MAX_RUN_SEC` | 20s |
+| 补光灯单次最长运行 | `LIGHT_MAX_RUN_SEC` | 20s |
 | 动作最小间隔 | `MIN_ACTION_INTERVAL` | 120s |
 | 每小时最大动作次数 | `MAX_ACTIONS_PER_HOUR` | 12 |
 | 温度安全护栏 | `TEMP_HIGH_C` / `TEMP_LOW_C` | 35℃ / 8℃ |
@@ -416,7 +416,7 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
                             (树莓派)             (port 8790)         (contest-demo-dashboard.html)
 ```
 
-ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派网关收到 `report` 后转发 `/api/state`。ESP32 的 `wifi=false` 是预期状态——树莓派才是联网节点。
+ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派网关收到 `report` 后转发 `/api/state`。ESP32 的 `wifi=false` 是预期状态——树莓派才是联网节点。OLED 第三页也切换为 Pi/UART 语义：`PI:OK AI:PI` 表示树莓派链路在线，`PI:OFF AI:LOCAL` 表示树莓派离线、ESP32 本地规则自治。
 
 **网关转发合并 AI 决策（2026-05-31）**：`serial_gateway` 转发大屏时，把当前 AI advice 的 `reason`/`signals`/`duration`/`breeding_observation` 合并进 payload，否则大屏的 AI 诊断面板只有 report、没有决策细节。DeepSeek 的 `reason`/`breeding_observation` 由 `pi_advisor.SYSTEM_PROMPT` 要求输出简体中文。
 

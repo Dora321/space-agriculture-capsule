@@ -173,7 +173,7 @@ UART_RXBUF = 256
 STARTUP_MENU_ON_BOOT = True
 ```
 
-`UART_SKIP_WIFI=True` 时，ESP32 会跳过 WiFi 初始化，OLED 第三页显示 WiFi offline/AI off 属于正常状态。树莓派负责联网、大屏和后续 AI/数据库；ESP32 保留传感器、OLED、执行器、本地规则和安全护栏。实机验证表明，如果 ESP32 同时启用 WiFi、OLED/I2C、UART2，会因堆内存压力导致 `UART driver malloc error` 或底层崩溃。
+`UART_SKIP_WIFI=True` 时，ESP32 会跳过 WiFi 初始化。OLED 第三页会显示 Pi/UART 链路状态：`PI:OK AI:PI` 表示树莓派在线，`PI:OFF AI:LOCAL` 表示树莓派离线、ESP32 本地自治。树莓派负责联网、大屏和后续 AI/数据库；ESP32 保留传感器、OLED、执行器、本地规则和安全护栏。实机验证表明，如果 ESP32 同时启用 WiFi、OLED/I2C、UART2，会因堆内存压力导致 `UART driver malloc error` 或底层崩溃。
 
 接线：
 

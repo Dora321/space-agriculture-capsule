@@ -112,8 +112,8 @@ LIGHT_INVERT = True       # True: ADC 越大越暗；False: ADC 越大越亮
 
 # ============ 执行器参数 ============
 PUMP_WATER_DEFAULT_SEC = 8     # 默认浇水时长（秒）
-PUMP_MAX_RUN_SEC = 60          # 单次最大运行时长（安全限制）
-LIGHT_MAX_RUN_SEC = 120        # 补光灯单次最大运行时长（安全限制）
+PUMP_MAX_RUN_SEC = 20          # 水泵单次最大运行时长（安全限制）
+LIGHT_MAX_RUN_SEC = 20         # 补光灯单次最大运行时长（安全限制）
 
 # ============ 温度安全护栏 ============
 # 超过 TEMP_HIGH_C 视为高温，跳过浇水避免叶面灼伤 + 闷根

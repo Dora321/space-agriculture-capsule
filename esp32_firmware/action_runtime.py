@@ -24,9 +24,9 @@ def execute_decision(
     """
     action = decision.get("action", "idle")
     max_duration = (
-        getattr(config, "LIGHT_MAX_RUN_SEC", 120)
+        getattr(config, "LIGHT_MAX_RUN_SEC", 20)
         if action == "light"
-        else getattr(config, "PUMP_MAX_RUN_SEC", 60)
+        else getattr(config, "PUMP_MAX_RUN_SEC", 20)
     )
     duration = min(decision.get("duration_sec", 0), max_duration)
     reason = decision.get("reason", "")

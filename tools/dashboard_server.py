@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DASHBOARD_PATH = ROOT / "deliverables" / "contest-demo-dashboard.html"
+DASHBOARD_PATH = ROOT / "deliverables" / "groundstation.html"
 TOKEN = os.getenv("DASHBOARD_TOKEN", "")
 MAX_REQUEST_BYTES = int(os.getenv("DASHBOARD_MAX_REQUEST_BYTES", "4096"))
 STALE_AFTER_SEC = int(os.getenv("DASHBOARD_STALE_AFTER_SEC", "120"))
@@ -48,6 +48,7 @@ def _validate_state(data: dict) -> dict:
         "days": int(data.get("days", data.get("days_since_planting", 0))),
         "action": str(data.get("action", "idle"))[:16],
         "duration": int(data.get("duration", data.get("duration_sec", 0))),
+        "action_started_at": float(data.get("action_started_at", 0) or 0),
         "reason": str(data.get("reason", ""))[:160],
         "sun_hours": float(data.get("sun_hours", 0)),
         "wifi": bool(data.get("wifi", data.get("wifi_connected", False))),
