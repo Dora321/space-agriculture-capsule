@@ -40,8 +40,9 @@ NEVER output "nutrient".
 Also output:
 - signals: list of advisory signals from [TEMP_HIGH, TEMP_LOW, LIGHT_LOW, HUMID_LOW, NEED_N, NEED_P, NEED_K]. Multiple signals allowed. These are broadcast visually even without physical hardware.
 - breeding_observation: one sentence about this plant's growth quality at this stage.
+LANGUAGE: "reason" and "breeding_observation" MUST be written in Simplified Chinese (简体中文), concise. "action" and the "signals" codes MUST stay as the English enum tokens above.
 Output strict JSON:
-{"action":"water|light|idle","duration_sec":int,"reason":"short reason","signals":["SIGNAL1","SIGNAL2"],"breeding_observation":"one sentence"}"""
+{"action":"water|light|idle","duration_sec":int,"reason":"简短中文原因","signals":["SIGNAL1","SIGNAL2"],"breeding_observation":"一句中文育种观察"}"""
 
 VALID_ACTIONS = ("water", "light", "idle")
 
@@ -153,12 +154,18 @@ class DeepSeekAdvisor:
 
     def __init__(self, api_key=None, api_url=None, model=None, timeout=None,
                  http_post=None):
-        self.api_key = api_key if api_key is not None else os.environ.get("SPACEFARM_AI_API_KEY", "")
-        self.api_url = api_url or os.environ.get(
-            "SPACEFARM_AI_API_URL", "https://api.deepseek.com/chat/completions")
-        self.model = model or os.environ.get("SPACEFARM_AI_MODEL", "deepseek-v4-flash")
-        self.timeout = int(timeout if timeout is not None
-                           else os.environ.get("SPACEFARM_AI_TIMEOUT", "20"))
+        # Prefer SPACEFARM_AI_* env vars; fall back to the existing AI_* names
+        # (the same ones tools/ai_proxy.py and .config/ai.env already use), so a
+        # single key file serves both the legacy proxy and this advisor.
+        self.api_key = api_key if api_key is not None else (
+            os.environ.get("SPACEFARM_AI_API_KEY") or os.environ.get("AI_API_KEY", ""))
+        self.api_url = (api_url or os.environ.get("SPACEFARM_AI_API_URL")
+                        or os.environ.get("AI_API_URL")
+                        or "https://api.deepseek.com/chat/completions")
+        self.model = (model or os.environ.get("SPACEFARM_AI_MODEL")
+                      or os.environ.get("AI_MODEL") or "deepseek-v4-flash")
+        self.timeout = int(timeout if timeout is not None else (
+            os.environ.get("SPACEFARM_AI_TIMEOUT") or os.environ.get("AI_TIMEOUT") or "20"))
         self._http_post = http_post or _default_http_post
 
     def configured(self):
