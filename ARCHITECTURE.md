@@ -418,6 +418,10 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 
 ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派网关收到 `report` 后转发 `/api/state`。ESP32 的 `wifi=false` 是预期状态——树莓派才是联网节点。
 
+**网关转发合并 AI 决策（2026-05-31）**：`serial_gateway` 转发大屏时，把当前 AI advice 的 `reason`/`signals`/`duration`/`breeding_observation` 合并进 payload，否则大屏的 AI 诊断面板只有 report、没有决策细节。DeepSeek 的 `reason`/`breeding_observation` 由 `pi_advisor.SYSTEM_PROMPT` 要求输出简体中文。
+
+**地面站大屏 `deliverables/groundstation.html`（2026-05-31）**：retro-futuristic 航天控制台风格，轮询 `/api/state`，`mapState()` 把扁平接口映射成嵌套展示结构（作物/传感器/AI/灯条/执行器/育种团队）。已顶替云端 dashboard_server 的首页 HTML（旧 `contest-demo-dashboard.html` 备份保留）。
+
 ### 8.2 遥测 Payload
 
 ```json

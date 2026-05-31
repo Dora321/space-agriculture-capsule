@@ -10,8 +10,8 @@
 - [ ] **ESP32 VIN 加 1000µF + 0.1µF 退耦电容** — 吸收继电器吸合的瞬态压降
 - [ ] **继电器线圈反接 1N4007 续流二极管** — 抑制断开尖峰 EMI
 - [ ] **WS2812 数据线串 470Ω + 电源 100µF 退耦** — 降低对 WiFi 2.4G 的串扰
-- [ ] **验证 WiFi 沉默掉线根因** — 临时禁用 WS2812 + OLED 跑 5 分钟，看 WiFi 是否能维持 IP（区分是软件干扰 vs 路由器踢线）
-- [ ] **AI 代理 EHOSTUNREACH 复查** — telemetry 同 IP 可达，但 `8787/decision` 走不通；DNS/代理服务是否在线
+- [x] ~~验证 WiFi 沉默掉线根因~~ — **已随双层重构作废**：ESP32 不再使用 WiFi，联网由树莓派承担
+- [x] ~~AI 代理 EHOSTUNREACH 复查~~ — **已作废**：DeepSeek 改由树莓派 `pi_advisor` 调用，ESP32 不再走代理
 
 ### 比赛前收尾
 
@@ -19,6 +19,9 @@
 - [ ] **config.py.example 检查** — `PAGE_ROTATE_SEC=0` 表示关闭自动翻页，与 display_runtime.py 逻辑对齐
 - [ ] **决定是否开启 NTP** — `NTP_SYNC_ON_CONNECT` 当前 False 导致 Day 永远=0、生长阶段算错；现场如演示天数则改 True
 - [ ] **现场目视确认浇水执行** — `--test-advice water` 的 advice 已实机下发，但 8s 水泵是否真出水仅剩现场目视确认（遥测侧 round-trip 已通，`ai_src=pi`）
+- [ ] **按键长期可靠** — 已换元器件、三键解码干净（#43）；比赛前再确认长期稳定，可选微调红键阈值（3137/3242 卡 3200 边界），并保持 `STARTUP_MENU_ON_BOOT=True`
+- [ ] **大屏离线字体本地化** — `groundstation.html` 用 Google Fonts CDN；离线 Pi 会回退系统字体，需要时下载 woff2 内嵌
+- [ ] **分支合并 master** — `refactor/remove-wifi-only-path` 重构 + 大屏全部实机验收通过后合并并推送
 
 ## P1 待办
 
@@ -35,6 +38,8 @@
 
 | 日期 | 任务 | 详见 |
 |------|------|------|
+| 2026-05-31 | #44 地面站监控大屏 `groundstation.html`：retro-futuristic 航天控制台，接真实 `/api/state`（网关增强转发 AI reason/signals/育种观察）；DeepSeek 中文输出；北京时间/2035/育种团队/去界面英文；顶替云端大屏 | [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) |
+| 2026-05-31 | #43 重构实机验收：ESP32 烧新固件、DeepSeek 在 Pi 全链路跑通（`ai_src=pi`）；按键接触不良→换元器件修复；天数从 1 起算（OLED/大屏统一）；移除 2035 模式切换 | [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) |
 | 2026-05-30 | #42 砍单层老路 + DeepSeek 搬到树莓派（分支 `refactor/remove-wifi-only-path`，133 测试绿）：删 wifi_client/telemetry/ai_client，固件固定走双层；新增 `tools/pi_advisor.py` + `serial_gateway --ai-advice` 让 Pi 调 DeepSeek；三层降级成型 | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-30 | 树莓派端实机验收完成（#39-41）：`/dev/serial0` 全链路跑通（report/ping/pong/advice，`ai_src=pi`）；清掉共地松动、mini-UART 控制台争用（移除 `console=serial0`）、openclaw 看门狗 `board` 误杀三坑；`serial_gateway` 做成开机自启 systemd 服务转发云端大屏 | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |
 | 2026-05-30 | 树莓派双层架构阶段二：ESP32 UART 主循环接入 + Pi 网关 auto/test advice 下发 + 实机 UART 初始化；UART 模式跳过 ESP32 WiFi | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |

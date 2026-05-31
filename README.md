@@ -173,6 +173,7 @@ py tools/dashboard_server.py --host 0.0.0.0 --port 8790
 powershell -ExecutionPolicy Bypass -File tools\start_dashboard_server.ps1
 ```
 
+> 🛰️ **地面站监控大屏**：`deliverables/groundstation.html` 是 retro-futuristic 航天控制台风格的实时大屏（已部署云端 `43.156.68.157:8790`），轮询同一 `/api/state` 接口，显示传感器/生长曲线/DeepSeek 多维决策/育种团队。dashboard_server 在 `/` 服务该 HTML。详见 [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) #44。
 > 详细部署说明见 [大屏部署指南](./deliverables/realtime-dashboard-guide.md)
 
 ### 2. 启动树莓派 UART 网关（双层架构的核心，必需）
