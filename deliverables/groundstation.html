@@ -486,8 +486,9 @@ function renderLog(){
 }
 
 function clock(){
-  const d=new Date();
-  document.getElementById("clock").textContent=d.toUTCString().slice(17,25);
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  // 任务叙事年份固定 2035（在轨育种验证平台）；月日时分秒用真实 UTC 时间
+  document.getElementById("clock").textContent="2035-"+p(d.getUTCMonth()+1)+"-"+p(d.getUTCDate())+" "+d.toUTCString().slice(17,25);
 }
 
 /* init */
