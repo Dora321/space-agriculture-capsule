@@ -16,3 +16,14 @@ esp32_firmware/config.py
 
 # Claude local settings
 .claude/
+
+# 培训材料 PDF 生成物 + 转换中间产物（不入库，可由 md 重新生成）
+training-materials/pdf/
+training-materials/.pdfbuild/
+
+# 实机串口调试临时脚本/日志（不入库）
+_serial_monitor.py
+boot_log*.py
+capture_boot*.py
+watch_log.py
+*_retest.log
