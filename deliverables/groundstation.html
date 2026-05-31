@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月球温室 · 在轨育种监控站</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05070d;
+  --bg-panel:#0a0f1a;
+  --bg-panel-2:#0d1422;
+  --grid:rgba(60,120,140,0.07);
+  --ink:#c9e8e4;
+  --ink-dim:#5f7d82;
+  --glow:#1ef0c8;        /* 青绿荧光：主数据色 */
+  --glow-soft:rgba(30,240,200,0.15);
+  --amber:#ffb02e;       /* 琥珀：警示 */
+  --red:#ff3b4e;         /* 红：告警 */
+  --violet:#b06bff;      /* 紫：补光/缺光信号 */
+  --blue:#3b9bff;        /* 蓝：低温/过湿 */
+  --line:rgba(60,120,140,0.18);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Chakra Petch',sans-serif;
+  overflow-x:hidden;
+  position:relative;
+  min-height:100vh;
+}
+/* 背景：网格 + 噪点 + 径向光晕 */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse 120% 90% at 50% 0%,#000 40%,transparent 100%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.5;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(30,240,200,0.08),transparent 35%),
+    radial-gradient(circle at 85% 90%,rgba(176,107,255,0.07),transparent 40%);
+}
+.noise{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wrap{position:relative;z-index:2;max-width:1500px;margin:0 auto;padding:20px 26px 50px}
+
+/* ===== 顶部任务条 ===== */
+.mission-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  padding:14px 22px;border-radius:4px;margin-bottom:20px;
+  position:relative;overflow:hidden;
+  animation:fadeUp .6s ease both;
+}
+.mission-bar::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--glow);
+  box-shadow:0 0 14px var(--glow);
+}
+.m-left{display:flex;align-items:center;gap:18px}
+.m-logo{
+  font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.5rem;
+  letter-spacing:2px;color:var(--ink);
+}
+.m-logo b{color:var(--glow);text-shadow:0 0 18px var(--glow-soft)}
+.m-sub{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--ink-dim);letter-spacing:1px}
+.m-right{display:flex;gap:30px;align-items:center;font-family:'JetBrains Mono',monospace}
+.m-stat{text-align:right}
+.m-stat .lbl{font-size:.6rem;color:var(--ink-dim);letter-spacing:2px;text-transform:uppercase}
+.m-stat .val{font-size:1.05rem;color:var(--glow);font-weight:700;letter-spacing:1px}
+.m-stat .val.amber{color:var(--amber)}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--glow);
+  box-shadow:0 0 10px var(--glow);animation:blink 1.4s infinite;display:inline-block;margin-right:6px}
+
+/* ===== 主网格 ===== */
+.grid{display:grid;grid-template-columns:1.1fr 1.5fr 1.1fr;gap:18px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+
+.panel{
+  border:1px solid var(--line);border-radius:4px;
+  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
+  padding:18px;position:relative;
+  animation:fadeUp .6s ease both;
+}
+.panel::after{ /* 角标装饰 */
+  content:"";position:absolute;top:8px;right:8px;width:14px;height:14px;
+  border-top:1px solid var(--glow);border-right:1px solid var(--glow);opacity:.4;
+}
+.panel-t{
+  font-family:'Orbitron',sans-serif;font-size:.82rem;letter-spacing:2px;
+  color:var(--ink);margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.panel-t span{color:var(--glow);font-size:.65rem}
+.col{display:flex;flex-direction:column;gap:18px}
+
+/* 作物头卡 */
+.crop-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.crop-name{font-family:'Orbitron';font-size:1.3rem;font-weight:700;color:var(--ink)}
+.crop-gen{font-family:'JetBrains Mono';font-size:.7rem;color:var(--violet);
+  border:1px solid var(--violet);padding:2px 8px;border-radius:3px;letter-spacing:1px}
+.crop-meta{font-family:'JetBrains Mono';font-size:.72rem;color:var(--ink-dim);line-height:1.7}
+.crop-meta b{color:var(--glow)}
+.stage-bar{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:10px;overflow:hidden}
+.stage-fill{height:100%;background:linear-gradient(90deg,var(--glow),var(--violet));
+  box-shadow:0 0 8px var(--glow-soft);transition:width 1s}
+
+/* 传感器读数 */
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gauge{border:1px solid var(--line);border-radius:4px;padding:12px;position:relative;background:rgba(0,0,0,0.2)}
+.gauge .gl{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);letter-spacing:1px}
+.gauge .gv{font-family:'Orbitron';font-size:1.7rem;font-weight:700;margin-top:4px}
+.gauge .gu{font-size:.7rem;color:var(--ink-dim);margin-left:3px}
+.gauge .gtrack{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:8px;overflow:hidden}
+.gauge .gbar{height:100%;transition:width .8s}
+
+/* WS2812 灯条 */
+.strip{display:flex;gap:5px;justify-content:center;padding:16px 0 10px}
+.led{width:22px;height:22px;border-radius:50%;background:#111;
+  transition:all .4s;position:relative}
+.strip-state{text-align:center;font-family:'JetBrains Mono';font-size:.74rem;
+  color:var(--glow);letter-spacing:1px;margin-top:6px}
+.strip-legend{font-family:'JetBrains Mono';font-size:.6rem;color:var(--ink-dim);
+  text-align:center;margin-top:8px;line-height:1.6}
+
+/* AI 诊断 */
+.ai-primary{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);
+  border-radius:4px;background:rgba(30,240,200,0.04);margin-bottom:14px}
+.ai-primary .ic{font-size:1.6rem}
+.ai-primary .tx .a{font-family:'Orbitron';font-size:1rem;color:var(--glow);letter-spacing:1px}
+.ai-primary .tx .s{font-family:'JetBrains Mono';font-size:.68rem;color:var(--ink-dim)}
+.ai-src{margin-left:auto;font-family:'JetBrains Mono';font-size:.62rem;
+  border:1px solid var(--glow);color:var(--glow);padding:3px 8px;border-radius:3px}
+.ai-src.local{border-color:var(--amber);color:var(--amber)}
+.signal{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:4px;
+  background:rgba(255,255,255,0.02);border-left:2px solid var(--ink-dim);margin-bottom:7px;
+  font-family:'JetBrains Mono';font-size:.74rem}
+.signal .sig-ic{font-size:.95rem}
+.signal .sig-name{color:var(--ink);flex:1}
+.signal .sig-conf{color:var(--ink-dim);font-size:.64rem}
+.signal .sig-tag{font-size:.58rem;padding:2px 6px;border-radius:3px;letter-spacing:.5px}
+.tag-real{background:rgba(30,240,200,0.12);color:var(--glow)}
+.tag-virt{background:rgba(95,125,130,0.15);color:var(--ink-dim)}
+
+/* 育种观察 */
+.breeding{border:1px solid var(--line);border-radius:4px;padding:13px;
+  background:linear-gradient(135deg,rgba(176,107,255,0.06),transparent)}
+.breeding .bt{font-family:'Orbitron';font-size:.7rem;color:var(--violet);letter-spacing:1px;margin-bottom:8px}
+.breeding .bx{font-family:'Chakra Petch';font-size:.88rem;line-height:1.6;color:var(--ink);font-style:italic}
+
+/* 执行器 */
+.actuators{display:flex;flex-direction:column;gap:8px}
+.act{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);
+  border-radius:4px;font-family:'JetBrains Mono';font-size:.76rem;background:rgba(0,0,0,0.2)}
+.act .ai{font-size:1rem}
+.act .an{flex:1;color:var(--ink)}
+.act .ast{font-size:.62rem;padding:2px 7px;border-radius:3px;letter-spacing:.5px}
+.st-on{background:rgba(30,240,200,0.15);color:var(--glow)}
+.st-idle{background:rgba(95,125,130,0.12);color:var(--ink-dim)}
+.st-virt{background:rgba(176,107,255,0.12);color:var(--violet)}
+
+/* 趋势图 */
+.chart-wrap{position:relative}
+canvas{width:100%;height:180px;display:block}
+.chart-legend{display:flex;gap:16px;justify-content:center;margin-top:10px;
+  font-family:'JetBrains Mono';font-size:.64rem;color:var(--ink-dim)}
+.chart-legend i{display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle}
+
+/* 日志流 */
+.logstream{font-family:'JetBrains Mono';font-size:.68rem;line-height:1.9;
+  max-height:150px;overflow:hidden;color:var(--ink-dim)}
+.logstream .t{color:var(--glow)}
+.logstream .w{color:var(--amber)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}
+.d4{animation-delay:.26s}.d5{animation-delay:.33s}.d6{animation-delay:.4s}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="wrap">
+
+  <!-- 任务条 -->
+  <div class="mission-bar">
+    <div class="m-left">
+      <div>
+        <div class="m-logo">LUNA <b>GREENHOUSE</b></div>
+        <div class="m-sub">在轨作物育种监控站</div>
+      </div>
+    </div>
+    <div class="m-right">
+      <div class="m-stat"><div class="lbl">任务日</div><div class="val" id="mday">217</div></div>
+      <div class="m-stat"><div class="lbl">坐标</div><div class="val">月球 · 南极</div></div>
+      <div class="m-stat"><div class="lbl">上行延迟</div><div class="val" id="uplink"><span class="pulse-dot"></span>1.3s</div></div>
+      <div class="m-stat"><div class="lbl">UTC 时间</div><div class="val" id="clock">--:--:--</div></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- 左列 -->
+    <div class="col">
+      <div class="panel d1">
+        <div class="panel-t"><span>◢</span> 当前样本</div>
+        <div class="crop-head">
+          <div class="crop-name" id="cropName">番茄</div>
+          <div class="crop-gen" id="cropGen">第 4 代</div>
+        </div>
+        <div class="crop-meta">
+          学名 <b id="cropSci">Solanum lycopersicum</b><br>
+          生长阶段 <b id="cropStage">营养生长期</b> · 第 <b id="cropDay">15</b> 天<br>
+          预计采收 <b id="cropHarvest">第 42 天</b>
+        </div>
+        <div class="stage-bar"><div class="stage-fill" id="stageFill" style="width:36%"></div></div>
+      </div>
+
+      <div class="panel d2">
+        <div class="panel-t"><span>◢</span> 传感器遥测</div>
+        <div class="gauges">
+          <div class="gauge"><div class="gl">土壤湿度</div><div class="gv" id="gSoil" style="color:var(--glow)">42<span class="gu">%</span></div><div class="gtrack"><div class="gbar" id="bSoil" style="width:42%;background:var(--glow)"></div></div></div>
+          <div class="gauge"><div class="gl">光照</div><div class="gv" id="gLight" style="color:var(--amber)">55<span class="gu">%</span></div><div class="gtrack"><div class="gbar" id="bLight" style="width:55%;background:var(--amber)"></div></div></div>
+          <div class="gauge"><div class="gl">温度</div><div class="gv" id="gTemp" style="color:var(--glow)">24.3<span class="gu">°C</span></div><div class="gtrack"><div class="gbar" id="bTemp" style="width:60%;background:var(--glow)"></div></div></div>
+          <div class="gauge"><div class="gl">湿度</div><div class="gv" id="gHum" style="color:var(--blue)">65<span class="gu">%</span></div><div class="gtrack"><div class="gbar" id="bHum" style="width:65%;background:var(--blue)"></div></div></div>
+        </div>
+      </div>
+
+      <div class="panel d3">
+        <div class="panel-t"><span>◢</span> WS2812 决策广播灯条</div>
+        <div class="strip" id="strip"></div>
+        <div class="strip-state" id="stripState">● 生长适宜</div>
+        <div class="strip-legend">暖红=偏干 · 翠绿=适宜 · 冷蓝=偏湿<br>黄流=浇水中 · 紫脉=缺光 · 红闪=告警</div>
+      </div>
+    </div>
+
+    <!-- 中列 -->
+    <div class="col">
+      <div class="panel d2">
+        <div class="panel-t"><span>◢</span> 18 日生长曲线</div>
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        <div class="chart-legend">
+          <span><i style="background:var(--glow)"></i>土壤湿度</span>
+          <span><i style="background:var(--amber)"></i>光照</span>
+          <span><i style="background:var(--blue)"></i>温度</span>
+        </div>
+      </div>
+
+      <div class="panel d3">
+        <div class="panel-t"><span>◢</span> AI 多维决策诊断</div>
+        <div class="ai-primary">
+          <div class="ic">💧</div>
+          <div class="tx"><div class="a" id="aiAction">浇水 · 精量滴灌</div><div class="s" id="aiDur">执行 12 秒 · 释放最小水量</div></div>
+          <div class="ai-src" id="aiSrc">树莓派 · AI 在线</div>
+        </div>
+        <div id="signals"></div>
+        <div class="breeding">
+          <div class="bt">🌱 育种观察</div>
+          <div class="bx" id="breedObs">"第 4 代番茄苗期叶片色泽较第 3 代更深绿，株高增速 +12%，建议进入花期前补充磷肥。"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右列 -->
+    <div class="col">
+      <div class="panel d3">
+        <div class="panel-t"><span>◢</span> 执行器状态</div>
+        <div class="actuators">
+          <div class="act"><div class="ai">💧</div><div class="an">水泵</div><div class="ast st-on" id="actPump">实物 · 工作中</div></div>
+          <div class="act"><div class="ai">💡</div><div class="an">补光灯</div><div class="ast st-idle" id="actLight">实物 · 待机</div></div>
+          <div class="act"><div class="ai">🌬️</div><div class="an">通风风扇</div><div class="ast st-virt">虚拟 · 预留接入</div></div>
+          <div class="act"><div class="ai">🧪</div><div class="an">NPK 施肥泵</div><div class="ast st-virt">虚拟 · 预留接入</div></div>
+        </div>
+      </div>
+
+      <div class="panel d4">
+        <div class="panel-t"><span>◢</span> 系统健康</div>
+        <div class="crop-meta">
+          ESP32 飞控 <b style="color:var(--glow)">● 在线</b><br>
+          树莓派载荷 <b style="color:var(--glow)">● 在线</b><br>
+          决策来源 <b id="sysSrc">树莓派 AI</b><br>
+          自动化测试 <b style="color:var(--glow)">133 / 133 通过</b><br>
+          连续运行 <b id="sysUptime">18 天 04 时</b>
+        </div>
+      </div>
+
+      <div class="panel d5">
+        <div class="panel-t"><span>◢</span> 事件流</div>
+        <div class="logstream" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   数据源：接树莓派时，只改 API_BASE，并把 USE_MOCK 设为 false
+   树莓派后端需提供：
+     GET  {API_BASE}/api/state    → 返回下方 mockState 同结构 JSON
+   ============================================================ */
+const API_BASE = "";              // 同源访问留空；跨机填 "http://<ip>:8790"
+const USE_MOCK = false;           // 接真实 /api/state；无 live 数据时自动回退模拟
+const POLL_MS  = 3000;            // 轮询间隔
+
+// ---- 模拟数据（结构 = 树莓派应返回的 JSON）----
+function mockState(){
+  const r=(a,b)=>+(a+Math.random()*(b-a)).toFixed(1);
+  return {
+    mission_day:217, uplink:"1.3s", uptime:"18 天 04 时",
+    crop:{name:"番茄",sci:"Solanum lycopersicum",gen:4,stage:"营养生长期",day:15,harvest:"第 42 天",progress:36},
+    sensors:{soil:r(38,46),light:r(50,60),temp:r(23,26),hum:r(60,70)},
+    ai:{src:"pi", action:"浇水 · 精量滴灌", icon:"💧", duration:"执行 12 秒 · 释放最小水量",
+      signals:[
+        {sig:"LIGHT_LOW",icon:"💡",name:"光照不足",conf:0.78,real:true},
+        {sig:"TEMP_HIGH",icon:"🌬️",name:"温度偏高",conf:0.61,real:false},
+        {sig:"NEED_P",icon:"🧪",name:"花期需补磷",conf:0.82,real:false}
+      ],
+      breeding:'"第 4 代番茄苗期叶片色泽较第 3 代更深绿，株高增速 +12%，建议进入花期前补充磷肥。"'
+    },
+    strip:{state:"生长适宜", mode:"meter", moisture:42},
+    actuators:{pump:"实物 · 工作中", light:"实物 · 待机"}
+  };
+}
+
+// ---- 真实 /api/state（扁平）→ 本页结构 的映射 ----
+const SCI={"生菜":"Lactuca sativa","小白菜":"Brassica chinensis","菠菜":"Spinacia oleracea","韭菜":"Allium tuberosum",
+  "番茄":"Solanum lycopersicum","辣椒":"Capsicum annuum","黄瓜":"Cucumis sativus","茄子":"Solanum melongena"};
+const STAGE_CN={seedling:"苗期",vegetative:"营养生长期",veg:"营养生长期",flower:"花期",bloom:"花期",fruit:"果期",harvest:"采收期",mature:"采收期"};
+const STAGE_PCT={seedling:18,vegetative:45,veg:45,flower:65,bloom:65,fruit:85,harvest:100,mature:100};
+const SIGMETA={WATER:["💧","浇水",true],LIGHT_LOW:["💡","光照不足",true],LIGHT_HIGH:["☀️","光照过强",false],
+  TEMP_HIGH:["🌡️","温度偏高",false],TEMP_LOW:["❄️","温度偏低",false],HUMID_LOW:["🌫️","湿度偏低",false],
+  NEED_N:["🧪","缺氮 N",false],NEED_P:["🧪","缺磷 P",false],NEED_K:["🧪","缺钾 K",false],
+  SENSOR_FAIL:["⚠️","传感器故障",false],OFFLINE_MODE:["📡","离线模式",false],BREEDING_GEN_UP:["🌱","代际跃迁",true]};
+
+function mapState(d){
+  const stage=(d.stage||"seedling").toLowerCase(), act=(d.action||"idle").toLowerCase();
+  const src=(d.decision_source==="local")?"local":"pi";
+  const actMap={water:["💧","浇水 · 精量滴灌"],light:["💡","补光 · 补光灯"],idle:["✓","待机 · 各项正常"]};
+  const [aicon,aname]=actMap[act]||actMap.idle;
+  const sigs=(d.signals||[]).map(c=>{const m=SIGMETA[c]||["•",c,false];return{sig:c,icon:m[0],name:m[1],conf:1.0,real:m[2]};});
+  const thr=+d.soil_threshold||30, soil=+d.soil||0;
+  const stState=act==="water"?"浇水中":(soil<thr?"基质偏干":(soil>thr+35?"基质偏湿":"生长适宜"));
+  return {
+    mission_day:217, uplink:"1.3s",
+    uptime:(+d.uptime_sec>0)?(Math.floor(d.uptime_sec/86400)+" 天 "+Math.floor((d.uptime_sec%86400)/3600)+" 时"):"实时在线",
+    crop:{name:d.plant||"——",sci:SCI[d.plant]||"—",gen:1,stage:STAGE_CN[stage]||stage,
+      day:Math.max(1,+d.days||1),harvest:"约第 "+Math.max(30,(+d.days||1)+25)+" 天",progress:STAGE_PCT[stage]||30},
+    sensors:{soil:Math.round(+d.soil||0),light:Math.round(+d.light||0),temp:+(+d.temperature||0).toFixed(1),hum:Math.round(+d.humidity||0)},
+    ai:{src,action:aname,icon:aicon,
+      duration:(+d.duration||0)>0?("执行 "+d.duration+" 秒"):"无主动指令 · 监视中",
+      signals:sigs,breeding:d.breeding_observation?('"'+d.breeding_observation+'"'):"—暂无育种观察—"},
+    strip:{state:stState,mode:"meter",moisture:soil},
+    actuators:{pump:act==="water"?"实物 · 工作中":"实物 · 待机",light:act==="light"?"实物 · 工作中":"实物 · 待机"}
+  };
+}
+
+async function fetchTelemetry(){
+  if(USE_MOCK) return mockState();
+  try{
+    const res=await fetch(API_BASE+"/api/state",{cache:"no-store"});
+    const d=await res.json();
+    if(d && d.live){ document.getElementById("uplink").innerHTML='<span class="pulse-dot"></span>1.3s'; return mapState(d); }
+  }catch(e){ console.warn("遥测获取失败，回退模拟",e); }
+  document.getElementById("uplink").innerHTML='<span class="pulse-dot" style="background:var(--amber)"></span>模拟';
+  return mockState();
+}
+
+/* ---- WS2812 灯条渲染 ---- */
+const STRIP_N=11;
+function buildStrip(){
+  const s=document.getElementById("strip");
+  for(let i=0;i<STRIP_N;i++){const d=document.createElement("div");d.className="led";s.appendChild(d);}
+}
+function renderStrip(strip){
+  const leds=document.querySelectorAll(".led");
+  const lit=Math.round(STRIP_N*(strip.moisture||42)/100);
+  leds.forEach((led,i)=>{
+    let c="#0d1018", glow="none";
+    if(i<lit){
+      if(i<3){c="#ff5a3c";glow="0 0 10px #ff5a3c"}
+      else if(i<7){c="#1ef0c8";glow="0 0 10px #1ef0c8"}
+      else{c="#3b9bff";glow="0 0 10px #3b9bff"}
+    }
+    led.style.background=c;led.style.boxShadow=glow;
+  });
+  document.getElementById("stripState").textContent="● "+strip.state;
+}
+
+/* ---- 信号渲染 ---- */
+function renderSignals(signals){
+  const box=document.getElementById("signals");box.innerHTML="";
+  signals.forEach(s=>{
+    const el=document.createElement("div");el.className="signal";
+    const col=s.conf>0.75?"var(--glow)":s.conf>0.6?"var(--amber)":"var(--ink-dim)";
+    el.style.borderLeftColor=col;
+    el.innerHTML=`<span class="sig-ic">${s.icon}</span>
+      <span class="sig-name">${s.name} <span class="sig-conf">[${s.sig}]</span></span>
+      <span class="sig-conf">置信 ${(s.conf*100).toFixed(0)}%</span>
+      <span class="sig-tag ${s.real?'tag-real':'tag-virt'}">${s.real?'已连接':'虚拟'}</span>`;
+    box.appendChild(el);
+  });
+}
+
+/* ---- 主更新 ---- */
+function setBar(id,v,max=100){const el=document.getElementById(id);if(el)el.style.width=Math.min(100,v/max*100)+"%"}
+async function update(){
+  const d=await fetchTelemetry();
+  document.getElementById("mday").textContent=d.mission_day;
+  document.getElementById("sysUptime").textContent=d.uptime;
+  document.getElementById("cropName").textContent=d.crop.name;
+  document.getElementById("cropSci").textContent=d.crop.sci;
+  document.getElementById("cropGen").textContent="第 "+d.crop.gen+" 代";
+  document.getElementById("cropStage").textContent=d.crop.stage;
+  document.getElementById("cropDay").textContent=d.crop.day;
+  document.getElementById("cropHarvest").textContent=d.crop.harvest;
+  document.getElementById("stageFill").style.width=d.crop.progress+"%";
+
+  const sn=d.sensors;
+  document.getElementById("gSoil").innerHTML=sn.soil+'<span class="gu">%</span>';
+  document.getElementById("gLight").innerHTML=sn.light+'<span class="gu">%</span>';
+  document.getElementById("gTemp").innerHTML=sn.temp+'<span class="gu">°C</span>';
+  document.getElementById("gHum").innerHTML=sn.hum+'<span class="gu">%</span>';
+  setBar("bSoil",sn.soil);setBar("bLight",sn.light);setBar("bTemp",sn.temp,40);setBar("bHum",sn.hum);
+
+  document.getElementById("aiAction").textContent=d.ai.action;
+  document.getElementById("aiDur").textContent=d.ai.duration;
+  document.querySelector(".ai-primary .ic").textContent=d.ai.icon;
+  const src=document.getElementById("aiSrc");
+  if(d.ai.src==="local"){src.textContent="本地 · 自治";src.className="ai-src local";
+    document.getElementById("sysSrc").textContent="本地规则（自治）";}
+  else{src.textContent="树莓派 · AI 在线";src.className="ai-src";
+    document.getElementById("sysSrc").textContent="树莓派 AI";}
+  renderSignals(d.ai.signals);
+  document.getElementById("breedObs").textContent=d.ai.breeding;
+  renderStrip(d.strip);
+
+  pushChart(sn);
+}
+
+/* ---- 趋势图（纯 canvas，无依赖）---- */
+const cv=document.getElementById("chart"),cx=cv.getContext("2d");
+let hist={soil:[],light:[],temp:[]};
+function seedHist(){for(let i=0;i<40;i++){hist.soil.push(38+Math.random()*8);hist.light.push(48+Math.random()*14);hist.temp.push(22+Math.random()*4);}}
+function pushChart(sn){
+  ["soil","light","temp"].forEach(k=>{hist[k].push(sn[k]);if(hist[k].length>40)hist[k].shift();});
+  drawChart();
+}
+function drawChart(){
+  const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=180*devicePixelRatio;
+  cx.clearRect(0,0,w,h);
+  // 网格
+  cx.strokeStyle="rgba(60,120,140,0.1)";cx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=h/4*i;cx.beginPath();cx.moveTo(0,y);cx.lineTo(w,y);cx.stroke();}
+  const series=[["soil","#1ef0c8",0,100],["light","#ffb02e",0,100],["temp","#3b9bff",10,40]];
+  series.forEach(([k,col,mn,mx])=>{
+    const arr=hist[k];cx.strokeStyle=col;cx.lineWidth=2*devicePixelRatio;
+    cx.shadowColor=col;cx.shadowBlur=8;cx.beginPath();
+    arr.forEach((v,i)=>{const x=i/(arr.length-1)*w;const y=h-(v-mn)/(mx-mn)*h*0.9-h*0.05;
+      i?cx.lineTo(x,y):cx.moveTo(x,y);});
+    cx.stroke();cx.shadowBlur=0;
+  });
+}
+
+/* ---- 事件日志 ---- */
+const LOGS=[
+  ['07:30','第 4 代番茄 第 18 天 · 晨检完成',0],
+  ['09:00','AI 评估：叶片厚度 +0.31mm vs 第 3 代',0],
+  ['09:02','信号 NEED_P 置信度 0.82 · 已记录',0],
+  ['11:30','执行精量滴灌 12s · WS2812 黄色流光',0],
+  ['11:31','水量 8ml · 累计用水 142ml',0],
+  ['13:15','光照 LIGHT_LOW · 补光灯建议开启',1],
+  ['14:00','样本数据打包回传地球 · 延迟 1.3s',0],
+];
+function renderLog(){
+  const el=document.getElementById("log");
+  el.innerHTML=LOGS.map(([t,m,w])=>`<div><span class="t">${t}</span> <span class="${w?'w':''}">${m}</span></div>`).join("");
+}
+
+function clock(){
+  const d=new Date();
+  document.getElementById("clock").textContent=d.toUTCString().slice(17,25);
+}
+
+/* init */
+buildStrip();seedHist();renderLog();
+update();drawChart();clock();
+setInterval(update,POLL_MS);
+setInterval(clock,1000);
+window.addEventListener("resize",drawChart);
+</script>
+</body>
+</html>

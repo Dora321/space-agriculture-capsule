@@ -287,12 +287,9 @@ def main(argv=None):
         raise SystemExit("pyserial not installed: pip install pyserial")
 
     def on_report(report):
+        # Dashboard forwarding happens in the main loop so it can merge the active
+        # AI advice (reason / signals / duration / breeding) into the payload.
         print("[GW] report:", report)
-        if args.dashboard:
-            try:
-                _post_json(args.dashboard, _report_to_dashboard_state(report))
-            except Exception as e:  # dashboard down must not stall the gateway
-                print("[GW] dashboard forward failed:", e)
 
     def on_pong(_pong):
         pass  # liveness only; nothing to do
@@ -312,6 +309,10 @@ def main(argv=None):
         print("[GW] AI advice enabled (DeepSeek):",
               "configured" if advisor.configured()
               else "NOT configured -> heuristic fallback")
+
+    # Last AI advice, merged into the dashboard payload so the AI panel reflects the
+    # real decision (reason / signals / breeding), not just the report.
+    last_advice = {"primary": "idle", "duration": 0, "signals": [], "note": "", "breeding_observation": ""}
 
     ser = serial.Serial(args.port, args.baud, timeout=0.2)
     print("[GW] gateway up on %s @ %d" % (args.port, args.baud))
@@ -366,6 +367,7 @@ def main(argv=None):
                         light_sec=args.light_sec,
                     )
                 if advice is not None:
+                    last_advice = advice
                     try:
                         line = core.make_advice(
                             advice["primary"],
@@ -378,6 +380,20 @@ def main(argv=None):
                         print("[GW] advice:", decode_line(line))
                     except (BrokenPipeError, ConnectionResetError, OSError) as e:
                         print("[GW] advice write error:", e)
+                # forward report + active AI decision to the dashboard
+                if args.dashboard:
+                    payload = _report_to_dashboard_state(msg)
+                    payload["duration"] = int(last_advice.get("duration", 0) or 0)
+                    payload["reason"] = last_advice.get("note", "")
+                    payload["signals"] = [
+                        (s.get("sig") if isinstance(s, dict) else s)
+                        for s in last_advice.get("signals", [])
+                    ]
+                    payload["breeding_observation"] = last_advice.get("breeding_observation", "")
+                    try:
+                        _post_json(args.dashboard, payload)
+                    except Exception as e:
+                        print("[GW] dashboard forward failed:", e)
             for line in core.tick():
                 try:
                     ser.write(line)
