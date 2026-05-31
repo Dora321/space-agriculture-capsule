@@ -169,6 +169,29 @@ body::after{
   font-family:'Chakra Petch';font-size:.95rem;color:var(--glow);font-weight:600}
 .member .m-name{font-family:'Chakra Petch';font-size:.95rem;color:var(--ink);font-weight:600}
 .member .m-role{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);margin-top:1px}
+
+/* AI 决策链 */
+.chain{display:flex;flex-direction:column;gap:0;margin-bottom:14px}
+.chain-step{border:1px solid var(--line);border-radius:5px;padding:11px 13px;background:rgba(0,0,0,0.22);position:relative}
+.chain-step.out{border-color:rgba(30,240,200,0.35);background:rgba(30,240,200,0.05)}
+.cs-h{font-family:'Orbitron';font-size:.62rem;letter-spacing:2px;color:var(--glow);margin-bottom:6px}
+.chain-step.out .cs-h{color:var(--glow)}
+.cs-b{font-family:'JetBrains Mono';font-size:.84rem;color:var(--ink);line-height:1.6}
+.cs-b .hi{color:var(--glow)} .cs-b .am{color:var(--amber)}
+.cs-reason{font-family:'Chakra Petch';font-size:.78rem;color:var(--ink-dim);margin-top:6px;font-style:italic;line-height:1.5}
+.chain-arrow{text-align:center;color:var(--glow);font-size:.7rem;line-height:1;padding:3px 0;opacity:.7}
+
+/* 执行器富信息卡 */
+.actx{display:flex;flex-direction:column;gap:11px}
+.actx-card{border:1px solid var(--line);border-radius:5px;padding:11px 13px;background:rgba(0,0,0,0.22)}
+.actx-h{display:flex;align-items:center;gap:9px;font-family:'Chakra Petch';font-size:.95rem;color:var(--ink);font-weight:600;margin-bottom:9px}
+.actx-h .ai{font-size:1.05rem}
+.actx-h .ast{margin-left:auto}
+.actx-rows{display:flex;flex-direction:column;gap:5px;font-family:'JetBrains Mono';font-size:.72rem}
+.actx-rows>div{display:flex;justify-content:space-between}
+.actx-rows span{color:var(--ink-dim)} .actx-rows b{color:var(--glow);font-weight:500}
+.actx-foot{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+.logstream .ai{color:var(--glow)} .logstream .hl{color:var(--ink)}
 .member .m-task{font-family:'JetBrains Mono';font-size:.62rem;color:var(--glow);margin-top:3px;line-height:1.35}
 
 /* 趋势图 */
@@ -221,8 +244,10 @@ canvas{width:100%;height:180px;display:block}
         </div>
         <div class="crop-en" id="cropEn">Tomato</div>
         <div class="crop-meta">
-          生长阶段 <b id="cropStage">营养生长期</b> · 第 <b id="cropDay">15</b> 天<br>
-          预计采收 <b id="cropHarvest">第 42 天</b>
+          品种编号 <b id="cropCode">EGG-L5-017</b><br>
+          培养目标 <b id="cropGoal">低重力适应性筛选</b><br>
+          生长阶段 <b id="cropStage">营养生长期</b> · 当前 <b id="cropPhase">叶面积扩展期</b><br>
+          第 <b id="cropDay">15</b> 天 · 预计采收 <b id="cropHarvest">第 42 天</b>
         </div>
         <div class="stage-bar"><div class="stage-fill" id="stageFill" style="width:36%"></div></div>
       </div>
@@ -256,16 +281,28 @@ canvas{width:100%;height:180px;display:block}
       </div>
 
       <div class="panel d3">
-        <div class="panel-t"><span>◢</span> AI 多维决策诊断</div>
-        <div class="ai-primary">
-          <div class="ic">💧</div>
-          <div class="tx"><div class="a" id="aiAction">浇水 · 精量滴灌</div><div class="s" id="aiDur">执行 12 秒 · 释放最小水量</div></div>
-          <div class="ai-src" id="aiSrc">树莓派 · AI 在线</div>
+        <div class="panel-t"><span>◢</span> AI 多维决策链 <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
+        <div class="chain">
+          <div class="chain-step">
+            <div class="cs-h">输入 · 环境感知</div>
+            <div class="cs-b" id="chainIn">土壤 51% · 光照 50% · 温度 25℃ · 湿度 48%</div>
+          </div>
+          <div class="chain-arrow">▼  ▼  ▼</div>
+          <div class="chain-step">
+            <div class="cs-h">判断 · AI 诊断</div>
+            <div class="cs-b" id="chainJudge">营养生长期 · 环境稳定 · 无需主动干预</div>
+            <div class="cs-reason" id="aiReason">决策依据：湿度充足，温度适宜，光照达标。</div>
+          </div>
+          <div class="chain-arrow">▼  ▼  ▼</div>
+          <div class="chain-step out">
+            <div class="cs-h">输出 · 执行决策</div>
+            <div class="cs-b" id="chainOut">水泵待机 · 补光灯待机 · 继续监控</div>
+          </div>
         </div>
         <div id="signals"></div>
         <div class="breeding">
           <div class="bt">🌱 育种观察</div>
-          <div class="bx" id="breedObs">"第 4 代番茄苗期叶片色泽较第 3 代更深绿，株高增速 +12%，建议进入花期前补充磷肥。"</div>
+          <div class="bx" id="breedObs">"叶片色泽较上一代更深绿，株高增速 +12%，建议进入花期前补充磷肥。"</div>
         </div>
       </div>
     </div>
@@ -274,9 +311,24 @@ canvas{width:100%;height:180px;display:block}
     <div class="col">
       <div class="panel d3">
         <div class="panel-t"><span>◢</span> 执行器状态</div>
-        <div class="actuators">
-          <div class="act"><div class="ai">💧</div><div class="an">水泵</div><div class="ast st-idle" id="actPump">实物 · 待机</div></div>
-          <div class="act"><div class="ai">💡</div><div class="an">补光灯</div><div class="ast st-idle" id="actLight">实物 · 待机</div></div>
+        <div class="actx">
+          <div class="actx-card">
+            <div class="actx-h"><span class="ai">💧</span>水泵<span class="ast st-idle" id="pumpState">待机</span></div>
+            <div class="actx-rows">
+              <div><span>上次启动</span><b id="pumpLast">—</b></div>
+              <div><span>累计运行</span><b id="pumpTotal">0 min</b></div>
+              <div><span>触发条件</span><b id="pumpTrig">土壤湿度 &lt; 30%</b></div>
+            </div>
+          </div>
+          <div class="actx-card">
+            <div class="actx-h"><span class="ai">💡</span>补光灯<span class="ast st-idle" id="lightState">待机</span></div>
+            <div class="actx-rows">
+              <div><span>今日补光</span><b id="lightToday">0.0 h</b></div>
+              <div><span>目标光照</span><b id="lightTarget">50%</b></div>
+              <div><span>上次启动</span><b id="lightLast">—</b></div>
+            </div>
+          </div>
+          <div class="actx-foot">虚拟预留 · 通风风扇 · NPK 施肥泵（待接入硬件）</div>
         </div>
       </div>
 
@@ -317,11 +369,17 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
   const r=(a,b)=>+(a+Math.random()*(b-a)).toFixed(1);
   const now=Date.now()/1000;
   const cropName="番茄", gen=GEN_BY_PLANT[cropName]||4;
+  const sn={soil:r(38,46),light:r(50,60),temp:r(23,26),hum:r(60,70)};
   return {
     mission_day:217, uplink:"模拟", uptime:"演示模式",
-    crop:{name:cropName,en:PLANT_EN[cropName]||"Tomato",gen,stage:"营养生长期",day:15,harvest:"第 42 天",progress:36},
-    sensors:{soil:r(38,46),light:r(50,60),temp:r(23,26),hum:r(60,70)},
-    ai:{src:"demo", action:"演示 · 自动巡检", icon:"✓", duration:reason,
+    crop:{name:cropName,en:PLANT_EN[cropName]||"Tomato",gen,stage:"营养生长期",day:15,harvest:"第 42 天",progress:36,
+      code:"TOM-L"+gen+"-015",goal:"低重力坐果与品质筛选",phase:"叶面积扩展期"},
+    sensors:sn,
+    ai:{src:"demo", action:"演示 · 自动巡检", icon:"✓",
+      input:`土壤 ${Math.round(sn.soil)}% · 光照 ${Math.round(sn.light)}% · 温度 ${sn.temp}℃ · 湿度 ${Math.round(sn.hum)}%`,
+      judge:"营养生长期 · 环境稳定 · 无需主动干预（演示）",
+      output:"水泵待机 · 补光灯待机 · 继续监控",
+      reason:"决策依据："+reason,
       signals:[
         {sig:"LIGHT_LOW",icon:"💡",name:"光照不足",conf:0.78,real:true},
         {sig:"TEMP_HIGH",icon:"🌬️",name:"温度偏高",conf:0.61,real:false},
@@ -329,7 +387,7 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
       ],
       breeding:`第 ${gen} 代${cropName}处于营养生长期，土壤水分维持在 38-46%，光照稳定；建议今天记录叶色、节间长度，并为进入花期前的磷钾管理建立对照。`
     },
-    actuators:{pump:"实物 · 待机", light:"实物 · 待机"},
+    actuators:{pumpRunning:false,lightRunning:false,trig:"土壤湿度 < 30%",target:"50%"},
     health:{mode:"demo",esp32:"● 演示",esp32Ok:false,pi:"● 演示模式",piOk:false,source:"演示模式"},
     team:buildTeamTasks({plant:cropName,days:15,stage:"vegetative"}, "demo"),
     log:[
@@ -344,6 +402,9 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
 const PLANT_EN={"生菜":"Lettuce","小白菜":"BokChoy","菠菜":"Spinach","韭菜":"Chives",
   "番茄":"Tomato","辣椒":"Pepper","黄瓜":"Cucumber","茄子":"Eggplant"};
 const GEN_BY_PLANT={"生菜":3,"小白菜":5,"菠菜":2,"韭菜":6,"番茄":4,"辣椒":7,"黄瓜":2,"茄子":5};
+const PLANT_CODE={"生菜":"LET","小白菜":"PAK","菠菜":"SPI","韭菜":"CHI","番茄":"TOM","辣椒":"PEP","黄瓜":"CUC","茄子":"EGG"};
+const PHASE_CN={seedling:"子叶展开期",vegetative:"叶面积扩展期",veg:"叶面积扩展期",flower:"花芽分化期",bloom:"花芽分化期",fruit:"果实膨大期",harvest:"采收成熟期",mature:"采收成熟期"};
+const LEAFY=["生菜","小白菜","菠菜","韭菜"];
 const STAGE_CN={seedling:"苗期",vegetative:"营养生长期",veg:"营养生长期",flower:"花期",bloom:"花期",fruit:"果期",harvest:"采收期",mature:"采收期"};
 const STAGE_PCT={seedling:18,vegetative:45,veg:45,flower:65,bloom:65,fruit:85,harvest:100,mature:100};
 const STAGE_ADVICE={
@@ -461,10 +522,10 @@ function buildEventLog(raw, actionState, sigs){
     [t,`光照 ${light}% · 最低 ${lightMin}% · 目标 ${lightOpt}%`,light<lightMin],
     [t,`温度 ${temp}°C · 环境湿度 ${hum}%`,0],
   ];
-  if(act==="water") rows.push([t,`执行浇水 ${actionState.duration||0} 秒 · 水泵工作中 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,0]);
-  else if(act==="light") rows.push([t,`执行补光 ${actionState.duration||0} 秒 · 补光灯工作中 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,0]);
-  else rows.push([t,"AI 决策：待机 · 无主动指令",0]);
-  if(raw.reason) rows.push([t,`决策依据：${raw.reason}`,act!=="idle"]);
+  if(act==="water") rows.push([t,`AI 决策：浇水 ${actionState.duration||0} 秒 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,2]);
+  else if(act==="light") rows.push([t,`AI 决策：补光 ${actionState.duration||0} 秒 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,2]);
+  else rows.push([t,"AI 决策：待机 · 无主动指令",2]);
+  if(raw.reason) rows.push([t,`决策依据：${raw.reason}`,2]);
   sigs.forEach(s=>rows.push([t,`${s.name} · 置信 ${(s.conf*100).toFixed(0)}% · ${s.real?"已连接":"虚拟"}`,!s.real]));
   return rows.slice(0,8);
 }
@@ -490,16 +551,28 @@ function mapState(d){
   const thr=+d.soil_threshold||30, soil=+d.soil||0;
   const stState=actionState.act==="water"?"浇水中":(soil<thr?"基质偏干":(soil>thr+35?"基质偏湿":"生长适宜"));
   const gen=GEN_BY_PLANT[d.plant] || (2 + (seedFrom(d)%6));
+  const day=Math.max(1,+d.days||1);
+  const sR=Math.round(+d.soil||0),lR=Math.round(+d.light||0),tR=+(+d.temperature||0).toFixed(1),hR=Math.round(+d.humidity||0);
+  const lightOpt=+d.light_opt||50;
+  const judgeMap={water:"基质偏干 · 需精量补水",light:"光照低于阈值 · 需补光",idle:"环境稳定 · 无需主动干预"};
+  const outMap={water:"水泵执行中 · 补光灯待机 · 持续监控",light:"水泵待机 · 补光灯执行中 · 持续监控",idle:"水泵待机 · 补光灯待机 · 继续监控"};
   return {
     mission_day:217, uplink:"1.3s",
     uptime:(+d.uptime_sec>0)?(Math.floor(d.uptime_sec/86400)+" 天 "+Math.floor((d.uptime_sec%86400)/3600)+" 时"):"实时在线",
     crop:{name:d.plant||"——",en:PLANT_EN[d.plant]||"—",gen,stage:STAGE_CN[stage]||stage,
-      day:Math.max(1,+d.days||1),harvest:"约第 "+Math.max(30,(+d.days||1)+25)+" 天",progress:STAGE_PCT[stage]||30},
-    sensors:{soil:Math.round(+d.soil||0),light:Math.round(+d.light||0),temp:+(+d.temperature||0).toFixed(1),hum:Math.round(+d.humidity||0)},
+      day,harvest:"约第 "+Math.max(30,day+25)+" 天",progress:STAGE_PCT[stage]||30,
+      code:(PLANT_CODE[d.plant]||"GEN")+"-L"+gen+"-"+String(day).padStart(3,"0"),
+      goal:LEAFY.includes(d.plant)?"低重力密植产量筛选":"低重力坐果与品质筛选",
+      phase:PHASE_CN[stage]||(STAGE_CN[stage]||stage)},
+    sensors:{soil:sR,light:lR,temp:tR,hum:hR},
     ai:{src,action:aname,icon:aicon,
-      duration:actionState.running?("执行 "+actionState.duration+" 秒 · 剩余 "+actionState.remaining+" 秒"):"无主动指令 · 监视中",
+      input:`土壤 ${sR}% · 光照 ${lR}% · 温度 ${tR}℃ · 湿度 ${hR}%`,
+      judge:`${STAGE_CN[stage]||stage} · ${judgeMap[actionState.act]||judgeMap.idle}`,
+      output:outMap[actionState.act]||outMap.idle,
+      reason:"决策依据："+(d.reason||"湿度充足，温度适宜，光照达标。"),
       signals:diagnostics,breeding:buildBreedingObservation(d,actionState,sigs,gen)},
-    actuators:{pump:actionState.act==="water"?"实物 · 工作中":"实物 · 待机",light:actionState.act==="light"?"实物 · 工作中":"实物 · 待机"},
+    actuators:{pumpRunning:actionState.act==="water",lightRunning:actionState.act==="light",
+      trig:`土壤湿度 < ${thr}%`,target:lightOpt+"%"},
     health:buildHealth(d,src),
     team:buildTeamTasks(d,src),
     log:buildEventLog(d,actionState,sigs)
@@ -536,10 +609,25 @@ function renderSignals(signals){
 
 /* ---- 主更新 ---- */
 function setBar(id,v,max=100){const el=document.getElementById(id);if(el)el.style.width=Math.min(100,v/max*100)+"%"}
-function setActuator(id,text){
-  const el=document.getElementById(id); if(!el) return;
-  el.textContent=text;
-  el.className="ast "+(text.includes("工作中")?"st-on":"st-idle");
+const act_track={pumpLast:"—",pumpTotalMin:0,pumpStartTs:null,lightLast:"—",lightTodayMin:0,lightStartTs:null,lastAct:""};
+function bjHM(){const b=new Date(Date.now()+8*3600*1000),p=n=>String(n).padStart(2,'0');return p(b.getUTCHours())+":"+p(b.getUTCMinutes());}
+function renderActuators(a){
+  const now=Date.now();
+  if(a.pumpRunning && act_track.lastAct!=="water"){act_track.pumpStartTs=now;act_track.pumpLast=bjHM();}
+  if(!a.pumpRunning && act_track.lastAct==="water" && act_track.pumpStartTs){act_track.pumpTotalMin+=(now-act_track.pumpStartTs)/60000;act_track.pumpStartTs=null;}
+  if(a.lightRunning && act_track.lastAct!=="light"){act_track.lightStartTs=now;act_track.lightLast=bjHM();}
+  if(!a.lightRunning && act_track.lastAct==="light" && act_track.lightStartTs){act_track.lightTodayMin+=(now-act_track.lightStartTs)/60000;act_track.lightStartTs=null;}
+  act_track.lastAct=a.pumpRunning?"water":(a.lightRunning?"light":"idle");
+  const pTot=act_track.pumpTotalMin+(act_track.pumpStartTs?(now-act_track.pumpStartTs)/60000:0);
+  const lTot=act_track.lightTodayMin+(act_track.lightStartTs?(now-act_track.lightStartTs)/60000:0);
+  const ps=document.getElementById("pumpState");ps.textContent=a.pumpRunning?"工作中":"待机";ps.className="ast "+(a.pumpRunning?"st-on":"st-idle");
+  document.getElementById("pumpLast").textContent=act_track.pumpLast;
+  document.getElementById("pumpTotal").textContent=(pTot<10?pTot.toFixed(1):Math.round(pTot))+" min";
+  document.getElementById("pumpTrig").textContent=a.trig;
+  const ls=document.getElementById("lightState");ls.textContent=a.lightRunning?"工作中":"待机";ls.className="ast "+(a.lightRunning?"st-on":"st-idle");
+  document.getElementById("lightToday").textContent=(lTot/60).toFixed(1)+" h";
+  document.getElementById("lightTarget").textContent=a.target;
+  document.getElementById("lightLast").textContent=act_track.lightLast;
 }
 function setHealth(id,text,ok){
   const el=document.getElementById(id); if(!el) return;
@@ -563,6 +651,9 @@ async function update(){
   document.getElementById("cropName").textContent=d.crop.name;
   document.getElementById("cropEn").textContent=d.crop.en;
   document.getElementById("cropGen").textContent="第 "+d.crop.gen+" 代";
+  document.getElementById("cropCode").textContent=d.crop.code;
+  document.getElementById("cropGoal").textContent=d.crop.goal;
+  document.getElementById("cropPhase").textContent=d.crop.phase;
   document.getElementById("cropStage").textContent=d.crop.stage;
   document.getElementById("cropDay").textContent=d.crop.day;
   document.getElementById("cropHarvest").textContent=d.crop.harvest;
@@ -575,17 +666,17 @@ async function update(){
   document.getElementById("gHum").innerHTML=sn.hum+'<span class="gu">%</span>';
   setBar("bSoil",sn.soil);setBar("bLight",sn.light);setBar("bTemp",sn.temp,40);setBar("bHum",sn.hum);
 
-  document.getElementById("aiAction").textContent=d.ai.action;
-  document.getElementById("aiDur").textContent=d.ai.duration;
-  document.querySelector(".ai-primary .ic").textContent=d.ai.icon;
+  document.getElementById("chainIn").textContent=d.ai.input;
+  document.getElementById("chainJudge").textContent=d.ai.judge;
+  document.getElementById("chainOut").textContent=d.ai.output;
+  document.getElementById("aiReason").textContent=d.ai.reason;
   const src=document.getElementById("aiSrc");
   if(d.ai.src==="local"){src.textContent="本地 · 自治";src.className="ai-src local";}
   else if(d.ai.src==="demo"){src.textContent="演示模式";src.className="ai-src local";}
   else{src.textContent="树莓派 · AI 在线";src.className="ai-src";}
   renderSignals(d.ai.signals);
   document.getElementById("breedObs").textContent=d.ai.breeding;
-  setActuator("actPump",d.actuators.pump);
-  setActuator("actLight",d.actuators.light);
+  renderActuators(d.actuators);
   renderHealth(d.health);
   renderTeam(d.team);
   renderLog(d.log,true);
@@ -636,7 +727,7 @@ function renderLog(logs=LOGS, append=false){
     eventHistory=[...logs];
     lastLogKey="";
   }
-  el.innerHTML=eventHistory.map(([t,m,w])=>`<div><span class="t">${t}</span> <span class="${w?'w':''}">${m}</span></div>`).join("");
+  el.innerHTML=eventHistory.map(([t,m,w])=>`<div><span class="t">${t}</span> <span class="${w===2?'ai':(w?'w':'')}">${m}</span></div>`).join("");
   el.scrollTop=el.scrollHeight;
 }
 
