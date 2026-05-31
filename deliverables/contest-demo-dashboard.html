@@ -1070,7 +1070,8 @@
     }
 
     function plantingDayLabel(days) {
-      return `第 ${Math.max(1, Math.floor(Number(days || 0)) + 1)} 天`;
+      // 与 OLED/菜单统一：天数 1 起算，直接显示原值（不再 +1）。
+      return `第 ${Math.max(1, Math.floor(Number(days || 0)))} 天`;
     }
 
     function displayPlantingDays() {

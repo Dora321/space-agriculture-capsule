@@ -70,7 +70,8 @@ class Menu:
             int: 选择的天数（蓝键取消时返回 current_day）
         """
         import config as _cfg
-        day = max(0, int(current_day))
+        MIN_DAY = 1   # 种植第 1 天起算（不从 0 开始）
+        day = max(MIN_DAY, int(current_day))
         MAX_DAY = 365
 
         def _stage_for(d):
@@ -85,7 +86,7 @@ class Menu:
             delta = self._control.nav_held()
 
             if delta != 0:
-                day = max(0, min(MAX_DAY, day + delta))
+                day = max(MIN_DAY, min(MAX_DAY, day + delta))
                 self._display.show_day_select(day, _stage_for(day))
 
             # 绿键确认
