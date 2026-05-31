@@ -151,7 +151,10 @@ class TestSafetyConstants:
     """安全参数合理性测试"""
 
     def test_pump_max_run(self):
-        assert 10 <= config.PUMP_MAX_RUN_SEC <= 120
+        assert config.PUMP_MAX_RUN_SEC == 20
+
+    def test_light_max_run(self):
+        assert config.LIGHT_MAX_RUN_SEC == 20
 
     def test_max_actions_per_hour(self):
         assert config.MAX_ACTIONS_PER_HOUR <= 20

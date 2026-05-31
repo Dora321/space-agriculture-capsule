@@ -70,7 +70,7 @@ class TestIdleDecision:
         )
         assert d["action"] == "light"
         assert "light LOW" in d["reason"]
-        assert d["duration_sec"] >= 30
+        assert d["duration_sec"] == 20
 
     def test_sufficient_light_no_light_action(self):
         """光照充足 → 不触发补光"""

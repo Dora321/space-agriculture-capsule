@@ -79,6 +79,11 @@ def test_build_report_maps_state_fields():
     s.temperature = 24.3
     s.humidity = 65
     s.last_action = "water"
+    s.last_action_duration = 8
+    s.last_action_time = 123
+    s.read_count = 9
+    s.action_count = 2
+    s.error_count = 1
     s.last_decision_source = "local"
 
     r = uart_link.build_report(s, ts=1234, online=True)
@@ -92,6 +97,11 @@ def test_build_report_maps_state_fields():
     assert r["temp"] == 24.3
     assert r["hum"] == 65
     assert r["action"] == "water"
+    assert r["duration_sec"] == 8
+    assert r["action_time"] == 123
+    assert r["read_count"] == 9
+    assert r["action_count"] == 2
+    assert r["error_count"] == 1
     assert r["ai_src"] == "local"
     assert r["online"] is True
 

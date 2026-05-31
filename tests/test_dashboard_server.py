@@ -21,6 +21,7 @@ def test_validate_state_clamps_values_and_normalizes_action():
         "plant": "Lettuce",
         "stage": "seedling",
         "action": "unknown",
+        "action_started_at": 123.5,
         "reason": "status normal",
         "soil_threshold": 35,
         "light_min": 50,
@@ -35,6 +36,7 @@ def test_validate_state_clamps_values_and_normalizes_action():
     assert state["light"] == 0
     assert state["humidity"] == 100
     assert state["action"] == "idle"
+    assert state["action_started_at"] == 123.5
     assert state["soil_threshold"] == 35
     assert state["light_min"] == 50
     assert state["light_opt"] == 70

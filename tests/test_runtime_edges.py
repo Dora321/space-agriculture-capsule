@@ -2,23 +2,10 @@
 测试运行时边界：占位密钥、显示 mock、执行动作分支。
 """
 import time
-import ai_client
 import actuators
 import display
-import telemetry
 import main
 import sensors
-
-
-class TestApiKeyPlaceholders:
-    def test_template_placeholder_key_is_not_configured(self):
-        assert ai_client._is_placeholder_key("YOUR_API_KEY_HERE")
-
-    def test_chinese_placeholder_key_is_not_configured(self):
-        assert ai_client._is_placeholder_key("你的DeepSeek API密钥")
-
-    def test_realistic_key_is_configured(self):
-        assert not ai_client._is_placeholder_key("sk-realistic-test-key")
 
 
 class TestHardwareMocks:
@@ -71,6 +58,52 @@ class TestHardwareMocks:
             assert 0 <= y <= 56
             assert x + len(text) * 8 <= 128
 
+    def test_display_page3_uart_mode_labels_pi_link(self, monkeypatch):
+        class Recorder:
+            def __init__(self):
+                self.text_calls = []
+
+            def fill(self, c):
+                pass
+
+            def show(self):
+                pass
+
+            def text(self, t, x, y, *a):
+                self.text_calls.append((str(t), x, y))
+
+            def pixel(self, *a):
+                pass
+
+            def fill_rect(self, *a):
+                pass
+
+            def rect(self, *a):
+                pass
+
+            def line(self, *a):
+                pass
+
+        recorder = Recorder()
+        display._oled = recorder
+
+        display.show_data(
+            soil=72,
+            light=97,
+            temp=24,
+            hum=52,
+            plant="生菜",
+            action="idle",
+            page_index=2,
+            uart_enabled=True,
+            pi_online=False,
+        )
+
+        texts = [t for t, _x, _y in recorder.text_calls]
+        assert any("PI:OFF" in t for t in texts)
+        assert any("AI:LOCAL" in t for t in texts)
+        assert any("UART waiting Pi" in t for t in texts)
+
 
 class TestExecuteDecision:
     def setup_method(self):
@@ -111,6 +144,7 @@ class TestExecuteDecision:
 
     def test_light_action_calls_run_light(self, monkeypatch):
         """light 动作正确调用 actuators.run_light"""
+        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 20, raising=False)
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
         monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
         called = {"duration": None}
@@ -118,18 +152,18 @@ class TestExecuteDecision:
 
         main.execute_decision({
             "action": "light",
-            "duration_sec": 60,
+            "duration_sec": 15,
             "reason": "light LOW 20%<30%",
         })
 
         assert main.state.last_action == "light"
-        assert main.state.last_action_duration == 60
+        assert main.state.last_action_duration == 15
         assert main.state.action_count == 1
-        assert called["duration"] == 60
+        assert called["duration"] == 15
 
     def test_light_duration_uses_light_max_not_pump_max(self, monkeypatch):
-        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 60, raising=False)
-        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 120, raising=False)
+        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 10, raising=False)
+        monkeypatch.setattr(main.config, "LIGHT_MAX_RUN_SEC", 20, raising=False)
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
         monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
         called = {"duration": None}
@@ -137,11 +171,11 @@ class TestExecuteDecision:
 
         main.execute_decision({
             "action": "light",
-            "duration_sec": 100,
+            "duration_sec": 25,
             "reason": "pi advice",
         })
 
-        assert called["duration"] == 100
+        assert called["duration"] == 20
 
 
 class TestPiAdvice:
@@ -268,7 +302,7 @@ class TestDemoMode:
     def test_demo_decision_and_recovery_cycle(self, monkeypatch):
         monkeypatch.setattr(main.config, "DEMO_MODE", True, raising=False)
         monkeypatch.setattr(main.config, "DEMO_RECOVER_SOIL", 55, raising=False)
-        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 60, raising=False)
+        monkeypatch.setattr(main.config, "PUMP_MAX_RUN_SEC", 20, raising=False)
         monkeypatch.setattr(main, "_refresh_display", lambda *args, **kwargs: None)
         monkeypatch.setattr(display, "show_action", lambda *args, **kwargs: None)
         monkeypatch.setattr(actuators, "run_water_pump", lambda duration: True)
@@ -287,124 +321,7 @@ class TestDemoMode:
         assert main.state.last_action == "water"
 
 
-class TestAiRequestGating:
-    def setup_method(self):
-        main.state.wifi_connected = True
-        main.state.plant_type = "test"
-        main.state.plant_info = {
-            "soil_threshold": 30,
-            "light_min": 30,
-            "light_opt": 50,
-            "light_hours": [6, 8],
-            "water_sec": 8,
-        }
-        main.state.growth_stage = {"stage": "seedling"}
-        main.state.soil_moisture = 55
-        main.state.light_level = 70
-        main.state.temperature = 25
-        main.state.humidity = 60
-        main.state.sun_minutes_today = 60
-        main.state.start_time = time.time() - 3600  # 1 hour uptime
-        main.state.last_ai_request_time = 0
-        main.state.last_ai_snapshot = None
-        main.state.last_decision_source = "local"
-
-    def _enable_cloud(self, monkeypatch):
-        monkeypatch.setattr(main.config, "DEMO_MODE", False, raising=False)
-        monkeypatch.setattr(main.config, "AI_PROXY_URL", "http://proxy/decision", raising=False)
-        monkeypatch.setattr(main.config, "AI_MIN_REQUEST_INTERVAL", 900, raising=False)
-        monkeypatch.setattr(main.config, "AI_FORCE_REQUEST_INTERVAL", 3600, raising=False)
-        monkeypatch.setattr(main.gc, "mem_free", lambda: 200000, raising=False)
-
-    def test_stable_normal_state_skips_cloud_ai(self, monkeypatch):
-        self._enable_cloud(monkeypatch)
-        calls = []
-
-        def fake_query_decision(**kwargs):
-            calls.append(kwargs)
-            return {"action": "idle", "duration_sec": 0, "reason": "cloud"}
-
-        monkeypatch.setattr(ai_client, "query_decision", fake_query_decision)
-
-        decision = main.make_decision()
-
-        assert calls == []
-        assert decision["action"] == "idle"
-        assert main.state.last_decision_source == "local"
-
-    def test_threshold_event_allows_cloud_ai(self, monkeypatch):
-        self._enable_cloud(monkeypatch)
-        calls = []
-        main.state.soil_moisture = 20
-
-        def fake_query_decision(**kwargs):
-            calls.append(kwargs)
-            return {"action": "water", "duration_sec": 8, "reason": "cloud dry"}
-
-        monkeypatch.setattr(ai_client, "query_decision", fake_query_decision)
-
-        decision = main.make_decision()
-
-        assert len(calls) == 1
-        assert decision["action"] == "water"
-        assert main.state.last_decision_source == "cloud"
-        assert main.state.last_ai_snapshot["soil"] == 20
-
-    def test_minimum_interval_keeps_threshold_event_local(self, monkeypatch):
-        self._enable_cloud(monkeypatch)
-        calls = []
-        main.state.soil_moisture = 20
-        main.state.last_ai_request_time = 1000
-        monkeypatch.setattr(main.time, "time", lambda: 1100)
-        monkeypatch.setattr(ai_client, "query_decision", lambda **kwargs: calls.append(kwargs))
-
-        decision = main.make_decision()
-
-        assert calls == []
-        assert decision["action"] == "water"
-        assert main.state.last_decision_source == "local"
-
-
 class TestDecisionCadence:
     def test_local_decision_runs_each_minute_by_default(self):
         assert main.config.READ_INTERVAL == 60
         assert main.config.DECISION_INTERVAL == 60
-        assert main.config.AI_MIN_REQUEST_INTERVAL > main.config.DECISION_INTERVAL
-
-
-class TestTelemetry:
-    def test_telemetry_posts_compact_state(self, monkeypatch):
-        calls = []
-
-        def fake_post(url, data, headers, timeout):
-            calls.append({
-                "url": url,
-                "data": data,
-                "headers": headers,
-                "timeout": timeout,
-            })
-            return 200
-
-        monkeypatch.setattr(main.config, "DASHBOARD_URL", "http://127.0.0.1:8790/api/state", raising=False)
-        monkeypatch.setattr(main.config, "DASHBOARD_TOKEN", "token", raising=False)
-        monkeypatch.setattr(main.config, "DASHBOARD_TIMEOUT", 2, raising=False)
-        monkeypatch.setattr(telemetry, "_post_http_json", fake_post, raising=False)
-        telemetry._fail_count = 0
-        telemetry._backoff_until = 0
-
-        main.state.soil_moisture = 41
-        main.state.light_level = 70
-        main.state.temperature = 24.5
-        main.state.humidity = 62
-        main.state.plant_type = "生菜"
-        main.state.growth_stage = {"stage": "seedling"}
-        main.state.days_since_planting = 7
-        main.state.last_action = "idle"
-        main.state.last_decision_reason = "status normal"
-
-        assert telemetry.send_state(main.state, ai_enabled=True) is True
-        assert calls[0]["url"].endswith("/api/state")
-        assert calls[0]["headers"]["X-Dashboard-Token"] == "token"
-        assert b'"soil": 41' in calls[0]["data"]
-        assert b'"soil_threshold"' in calls[0]["data"]
-        assert b'"light_min"' in calls[0]["data"]

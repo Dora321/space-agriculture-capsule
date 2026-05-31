@@ -19,54 +19,15 @@ def _load_secret(key, default=""):
         return default
 
 
-# ============ WiFi 配置 ============
-WIFI_SSID = "YOUR_WIFI_SSID"
-WIFI_PASSWORD = _load_secret("wifi_pass", "YOUR_WIFI_PASSWORD")
-WIFI_CONNECT_TIMEOUT = 12       # 开机首次连接最多等待秒数，避免卡在 WiFi
-WIFI_RECONNECT_TIMEOUT = 12     # 主循环断线重连单次最多等待秒数
-WIFI_RECONNECT_INTERVAL = 120   # 断线后两次重连尝试的最小间隔秒数
-WIFI_LINK_GRACE_MS = 5000       # 运行期短暂 IP=0.0.0.0 时先等待自恢复，避免误触发重连
-WIFI_DISABLE_POWER_SAVE = True  # 关闭 ESP32 WiFi 省电，提升热点/云端连接稳定性
-NTP_SYNC_ON_CONNECT = False     # 比赛现场优先稳定性；需要准确 RTC 时再改 True
-
-# ============ AI API 配置 ============
-# DeepSeek 官方 API（OpenAI 兼容格式）
-# 注册地址: https://platform.deepseek.com/
-WIFI_RECONNECT_AFTER_MISSES = 2 # 连续离线检测达到次数后才重连，过滤瞬时 IP 抖动
-AI_API_URL = "https://api.deepseek.com/chat/completions"
-AI_API_KEY = _load_secret("api_key", "YOUR_API_KEY_HERE")
-AI_MODEL = "deepseek-v4-flash"
-AI_TIMEOUT = 20  # API超时时间（秒），推理模型需要较长等待
-AI_MIN_FREE_MEM = 110000  # 低于该空闲内存时跳过云端 AI，避免 ESP32 TLS 握手失败
-AI_PROXY_MIN_FREE_MEM = 65000
-AI_PROXY_URL = ""  # 可填局域网代理，例如 "http://192.168.125.121:8787/decision"
-AI_PROXY_TOKEN = ""  # 可选：代理访问令牌，需与云端 AI_PROXY_TOKEN 一致
-AI_MIN_REQUEST_INTERVAL = 900   # 云端 AI 最小请求间隔（秒），避免频繁请求
-AI_FORCE_REQUEST_INTERVAL = 3600 # 即使稳定，也每小时让 AI 复核一次
-AI_SOIL_DELTA = 8               # 土壤湿度变化超过该百分比才认为明显变化
-AI_LIGHT_DELTA = 20             # 光照变化超过该百分比才认为明显变化
-AI_TEMP_DELTA = 3               # 温度变化超过该值才认为明显变化
-AI_HUM_DELTA = 12               # 湿度变化超过该百分比才认为明显变化
-
-# ============ Realtime Dashboard ============
-# Run on the computer: py tools/dashboard_server.py --host 0.0.0.0 --port 8790
-# Then set this to the computer LAN IP, for example:
-# DASHBOARD_URL = "http://192.168.1.20:8790/api/state"
-DASHBOARD_URL = ""
-DASHBOARD_TOKEN = ""
-DASHBOARD_TIMEOUT = 5
-TELEMETRY_MIN_FREE_MEM = 45000
-TELEMETRY_BACKOFF_AFTER = 2
-TELEMETRY_BACKOFF_SEC = 180
-TELEMETRY_RELEASE_DISPLAY = True
-TELEMETRY_ON_BOOT = False
+# ============ 联网 / AI / 大屏：已全部移到树莓派侧 ============
+# 双层架构（2026-05-30）：ESP32 不再使用 WiFi、不直连 DeepSeek、不直传遥测。
+# 树莓派经 UART 负责联网、调 DeepSeek（advice 回传）、转发大屏。
+# 因此本文件不再有 WIFI_* / AI_* / DASHBOARD_* / TELEMETRY_* 配置。
+# DeepSeek 的 API key/model 等改在树莓派侧用环境变量配置，见 tools/serial_gateway.py。
 
 # ============ Raspberry Pi UART Link ============
-# Optional two-layer architecture: ESP32 remains the flight controller, while a
-# Raspberry Pi can receive reports and send advisory decisions over UART2.
-# Default stays False so the existing WiFi-only contest build is unchanged.
-UART_ENABLED = False
-UART_SKIP_WIFI = True  # when UART is enabled, let the Pi handle networking
+# ESP32（飞控）<-> 树莓派（载荷计算机）UART2 链路。这是固件的唯一上行/下行通道。
+# 接线：ESP32 GPIO17(U2 TX) -> Pi GPIO15/RXD(pin10)，GPIO16(U2 RX) <- Pi GPIO14/TXD(pin8)，GND 共地。
 UART_ID = 2
 UART_BAUD = 115200
 UART_TX_PIN = 17       # ESP32 U2 TX -> Raspberry Pi GPIO15/RXD (pin 10)
@@ -151,8 +112,8 @@ LIGHT_INVERT = True       # True: ADC 越大越暗；False: ADC 越大越亮
 
 # ============ 执行器参数 ============
 PUMP_WATER_DEFAULT_SEC = 8     # 默认浇水时长（秒）
-PUMP_MAX_RUN_SEC = 60          # 单次最大运行时长（安全限制）
-LIGHT_MAX_RUN_SEC = 120        # 补光灯单次最大运行时长（安全限制）
+PUMP_MAX_RUN_SEC = 20          # 水泵单次最大运行时长（安全限制）
+LIGHT_MAX_RUN_SEC = 20         # 补光灯单次最大运行时长（安全限制）
 
 # ============ 温度安全护栏 ============
 # 超过 TEMP_HIGH_C 视为高温，跳过浇水避免叶面灼伤 + 闷根

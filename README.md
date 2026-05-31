@@ -6,7 +6,7 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-144%2F144%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-133%2F133%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5140-orange)](#)
 
@@ -60,7 +60,7 @@
 | 👨‍🚀 人力昂贵 | **全自动养护闭环** | 感知→决策→执行全链路自动化，旋转编码器一键切换 8 种作物，无需人工配置 |
 | 🔧 故障无人维修 | **四级容错与降级** | 传感器离线→自动切安全值；执行器故障→跳过继续运行；看门狗→死机自动重启 |
 | ⚡ 能源稀缺 | **采样与决策节流** | 采样周期 60s，AI 请求门控（阈值触发+周期复核），非必要时不浪费带宽和电力 |
-| ♻️ 资源浪费不可接受 | **精量滴灌 + 智能补光 + 安全上限** | 最小水量/补光释放，单次最长 60s/120s、每小时最多 12 次动作，避免过量浇水或浪费 |
+| ♻️ 资源浪费不可接受 | **精量滴灌 + 智能补光 + 安全上限** | 最小水量/补光释放，水泵/补光单次最长均为 20s、每小时最多 12 次动作，避免过量浇水或浪费 |
 | 🧪 多作物轮种需求 | **8 种作物完整数据库** | 每作物独立生长阶段模型（苗期→生长期→花期→果期→采收期），旋转编码器现场一键切换 |
 
 系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵 + 12V 补光灯**自动浇水补光养护 **8 种作物**（旋转编码器现场切换）。**Decision Plane / Action Plane 分离架构**：决策层输出多维诊断信号（缺水、缺光、高温、缺肥等），物理执行器仅响应 WATER/LIGHT_LOW 两种信号，其余 advisory 信号通过 WS2812 灯条动画广播——实现「决策能力与执行能力分离」。OLED 三页轮播 + **WS2812 11 颗灯珠**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
@@ -81,22 +81,22 @@
 
 ```mermaid
 flowchart LR
-    subgraph SPACE["🚀 太空舱端（种植舱本体）"]
+    subgraph SPACE["🚀 太空舱端 ESP32（飞控 / 只要有电就跑）"]
         subgraph SENSE["感知层 SENSE"]
             Soil["🌡️ 基质含水率<br/>ADC GPIO34"]
-            Light["☀️ 环境光照<br/>ADC GPIO32"]
+            LightS["☀️ 环境光照<br/>ADC GPIO32"]
             DHT["🌡️ 舱内温湿度<br/>DHT11 GPIO4"]
             DIP["🔢 作物选择<br/>旋转编码器"]
         end
 
         subgraph THINK["决策层 THINK"]
-            AI["🤖 云端 AI<br/>DeepSeek V4"]
-            Local["📋 本地规则引擎<br/>断联自治"]
+            Local["📋 本地规则引擎<br/>断联自治兜底"]
+            PiAdv["📡 采纳树莓派 advice<br/>（在线优先，过安全门）"]
         end
 
         subgraph ACT["执行层 ACT"]
             Pump["💧 精量滴灌<br/>水泵 GPIO5"]
-            Light["💡 补光灯<br/>COB GPIO18"]
+            Lamp["💡 补光灯<br/>COB GPIO18"]
             Strip["🌈 状态灯条<br/>WS2812 GPIO26"]
         end
 
@@ -105,18 +105,25 @@ flowchart LR
         SENSE -.->|机载显示| OLED["📟 OLED 三页轮播<br/>SH1106 128×64"]
     end
 
-    subgraph GROUND["🛰️ 地面遥测站（PC 端）"]
+    subgraph PI["🛰️ 树莓派（载荷计算机 / 上位机）"]
+        GW["🔌 serial_gateway<br/>UART 网关"]
+        AI["🤖 DeepSeek<br/>pi_advisor"]
+        GW <--> AI
+    end
+
+    subgraph GROUND["☁️ 云端地面站"]
         Web["📊 Web 实时大屏<br/>模拟飞控中心视图"]
     end
 
-    THINK -.->|遥测上报<br/>WiFi| Web
+    THINK <-.->|UART<br/>report / advice| GW
+    GW -.->|遥测转发<br/>HTTP| Web
 ```
 
-> **自治边界**：太空舱端（左框）内所有模块——包括 AI 在线/离线两种模式——均独立运行，不依赖地面实时指令。地面遥测站（右框）仅做被动监控，单向接收数据，不向 ESP32 下发控制命令。
+> **自治边界**：ESP32（左框）保留传感器、执行器、本地规则和安全护栏，**断网断树莓派也能种活作物**。树莓派/云端承担联网、大屏、AI——挂了只是变笨/看不到。大屏只读，不向 ESP32 下发控制命令。
 
-**核心循环**：每 60 秒采样一次 → 安全检查（防抖/限频/降级）→ 双引擎决策 → 执行动作 + WS2812 信号广播 → OLED 刷新 + 大屏遥测上报
+**核心循环**：每 60 秒采样 → 安全检查（防抖/限频/降级）→ 决策（在线 Pi advice 优先，否则本地规则）→ 执行动作 + WS2812 信号广播 → OLED 刷新 + 经 UART 把 report 发给树莓派转发大屏
 
-**AI 请求门控**：仅在阈值事件、环境明显变化或定时复核时才调用云端 AI。通信中断时自动切换本地规则引擎，模拟深空 4-24 分钟延迟场景下的全自治运行。
+**三层降级**：① 树莓派调 DeepSeek（最聪明）→ ② 树莓派阈值规则 → ③ ESP32 本地规则（板上常驻）。任何一层断了下一层接住，模拟深空 4-24 分钟延迟下的全自治。
 
 ---
 
@@ -129,7 +136,7 @@ flowchart LR
 | 🛡️ **四级容错与降级机制** | 传感器坏了切安全值 | 在轨无人维修——传感器离线自动降级为安全模式，看门狗死机重启，执行器故障安全跳过 |
 | 📊 **Decision Plane / Action Plane 分离** | 决策层广播多维信号，执行层仅响应物理动作 | 决策能力与执行能力分离——缺肥/高温等 advisory 信号即时广播，无需等待执行器就位 |
 | 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策信号面板，超 120s 无数据自动切 DEMO |
-| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，144 用例 ALL PASS |
+| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，133 用例 ALL PASS |
 
 ---
 
@@ -141,10 +148,11 @@ flowchart LR
 | **传感器** | 电容式土壤 v1.2 + HS-S20L-B 光敏 + DHT11 | 土壤湿度/光照/温湿度，共 3 类 4 个传感器 |
 | **执行器** | 12V 蠕动泵 + 12V COB 补光灯 + 双继电器 | 低电平触发，带安全超时 + 温度护栏 |
 | **显示** | SH1106 I2C OLED 128×64 + WS2812 11 灯珠灯条 | 三页轮播 + 湿度温度计 + 决策信号动画广播 |
-| **固件** | MicroPython · 13 个模块化文件 | 按启动/主循环/感知/决策/执行/显示/遥测拆分，单一职责 |
-| **AI** | DeepSeek V4 Flash + 代理中转 | ¥1/百万 tokens · 支持 HTTP 代理（无 TLS 压力）或直连 |
+| **固件** | MicroPython · 模块化文件 | 按启动/主循环/感知/决策/执行/显示/UART 拆分，单一职责 |
+| **AI** | DeepSeek V4 Flash（运行在树莓派侧） | ¥1/百万 tokens · 由树莓派 `pi_advisor` 调用，ESP32 不再直连（无 TLS 内存压力） |
+| **上位机** | 树莓派 + `serial_gateway` | UART 收 report / 调 DeepSeek 回 advice / 转发大屏 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 144 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 133 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
 **硬件成本**：¥140/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
@@ -165,25 +173,20 @@ py tools/dashboard_server.py --host 0.0.0.0 --port 8790
 powershell -ExecutionPolicy Bypass -File tools\start_dashboard_server.ps1
 ```
 
+> 🛰️ **地面站监控大屏**：`deliverables/groundstation.html` 是 retro-futuristic 航天控制台风格的实时大屏（已部署云端 `43.156.68.157:8790`），轮询同一 `/api/state` 接口，显示传感器/生长曲线/DeepSeek 多维决策/育种团队。dashboard_server 在 `/` 服务该 HTML。详见 [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) #44。
 > 详细部署说明见 [大屏部署指南](./deliverables/realtime-dashboard-guide.md)
 
-### 2. 可选：启动树莓派 UART 网关
+### 2. 启动树莓派 UART 网关（双层架构的核心，必需）
 
-启用双层架构时，先在 ESP32 `config.py` 设置 `UART_ENABLED = True`，并按架构文档连接 UART2：
-ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，GND 共地。
+ESP32 不再自己联网——联网、大屏、AI 全部由树莓派经 UART 承担。按架构文档连接 UART2：
+ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，**GND 共地**。
 
-实机建议同时设置：
-
-```python
-UART_ENABLED = True
-UART_SKIP_WIFI = True
-UART_RXBUF = 256
-```
-
-`UART_SKIP_WIFI=True` 表示 ESP32 跳过 WiFi，由树莓派负责联网、大屏、AI 和后续数据库。这样能避免 ESP32 同时启用 WiFi/OLED/UART 时的堆内存不足。
+树莓派上运行网关（DeepSeek 在 Pi 侧调用，key 走环境变量）：
 
 ```bash
-python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --auto-advice
+export SPACEFARM_AI_API_KEY="sk-..."                 # DeepSeek key（不进命令行）
+export SPACEFARM_DASHBOARD="http://43.156.68.157:8790/api/state"
+python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --ai-advice
 ```
 
 Windows 调试串口可用：
@@ -192,7 +195,7 @@ Windows 调试串口可用：
 py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 ```
 
-`--auto-advice` 会在收到 ESP32 `report` 后下发保守规则建议；`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
+决策三层降级：`--ai-advice` 让 Pi 调 **DeepSeek**（最聪明）；AI 失败自动回退 `--auto-advice` 的**阈值规则**；UART 断了 ESP32 还有**本地规则**兜底。`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
 
 > ✅ **2026-05-30 实机验收通过**：`/dev/serial0` report/ping/pong/advice 全链路跑通，ESP32 `ai_src` 变 `pi`。部署时按顺序排查三点（详见 [ARCHITECTURE.md §1.2](./ARCHITECTURE.md#12-树莓派端部署要点2026-05-30-实机验收通过)）：
 > 1. **共地接牢、TX/RX 交叉**——否则 Pi 的 RX 悬空，只读到持续 `0xFF` 噪声；
@@ -206,14 +209,9 @@ py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 ```bash
 # 复制配置模板
 cp esp32_firmware/config.py.example esp32_firmware/config.py
-
-# 编辑 config.py，填写 WiFi 和 AI API 密钥
 ```
 
-```python
-AI_PROXY_URL = "http://43.156.68.157:8787/decision"  # 代理中转（推荐）
-DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
-```
+ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这些都搬到了树莓派侧）。`config.py` 只剩 UART、传感器/执行器引脚、安全护栏、作物列表等。DeepSeek 的 key/model 改在树莓派用 `SPACEFARM_AI_*` 环境变量配置（见上一步）。
 
 > 完整烧录和接线说明见 [固件 README](./esp32_firmware/README.md)
 
@@ -305,13 +303,13 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **144 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
+| 自动化测试 | **133 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |
-| 决策延迟 | 云端 AI < 3s，本地规则 < 1ms | 实时筛选有价值的突变性状；满足深空 4-24 分钟通信延迟 |
+| 决策延迟 | DeepSeek（树莓派调用）< 3s，本地规则 < 1ms | 实时筛选有价值的突变性状；满足深空 4-24 分钟通信延迟 |
 | 采样周期 | **60 秒**采样一次 | **高密度生长数据采集**，远超人工观测密度 |
-| 固件模块 | **13 个**，单文件最大约 300 行 | 模块化，便于在轨远程热更新维护 |
+| 固件模块 | **十余个**，单文件最大约 300 行 | 模块化，便于在轨远程热更新维护 |
 | 硬件成本 | **¥140/套** | 低成本批量部署，覆盖更多品种平行实验 |
 | 实机运行 | 超过 **18 天**连续运行 | 跑通一个完整速生菜生长周期 |
 

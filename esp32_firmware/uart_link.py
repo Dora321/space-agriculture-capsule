@@ -66,6 +66,11 @@ def build_report(state, ts, online):
         "temp": state.temperature,
         "hum": state.humidity,
         "action": state.last_action,
+        "duration_sec": getattr(state, "last_action_duration", 0),
+        "action_time": getattr(state, "last_action_time", 0),
+        "read_count": getattr(state, "read_count", 0),
+        "action_count": getattr(state, "action_count", 0),
+        "error_count": getattr(state, "error_count", 0),
         "ai_src": ai_src,
         "online": bool(online),
     }

@@ -712,15 +712,16 @@ def show_page2_full(
 def show_page3(
     wifi_connected=False, ip=None, ai_enabled=False, start_time=0,
     action_count=0, read_count=0, last_action="idle",
-    last_action_duration=0, last_action_time=0
+    last_action_duration=0, last_action_time=0,
+    uart_enabled=False, pi_online=False
 ):
     """Page 3 — SYS 系统视图，与 Page 1 结构完全一致。
 
-    y= 0- 9: 反色标题（WIFI + AI 状态）
+    y= 0- 9: 反色标题（WIFI/PI + AI 状态）
     y=11-26: 2x 运行时长（"2h" 或 "45m"）
     y=28-35: "UP  2h 15min" 居中状态行
     y=37-43: MEM 内存余量进度条（label+bar+value）
-    y=45-52: IP 地址
+    y=45-52: IP 地址或 UART 链路状态
     y=54:    分隔线
     y=56-63: 上次执行记录
     """
@@ -729,10 +730,15 @@ def show_page3(
 
     _oled.fill(0)
 
-    # ── 反色标题：WiFi + AI 状态 ─────────────────────
-    wifi_s = "WIFI:OK " if wifi_connected else "WIFI:OFF"
-    ai_s = "AI:ON" if (ai_enabled and wifi_connected) else "AI:OFF"
-    _draw_inverted("{} {}".format(wifi_s, ai_s))
+    # ── 反色标题：单机 WiFi 模式显示 WiFi，双层模式显示 Pi 链路 ─────
+    if uart_enabled:
+        link_s = "PI:OK  " if pi_online else "PI:OFF "
+        ai_s = "AI:PI" if pi_online else "AI:LOCAL"
+        _draw_inverted("{} {}".format(link_s, ai_s))
+    else:
+        wifi_s = "WIFI:OK " if wifi_connected else "WIFI:OFF"
+        ai_s = "AI:ON" if (ai_enabled and wifi_connected) else "AI:OFF"
+        _draw_inverted("{} {}".format(wifi_s, ai_s))
 
     # ── 内存 2x 大字（空闲 KB）──────────────────────
     try:
@@ -758,8 +764,10 @@ def show_page3(
     # ── 全宽内存余量条（与 Page 1 土壤条同风格）──────
     _draw_wide_bar(mem_pct, 37)
 
-    # ── IP 地址 ──────────────────────────────────────
-    if ip:
+    # ── IP 地址 / UART 链路状态 ───────────────────────
+    if uart_enabled:
+        ip_line = "UART payload link" if pi_online else "UART waiting Pi"
+    elif ip:
         ip_line = ip
     elif wifi_connected:
         ip_line = "DHCP pending..."
@@ -788,7 +796,7 @@ def show_data(
     growth_stage=None, days_since_planting=0, sun_minutes_today=0,
     wifi_connected=False, ip=None, ai_enabled=False, start_time=0,
     action_count=0, read_count=0, last_action_duration=0,
-    last_action_time=0, decision_reason=""
+    last_action_time=0, decision_reason="", uart_enabled=False, pi_online=False
 ):
     """三页轮播入口（保留旧签名兼容性）。"""
     page_index = page_index % 3
@@ -807,7 +815,8 @@ def show_data(
     else:
         show_page3(
             wifi_connected, ip, ai_enabled, start_time, action_count,
-            read_count, action, last_action_duration, last_action_time
+            read_count, action, last_action_duration, last_action_time,
+            uart_enabled=uart_enabled, pi_online=pi_online
         )
 
 

@@ -157,7 +157,7 @@ def local_fallback_decision(
     if light is not None:
         light_min = plant_info.get('light_min', 30)
         light_hours = plant_info.get('light_hours', [6, 8])
-        light_max_run = getattr(config, "LIGHT_MAX_RUN_SEC", 120)
+        light_max_run = getattr(config, "LIGHT_MAX_RUN_SEC", 20)
         sun_hours = sun_minutes / 60
         if light < light_min:
             deficit_h = max(0, light_hours[0] - sun_hours)

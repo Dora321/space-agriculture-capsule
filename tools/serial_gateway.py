@@ -187,10 +187,23 @@ def _report_to_dashboard_state(report):
         "stage": report.get("stage", ""),
         "days": report.get("day", 0),
         "action": report.get("action", "idle"),
+        "duration": report.get("duration_sec", 0),
+        "read_count": report.get("read_count", 0),
+        "action_count": report.get("action_count", 0),
+        "error_count": report.get("error_count", 0),
         "wifi": report.get("online", False),
         "ai": report.get("ai_src") == "pi",
         "decision_source": report.get("ai_src", "local"),
     }
+
+
+def _dashboard_action_from_advice(advice):
+    primary = str(advice.get("primary", "idle"))
+    if primary == "light_on":
+        return "light"
+    if primary in {"water", "light"}:
+        return primary
+    return "idle"
 
 
 def _post_json(url, payload, timeout=2):
@@ -203,7 +216,7 @@ def _post_json(url, payload, timeout=2):
 
 
 def _heuristic_advice_from_report(report, soil_threshold=30, light_threshold=30,
-                                  water_sec=8, light_sec=45):
+                                  water_sec=8, light_sec=20):
     """Tiny Pi-side rule advisor for UART bring-up and offline demos.
 
     This is intentionally conservative. The ESP32 still performs the final
@@ -265,10 +278,18 @@ def main(argv=None):
     parser.add_argument("--soil-threshold", type=float, default=30.0)
     parser.add_argument("--light-threshold", type=float, default=30.0)
     parser.add_argument("--water-sec", type=int, default=8)
-    parser.add_argument("--light-sec", type=int, default=45)
+    parser.add_argument("--light-sec", type=int, default=20)
     parser.add_argument("--test-advice", choices=("water", "light_on", "idle"),
                         default="", help="send one fixed advice after first report")
     parser.add_argument("--test-duration", type=int, default=8)
+    parser.add_argument("--ai-advice", action="store_true",
+                        help="ask DeepSeek (tools/pi_advisor) for advice on each report; "
+                             "falls back to the conservative heuristic on AI failure. "
+                             "Key/model come from SPACEFARM_AI_* env vars.")
+    parser.add_argument("--plants-json",
+                        default=os.environ.get("SPACEFARM_PLANTS_JSON", ""),
+                        help="path to plants.json for plant thresholds (optional, "
+                             "improves AI prompt quality)")
     args = parser.parse_args(argv)
 
     _install_sigpipe_guard()
@@ -279,12 +300,9 @@ def main(argv=None):
         raise SystemExit("pyserial not installed: pip install pyserial")
 
     def on_report(report):
+        # Dashboard forwarding happens in the main loop so it can merge the active
+        # AI advice (reason / signals / duration / breeding) into the payload.
         print("[GW] report:", report)
-        if args.dashboard:
-            try:
-                _post_json(args.dashboard, _report_to_dashboard_state(report))
-            except Exception as e:  # dashboard down must not stall the gateway
-                print("[GW] dashboard forward failed:", e)
 
     def on_pong(_pong):
         pass  # liveness only; nothing to do
@@ -295,6 +313,20 @@ def main(argv=None):
         on_report=on_report,
         on_pong=on_pong,
     )
+
+    advisor = None
+    pi_advisor = None
+    if args.ai_advice:
+        import pi_advisor  # noqa: F811  (stdlib-only DeepSeek advisor)
+        advisor = pi_advisor.DeepSeekAdvisor()
+        print("[GW] AI advice enabled (DeepSeek):",
+              "configured" if advisor.configured()
+              else "NOT configured -> heuristic fallback")
+
+    # Last AI advice, merged into the dashboard payload so the AI panel reflects the
+    # real decision (reason / signals / breeding), not just the report.
+    last_advice = {"primary": "idle", "duration": 0, "signals": [], "note": "", "breeding_observation": ""}
+    active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
 
     ser = serial.Serial(args.port, args.baud, timeout=0.2)
     print("[GW] gateway up on %s @ %d" % (args.port, args.baud))
@@ -324,6 +356,22 @@ def main(argv=None):
                         "note": "manual UART test",
                     }
                     args.test_advice = ""  # send once
+                elif advisor is not None:
+                    # ① DeepSeek (the smart brain on the Pi)
+                    plant_info = (
+                        pi_advisor.load_plant_info(msg.get("plant", ""), args.plants_json)
+                        if args.plants_json else None
+                    )
+                    advice = advisor.advise(msg, plant_info)
+                    if advice is None:
+                        # ② fall back to the conservative heuristic
+                        advice = _heuristic_advice_from_report(
+                            msg,
+                            soil_threshold=args.soil_threshold,
+                            light_threshold=args.light_threshold,
+                            water_sec=args.water_sec,
+                            light_sec=args.light_sec,
+                        )
                 elif args.auto_advice:
                     advice = _heuristic_advice_from_report(
                         msg,
@@ -333,24 +381,60 @@ def main(argv=None):
                         light_sec=args.light_sec,
                     )
                 if advice is not None:
+                    last_advice = advice
+                    advised_action = _dashboard_action_from_advice(advice)
+                    advised_duration = int(advice.get("duration", 0) or 0)
+                    if advised_action in {"water", "light"} and advised_duration > 0:
+                        active_action = {
+                            "action": advised_action,
+                            "duration": advised_duration,
+                            "started_at": time.time(),
+                        }
+                    elif advised_action == "idle":
+                        active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
                     try:
                         line = core.make_advice(
                             advice["primary"],
                             advice["duration"],
                             signals=advice.get("signals", []),
                             note=advice.get("note", ""),
+                            breeding_observation=advice.get("breeding_observation", ""),
                         )
                         ser.write(line)
                         print("[GW] advice:", decode_line(line))
                     except (BrokenPipeError, ConnectionResetError, OSError) as e:
                         print("[GW] advice write error:", e)
+                # forward report + active AI decision to the dashboard
+                if args.dashboard:
+                    payload = _report_to_dashboard_state(msg)
+                    now = time.time()
+                    if (
+                        active_action["action"] in {"water", "light"}
+                        and now <= active_action["started_at"] + active_action["duration"]
+                    ):
+                        payload["action"] = active_action["action"]
+                        payload["duration"] = active_action["duration"]
+                        payload["action_started_at"] = active_action["started_at"]
+                    else:
+                        active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
+                        payload["action"] = "idle"
+                        payload["duration"] = 0
+                        payload["action_started_at"] = 0
+                    payload["reason"] = last_advice.get("note", "")
+                    payload["signals"] = [
+                        (s.get("sig") if isinstance(s, dict) else s)
+                        for s in last_advice.get("signals", [])
+                    ]
+                    payload["breeding_observation"] = last_advice.get("breeding_observation", "")
+                    try:
+                        _post_json(args.dashboard, payload)
+                    except Exception as e:
+                        print("[GW] dashboard forward failed:", e)
             for line in core.tick():
                 try:
                     ser.write(line)
                 except (BrokenPipeError, ConnectionResetError, OSError) as e:
                     print("[GW] serial write error:", e)
-            # NOTE (Stage 3): when an advice provider is wired in, call
-            # core.make_advice(...) here and ser.write() it back to the ESP32.
             time.sleep(0.05)
     except KeyboardInterrupt:
         print("\n[GW] stopped")

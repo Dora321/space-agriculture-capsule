@@ -134,6 +134,7 @@ def test_report_to_dashboard_state_translation():
     report = {
         "t": "report", "soil": 40, "light": 55, "temp": 24.0, "hum": 60,
         "plant": "lettuce", "stage": "veg", "day": 5, "action": "water",
+        "duration_sec": 8, "read_count": 11, "action_count": 2, "error_count": 1,
         "online": True, "ai_src": "pi",
     }
     state = gw._report_to_dashboard_state(report)
@@ -143,7 +144,17 @@ def test_report_to_dashboard_state_translation():
     assert state["days"] == 5
     assert state["wifi"] is True
     assert state["ai"] is True
+    assert state["duration"] == 8
+    assert state["read_count"] == 11
+    assert state["action_count"] == 2
+    assert state["error_count"] == 1
     assert state["decision_source"] == "pi"
+
+
+def test_dashboard_action_from_advice_normalizes_primary():
+    assert gw._dashboard_action_from_advice({"primary": "water"}) == "water"
+    assert gw._dashboard_action_from_advice({"primary": "light_on"}) == "light"
+    assert gw._dashboard_action_from_advice({"primary": "idle"}) == "idle"
 
 
 def test_heuristic_advice_waters_when_soil_low():

@@ -3,30 +3,28 @@
 ## 1. 系统总览
 
 ```
-┌──────────────────────────── 太空舱端（ESP32 + MicroPython）────────────────────────────┐
-│                                                                                         │
-│  ┌── SENSE ──────────────┐  ┌── THINK ───────────────┐  ┌── ACT ──────────────────┐    │
-│  │ 🌡️ 土壤 ADC GPIO34   │  │                        │  │ 💧 水泵 继电器 GPIO5    │    │
-│  │ ☀️ 光照 ADC GPIO32   │──▶│ 🤖 云端 AI (DeepSeek) │──▶│ 💡 补光灯 继电器 GPIO18 │    │
-│  │ 🌡️ 温湿 DHT11 GPIO4 │  │ 📋 本地规则引擎       │  │ 🌈 WS2812 GPIO26       │    │
-│  │ 🔢 拨码 ×3 位        │  │                        │  │                        │    │
-│  └───────────────────────┘  └────────────────────────┘  └────────────────────────┘    │
-│          │                           │                          │                       │
-│          ▼                           ▼                          ▼                       │
-│  ┌── OLED SH1106 ─────────── Decision Plane Signals ─── Action Plane ──────────┐       │
-│  │  三页轮播（传感器/生长/系统）  WS2812 12 种信号动画    水泵+补光灯执行   │       │
-│  └──────────────────────────────────────────────────────────────────────────────┘       │
-└───────────────────────────────────────│─────────────────────────────────────────────────┘
-                                        │ WiFi · HTTP POST
-                                        ▼
-                        ┌── 地面遥测站（PC / 云服务器）──────────────┐
-                        │  📊 Web 实时大屏 (port 8790)              │
-                        │  🤖 AI 代理中转 (port 8787)              │
-                        │  单向接收 · 无反向控制通道               │
-                        └───────────────────────────────────────────┘
+┌──────────────── 太空舱端 ESP32（飞控 / 只要有电就跑）────────────────┐
+│  ┌── SENSE ───────────┐  ┌── THINK ───────────────┐  ┌── ACT ────────────┐ │
+│  │ 🌡️ 土壤 ADC GPIO34 │  │ 📋 本地规则引擎(兜底)  │  │ 💧 水泵 GPIO5      │ │
+│  │ ☀️ 光照 ADC GPIO32 │─▶│ 📡 采纳树莓派 advice   │─▶│ 💡 补光灯 GPIO18   │ │
+│  │ 🌡️ 温湿 DHT11 GPIO4│  │   (在线优先, 过安全门) │  │ 🌈 WS2812 GPIO26   │ │
+│  │ 🔢 旋钮选作物       │  │                        │  │                    │ │
+│  └────────────────────┘  └────────────────────────┘  └────────────────────┘ │
+│      OLED 三页轮播 + WS2812 12 种信号动画（Decision Plane / Action Plane）    │
+└───────────────────────────────────│─────────────────────────────────────────┘
+                                     │ UART2 115200 · JSON-over-Line
+                                     │ ↑ report/pong   ↓ ping/advice
+            ┌────────────────────────▼──────── 树莓派（载荷计算机）──────────┐
+            │  🔌 serial_gateway        🤖 DeepSeek (pi_advisor)            │
+            │  收 report · 调 AI 回 advice · 转发大屏 · 负责联网/AI          │
+            └────────────────────────│──────────────────────────────────────┘
+                                     │ HTTP POST（树莓派联网）
+            ┌────────────────────────▼──────── 云端地面站 ──────────────────┐
+            │  📊 Web 实时大屏 (port 8790)   单向接收 · 无反向控制通道       │
+            └───────────────────────────────────────────────────────────────┘
 ```
 
-**自治边界（单 ESP32 模式）**：太空舱端所有模块（含 AI 在线/离线两种模式）均独立运行，不依赖地面实时指令。地面遥测站仅做被动监控，单向接收数据，不向 ESP32 下发控制命令。
+**自治边界**：ESP32 保留传感器、执行器、本地规则和安全护栏，断网断树莓派也能种活作物。树莓派承担联网、大屏、AI——挂了只是变笨/看不到。大屏只读，不向 ESP32 下发控制命令。AI（DeepSeek）跑在树莓派侧（见 §4 三层降级、§9.4）。
 
 ### 1.1 树莓派双层 UART 模式（2026-05-30 实机路线）
 
@@ -217,25 +215,28 @@ loop_runtime.run(
 
 ## 4. 决策引擎
 
-### 4.1 双引擎架构
+> **2026-05-30 重构**：云 AI（DeepSeek）已从 ESP32 移到树莓派侧（`tools/pi_advisor.py`）。
+> ESP32 上不再有 `_should_request_ai` / `AI_*_DELTA` / `AI_MIN_FREE_MEM` / TLS 内存门控——
+> 这些随 `ai_client.py` 一起删除。下面的 4.1 改为"三层降级"。
+
+### 4.1 三层降级架构
+
+决策从聪明到可靠分三层，上层挂了下层接住：
 
 ```
-         ┌──────────────┐
-         │ make_decision │
-         └──────┬───────┘
-                │
-    1. 始终计算本地规则（local_fallback_decision）
-                │
-    2. _should_request_ai 检查三个触发条件
-       ├── 阈值事件（土壤/光照/温度越界）
-       ├── 传感器变化量 > AI_*_DELTA
-       └── 周期复核（距上次 AI 请求 > AI_MIN_REQUEST_INTERVAL）
-                │
-    3. AI 允许时，额外检查 free heap ≥ AI_MIN_FREE_MEM
-       └── 使用代理时跳过 heap 检查（代理走 HTTP，无 TLS 开销）
-                │
-    4. AI 成功 → 返回 AI 决策；AI 失败 → 返回本地规则结果
+① DeepSeek（树莓派 tools/pi_advisor.py，serial_gateway --ai-advice 调用）
+      └ 用 ESP32 report 建 prompt → 调 DeepSeek → advice 经 UART 回 ESP32
+        ↓ 超时 / 没网 / 没 key
+② 树莓派阈值规则（serial_gateway._heuristic_advice_from_report）
+        ↓ UART 断 / 树莓派没了
+③ ESP32 本地规则（utils.local_fallback_decision，板上常驻兜底）
+
+ESP32 侧 main.make_decision：
+    1. _take_pi_decision()：有在线 Pi advice 则经 _guard_pi_decision 安全门后优先采用
+    2. 否则 decision.make_decision() → local_fallback_decision（②/① 不可达时的 ③）
 ```
+
+ESP32 收到的每条 Pi advice 仍要过本地安全护栏（温度/时长）才会驱动执行器——Pi 只是建议者。
 
 ### 4.2 本地决策优先级
 
@@ -379,8 +380,8 @@ while time.ticks_diff(time.ticks_ms(), _t0) < 900:
 
 | 安全规则 | 常量 | 默认值 |
 |---------|------|-------|
-| 水泵单次最长运行 | `PUMP_MAX_RUN_SEC` | 60s |
-| 补光灯单次最长运行 | `LIGHT_MAX_RUN_SEC` | 120s |
+| 水泵单次最长运行 | `PUMP_MAX_RUN_SEC` | 20s |
+| 补光灯单次最长运行 | `LIGHT_MAX_RUN_SEC` | 20s |
 | 动作最小间隔 | `MIN_ACTION_INTERVAL` | 120s |
 | 每小时最大动作次数 | `MAX_ACTIONS_PER_HOUR` | 12 |
 | 温度安全护栏 | `TEMP_HIGH_C` / `TEMP_LOW_C` | 35℃ / 8℃ |
@@ -398,9 +399,9 @@ while time.ticks_diff(time.ticks_ms(), _t0) < 900:
 ```
 传感器故障 → 自动切安全值 → 继续运行
 执行器运行中 → 跳过新动作 → 避免叠加
-AI 超时/失败 → 本地规则兜底 → 不中断控制
-WiFi 断联 → 本地规则全自治 → 恢复后自动重连
-堆内存不足 → 跳过 AI 请求 → 避免 TLS OOM
+DeepSeek 超时/失败 → 树莓派阈值规则兜底 → 仍有 advice
+树莓派/UART 断联 → ESP32 本地规则全自治 → 恢复后继续采纳 advice
+Pi advice 过期 → 丢弃 → 回到本地规则
 看门狗超时 → 硬件重启 → 自动恢复运行
 ```
 
@@ -410,21 +411,16 @@ WiFi 断联 → 本地规则全自治 → 恢复后自动重连
 
 ### 8.1 数据流
 
-单 ESP32 / WiFi 模式：
-
-```
-ESP32 ──HTTP POST──▶ dashboard_server.py ──HTTP GET──▶ 浏览器
-         (telemetry.py)    (port 8790)         (contest-demo-dashboard.html)
-```
-
-树莓派 UART 双层模式：
-
 ```
 ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ dashboard_server.py ──HTTP GET──▶ 浏览器
-                            (树莓派)             (port 8790)
+                            (树莓派)             (port 8790)         (contest-demo-dashboard.html)
 ```
 
-双层模式下，ESP32 的 `wifi=false` 是预期状态；树莓派才是联网节点。
+ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派网关收到 `report` 后转发 `/api/state`。ESP32 的 `wifi=false` 是预期状态——树莓派才是联网节点。OLED 第三页也切换为 Pi/UART 语义：`PI:OK AI:PI` 表示树莓派链路在线，`PI:OFF AI:LOCAL` 表示树莓派离线、ESP32 本地规则自治。
+
+**网关转发合并 AI 决策（2026-05-31）**：`serial_gateway` 转发大屏时，把当前 AI advice 的 `reason`/`signals`/`duration`/`breeding_observation` 合并进 payload，否则大屏的 AI 诊断面板只有 report、没有决策细节。DeepSeek 的 `reason`/`breeding_observation` 由 `pi_advisor.SYSTEM_PROMPT` 要求输出简体中文。
+
+**地面站大屏 `deliverables/groundstation.html`（2026-05-31）**：retro-futuristic 航天控制台风格，轮询 `/api/state`，`mapState()` 把扁平接口映射成嵌套展示结构（作物/传感器/AI/灯条/执行器/育种团队）。已顶替云端 dashboard_server 的首页 HTML（旧 `contest-demo-dashboard.html` 备份保留）。
 
 ### 8.2 遥测 Payload
 
@@ -477,23 +473,28 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 - `_validate_state` 白名单校验 + 范围钳位 + signals 过滤
 - 超 120s 无数据标记为 stale，大屏自动切 DEMO 模式
 
-### 9.2 ai_proxy.py
+### 9.2 ai_proxy.py（legacy）
 
-- 端口 8787，ESP32 发 HTTP（非 HTTPS）到此代理
-- 代理转发 HTTPS 到 DeepSeek/OpenAI，避免 ESP32 TLS 内存压力
-- `_validate_decision` 白名单校验 action + signals + 截断 reason/observation
-- nutrient 动作静默 remap 为 idle
+- 端口 8787，HTTP→DeepSeek 的独立中转。早期供 ESP32 直发明文请求、代理替它扛 HTTPS。
+- 2026-05-30 重构后 ESP32 不再调 AI，网关直接调 DeepSeek（见 9.4），此代理转为可选/历史工具。
+- `_validate_decision` 白名单校验 action + signals + 截断 reason/observation；nutrient 静默 remap 为 idle。
 
 ### 9.3 serial_gateway.py
 
 - 运行在树莓派，连接 `/dev/serial0`，默认 `115200 8N1`
 - 收 ESP32 `report`，转为 dashboard `/api/state`
 - 每 10 秒发送 `ping`，ESP32 自动返回 `pong`
-- `--auto-advice`：根据土壤/光照阈值生成保守建议
+- **`--ai-advice`**：收到 report 后调 DeepSeek（经 9.4 的 `pi_advisor`）→ advice 回 ESP32；AI 失败自动回退 `--auto-advice` 启发式
+- `--auto-advice`：根据土壤/光照阈值生成保守建议（也是 `--ai-advice` 的本地兜底）
 - `--test-advice water --test-duration 8`：收到首条 report 后只下发一次固定建议，用于验收“树莓派能让 ESP32 执行动作”
-- `--dashboard` 默认值取自环境变量 `SPACEFARM_DASHBOARD`，以便 URL 通过环境而非命令行传入（规避 openclaw 看门狗对 `board` 子串的误杀，见 §1.2 与 DEVLOG #41）
+- `--dashboard` 默认取自环境变量 `SPACEFARM_DASHBOARD`（规避 openclaw 看门狗对 `board` 子串的误杀，见 §1.2 与 DEVLOG #41）
 - 已做成开机自启服务 `spacefarm-gateway.service`（实机验收通过）
-- 后续阶段三：把 AI 决策、SQLite、视觉模块接入此网关侧
+
+### 9.4 pi_advisor.py（DeepSeek 大脑，2026-05-30 从 ESP32 搬来）
+
+- 树莓派侧的云 AI：`build_messages(report)` 建 prompt（镜像原 `ai_client.SYSTEM_PROMPT`）→ `DeepSeekAdvisor.advise()` 调 DeepSeek → `validate_decision` 归一为 advice
+- key/model 走环境变量 `SPACEFARM_AI_API_KEY` / `SPACEFARM_AI_MODEL`（不进 argv：既避看门狗，也不让 key 出现在 `ps`）
+- 纯 stdlib，HTTP 依赖注入，`tests/test_pi_advisor.py` 无网络可测；信号白名单与 `uart_link.VALID_SIGNALS` 跨端一致
 
 ---
 
@@ -503,15 +504,15 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 |---------|-------|---------|
 | test_config.py | 22 | 植物数据库完整性、安全常量、拨码编码 |
 | test_local_decision.py | 24 | 本地决策优先级、温度安全、Decision Plane 信号 |
-| test_ai_parse.py | 15 | AI 关键词解析、light/nutrient 动作、signals 默认值 |
-| test_runtime_edges.py | 23 | 硬件 mock、执行动作分支、WS2812、AI 门控、遥测、Pi advice |
+| test_runtime_edges.py | 16 | 硬件 mock、执行动作分支、WS2812、Pi advice、demo |
+| test_pi_advisor.py | 11 | 树莓派 DeepSeek advisor：prompt/校验/HTTP注入/降级/信号白名单跨端一致 |
 | test_dashboard_server.py | 7 | 遥测校验、nutrient remap、signals/breeding 透传 |
 | test_utils.py | 9 | 时间格式化、移动平均、平滑值 |
 | test_docs_quality.py | 2 | Markdown UTF-8 完整性、链接有效性 |
 | test_loop_runtime.py | 3 | 主循环周期、传感器故障降级、UART poll/report 注入 |
 | test_serial_gateway.py | 18 | 树莓派串口网关、心跳、advice、跨端协议兼容 |
 | test_uart_link.py | 21 | ESP32 UART 编解码、ping/pong、advice 转换、在线超时 |
-| **合计** | **144** | |
+| **合计** | **133** | |
 
 ---
 
