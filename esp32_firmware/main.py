@@ -211,6 +211,8 @@ def _select_day():
     )
     state.manual_day = chosen
     state.days_since_planting = chosen
+    # 立即按所选天数重算生长阶段，避免首屏沿用开机时 Day0 的苗期（否则会先显示"苗期100%"再更新）
+    state.growth_stage = _cfg.get_growth_stage(state.plant_info, chosen)
     print(f"[Menu] Day selected: {chosen}")
 
 

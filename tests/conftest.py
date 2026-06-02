@@ -29,11 +29,15 @@ class MockPin:
 
 class MockADC:
     ATTN_11DB = 3
+    WIDTH_12BIT = 3
 
     def __init__(self, pin=None):
         self._value = 2500
 
     def atten(self, *args):
+        pass
+
+    def width(self, *args):
         pass
 
     def read(self):

@@ -74,6 +74,11 @@ class AnalogKeypad:
         self._debounce_ms = 30
         self._pending_event = self.NONE
         self._value = 0
+        # 稳定门：候选键需连续稳定 >= _stable_ms 才算数，滤掉红/黄键按下/松开
+        # 途中扫过绿(OK)/蓝(BACK)带的瞬态采样（< 一次轮询间隔即被丢弃）
+        self._cand = self.NONE
+        self._cand_since = 0
+        self._stable_ms = 30
         # nav_held 专用：与 _event() 状态完全独立
         self._hold_button = self.NONE
         self._hold_start_ms = 0
@@ -102,30 +107,47 @@ class AnalogKeypad:
         return self.NONE
 
     def _event(self):
-        """Return a button name on press-down edge (debounced), or NONE."""
+        """Return a button name on a *stable* press-down edge, or NONE.
+
+        稳定门 + 起跳门，专治模拟键盘（电阻梯）瞬态误触发：
+        - 候选键必须连续稳定 >= _stable_ms 才算事件，滤掉红/黄键按下/松开途中
+          电压扫过绿(OK)/蓝(BACK)带的瞬态采样（仅出现 ≤1 拍轮询）；
+        - OK/BACK 仅在“上一个稳定键是空闲”时才接受，挡掉从导航键松手一路
+          滑下来扫过绿/蓝带的假按（真正的确认/返回一定从空闲起跳）。
+        """
         button = self._read_button()
         now = time.ticks_ms()
 
+        # 候选变化 → 重置稳定计时，本拍先不发事件
+        if button != self._cand:
+            self._cand = button
+            self._cand_since = now
+            return self.NONE
+
         if button is self.NONE:
-            # Button released — clear state immediately for fast re-press
+            # 稳定的空闲：清状态，允许下次快速重按
             self._last_button = self.NONE
             self._press_start = 0
             return self.NONE
 
-        if self._last_button is self.NONE:
-            # New press after release
-            if time.ticks_diff(now, self._last_event_ms) > self._debounce_ms:
-                self._last_button = button
-                self._last_event_ms = now
-                self._press_start = now
-                return button
-        elif button != self._last_button:
-            # Different button pressed without release — treat as new press
-            if time.ticks_diff(now, self._last_event_ms) > self._debounce_ms:
-                self._last_button = button
-                self._last_event_ms = now
-                self._press_start = now
-                return button
+        # 候选未稳定够时长 → 当作瞬态丢弃
+        if time.ticks_diff(now, self._cand_since) < self._stable_ms:
+            return self.NONE
+
+        # 已稳定：同一键只报一次
+        if self._last_button is button:
+            return self.NONE
+
+        # 起跳门：OK/BACK 必须从空闲起跳；否则是松手途中扫过绿/蓝带的假按。
+        # 不更新 _last_button，等真正回到 idle 再清，期间持续屏蔽。
+        if button in (self.OK, self.BACK) and self._last_button is not self.NONE:
+            return self.NONE
+
+        if time.ticks_diff(now, self._last_event_ms) > self._debounce_ms:
+            self._last_button = button
+            self._last_event_ms = now
+            self._press_start = now
+            return button
         return self.NONE
 
     # ── Public API (compatible with ButtonPad) ──────────────────

@@ -134,6 +134,10 @@ class Menu:
                     )
                     state.manual_day = new_day
                     state.days_since_planting = new_day
+                    # 立即按新天数重算阶段，避免退出菜单首屏沿用旧阶段（否则会闪"苗期100%"再更新）
+                    if plant_info:
+                        import config as _cfg
+                        state.growth_stage = _cfg.get_growth_stage(plant_info, new_day)
                     self._display.show_complete_menu("Menu", items, idx)
                 elif idx == 2:  # Manual Ctrl
                     self._run_manual_control(state)
