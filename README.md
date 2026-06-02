@@ -1,12 +1,14 @@
-# 🚀 太空农业智能种植舱
+# 🌱《2035 · 我是太空育种师》
 
-**Space Agriculture Smart Planting Cabin**
+> **作品名** ｜ 科创赛主题《2035年的我》—— 三名队员扮演 2035 年太空育种站的农业育种专家 / 总工程师 / 育种站长
+>
+> **系统名:太空农业智能育种舱**（Space Breeding Cabin 2035）
 
-> 基于 ESP32 + 树莓派/云端 AI 的全自动植物养护 IoT 系统 | 8 种作物 · 双层自治 · 四级测试体系
+> 一座"在轨太空育种验证舱"的地面原型：ESP32 飞控 + 树莓派调用 DeepSeek AI，让育种与选种直接在舱里完成、多快好省地为全人类选育良种 | 太空育种 · 加快反馈周期 · 双层自治 · 8 种作物
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-133%2F133%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-145%2F145%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5140-orange)](#)
 

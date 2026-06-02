@@ -1,4 +1,4 @@
-# 太空农业智能种植舱 · KT板展示设计（最新版）
+# 《2035 · 我是太空育种师》· KT板展示设计（最新版）
 
 > 版本：2026-05-19  
 > 依据：当前 `esp32_firmware/`、`tools/dashboard_server.py`、`deliverables/contest-demo-dashboard.html` 的实际功能  
@@ -47,11 +47,11 @@
 
 主标题：
 
-> 太空农业智能种植舱
+> 2035 · 我是太空育种师
 
 英文副标题：
 
-> Space Agriculture Smart Planting Cabin
+> I AM A SPACE BREEDER · 2035 ｜ 系统名：太空农业智能育种舱
 
 副标题：
 
