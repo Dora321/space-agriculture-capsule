@@ -150,7 +150,14 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=int(os.getenv("DASHBOARD_PORT", "8790")))
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    class _Server(ThreadingHTTPServer):
+        # 默认 backlog 仅 5，浏览器高频轮询 + 网关 POST 并发突发时会丢连接，
+        # 经公网入口层放大为 502 → 网页"模拟/在线"横跳。提高 backlog 从源头减少。
+        request_queue_size = 128
+        daemon_threads = True
+        allow_reuse_address = True
+
+    server = _Server((args.host, args.port), Handler)
     print(f"[Dashboard] Open http://127.0.0.1:{args.port}/")
     print(f"[Dashboard] ESP32 POST endpoint: http://<this-computer-ip>:{args.port}/api/state")
     server.serve_forever()

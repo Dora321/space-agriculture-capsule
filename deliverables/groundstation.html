@@ -579,17 +579,34 @@ function mapState(d){
   };
 }
 
+// 容错状态：偶发 502/超时不立刻切模拟，沿用上一帧在线数据，避免"模拟/在线"反复横跳
+let _lastLive = null;          // 最近一帧成功的在线数据（mapState 结果）
+let _failStreak = 0;           // 连续失败次数
+const FAIL_TOLERANCE = 3;      // 连续失败 < 3 拍（约 9s）时维持上一帧在线，不切模拟
+function _uplink(html){ document.getElementById("uplink").innerHTML=html; }
 async function fetchTelemetry(){
   if(USE_MOCK) return mockState();
   try{
     const res=await fetch(API_BASE+"/api/state?t="+Date.now(),{cache:"no-store"});
-    const d=await res.json();
-    if(d && d.live){ document.getElementById("uplink").innerHTML='<span class="pulse-dot"></span>1.3s'; return mapState(d); }
-    document.getElementById("uplink").innerHTML='<span class="pulse-dot" style="background:var(--amber)"></span>演示';
-    return mockState("树莓派遥测超时，已切换演示模式");
-  }catch(e){ console.warn("遥测获取失败，回退模拟",e); }
-  document.getElementById("uplink").innerHTML='<span class="pulse-dot" style="background:var(--amber)"></span>模拟';
-  return mockState("无法获取 /api/state，已切换演示模式");
+    if(res.ok){
+      const d=await res.json();
+      if(d && d.live){
+        _failStreak=0; _lastLive=mapState(d);
+        _uplink('<span class="pulse-dot"></span>1.3s');
+        return _lastLive;
+      }
+    }
+  }catch(e){ console.warn("遥测获取失败",e); }
+  // 本拍失败/非 live（502、超时、解析失败、d.live=false）
+  _failStreak++;
+  if(_lastLive && _failStreak < FAIL_TOLERANCE){
+    // 偶发抖动：沿用上一帧在线数据，UI 不横跳，仅提示重连
+    _uplink('<span class="pulse-dot" style="background:var(--amber)"></span>重连…');
+    return _lastLive;
+  }
+  // 连续失败达阈值 → 才真正切模拟
+  _uplink('<span class="pulse-dot" style="background:var(--amber)"></span>模拟');
+  return mockState("树莓派遥测连续中断，已切换演示模式");
 }
 
 /* ---- 信号渲染 ---- */
