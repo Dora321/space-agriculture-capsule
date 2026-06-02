@@ -206,6 +206,49 @@ def _dashboard_action_from_advice(advice):
     return "idle"
 
 
+# 传感器/作物状态"显著变化"阈值——超过即立刻请求 AI（不受最小间隔限制）
+_AI_SOIL_DELTA = 8     # 土壤湿度 %
+_AI_LIGHT_DELTA = 10   # 光照 %
+_AI_TEMP_DELTA = 2.0   # 温度 ℃
+_AI_HUM_DELTA = 10     # 湿度 %
+
+
+def _should_consult_ai(report, snap, last_t, now, min_interval):
+    """是否该为本条 report 请求 AI（节流）。
+
+    触发条件（满足其一即问）：
+      · 首次（还没问过）；
+      · 作物/阶段/天数变化；
+      · 任一传感器显著变化（超过 _AI_*_DELTA）；
+      · 距上次 AI >= min_interval（心跳兜底，min_interval<=0 表示每报必问）。
+    其余稳定期跳过 → 不发 advice，ESP32 用本地规则兜底（两层降级），省 DeepSeek 调用。
+    """
+    if snap is None or last_t is None:
+        return True
+    if min_interval <= 0:
+        return True
+    for k in ("plant", "stage", "day"):
+        if report.get(k) != snap.get(k):
+            return True
+    try:
+        if abs(int(report.get("soil", 0)) - int(snap.get("soil", 0))) >= _AI_SOIL_DELTA:
+            return True
+        if abs(int(report.get("light", 0)) - int(snap.get("light", 0))) >= _AI_LIGHT_DELTA:
+            return True
+        if abs(float(report.get("temp", 0)) - float(snap.get("temp", 0))) >= _AI_TEMP_DELTA:
+            return True
+        if abs(int(report.get("hum", 0)) - int(snap.get("hum", 0))) >= _AI_HUM_DELTA:
+            return True
+    except (TypeError, ValueError):
+        return True  # 数据异常时宁可问一次
+    return now - last_t >= min_interval
+
+
+def _ai_snapshot(report):
+    """记录本次请求 AI 时的关键字段，供下次变化比对。"""
+    return {k: report.get(k) for k in ("plant", "stage", "day", "soil", "light", "temp", "hum")}
+
+
 def _post_json(url, payload, timeout=2):
     import urllib.request
     data = json.dumps(payload).encode("utf-8")
@@ -246,6 +289,10 @@ def main(argv=None):
                         default=os.environ.get("SPACEFARM_PLANTS_JSON", ""),
                         help="path to plants.json for plant thresholds (optional, "
                              "improves AI prompt quality)")
+    parser.add_argument("--ai-min-interval", type=float,
+                        default=float(os.environ.get("SPACEFARM_AI_MIN_INTERVAL", "300")),
+                        help="稳定期 AI 节流：无显著变化时两次 DeepSeek 调用的最小间隔(秒)。"
+                             "传感器/作物状态显著变化会立即触发，不受此限。默认 300s。设 0 为每报必问。")
     args = parser.parse_args(argv)
 
     _install_sigpipe_guard()
@@ -283,6 +330,9 @@ def main(argv=None):
     # real decision (reason / signals / breeding), not just the report.
     last_advice = {"primary": "idle", "duration": 0, "signals": [], "note": "", "breeding_observation": ""}
     active_action = {"action": "idle", "duration": 0, "started_at": 0.0}
+    # AI 节流追踪：上次请求 DeepSeek 的时刻与当时的状态快照
+    last_ai_call_t = None
+    last_ai_snapshot = None
 
     ser = serial.Serial(args.port, args.baud, timeout=0.2)
     print("[GW] gateway up on %s @ %d" % (args.port, args.baud))
@@ -316,11 +366,18 @@ def main(argv=None):
                     # DeepSeek on the Pi. On failure, advice stays None and no
                     # advice is sent — the ESP32 falls back to its resident local
                     # rule engine (two-layer degradation: DeepSeek → ESP32 local).
-                    plant_info = (
-                        pi_advisor.load_plant_info(msg.get("plant", ""), args.plants_json)
-                        if args.plants_json else None
-                    )
-                    advice = advisor.advise(msg, plant_info)
+                    # 节流：稳定期跳过 AI（不发 advice，ESP32 走本地规则），省调用。
+                    if _should_consult_ai(msg, last_ai_snapshot, last_ai_call_t,
+                                          time.monotonic(), args.ai_min_interval):
+                        plant_info = (
+                            pi_advisor.load_plant_info(msg.get("plant", ""), args.plants_json)
+                            if args.plants_json else None
+                        )
+                        advice = advisor.advise(msg, plant_info)
+                        last_ai_call_t = time.monotonic()
+                        last_ai_snapshot = _ai_snapshot(msg)
+                    else:
+                        print("[GW] AI throttled (stable); ESP32 uses local rules")
                 if advice is not None:
                     last_advice = advice
                     advised_action = _dashboard_action_from_advice(advice)

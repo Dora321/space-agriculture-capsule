@@ -216,3 +216,50 @@ def test_pi_ping_decodes_and_esp_pongs():
 
 def test_signal_whitelists_match_between_sides():
     assert set(gw.VALID_SIGNALS) == set(uart_link.VALID_SIGNALS)
+
+
+# --------------------------------------------------------------------------
+# AI 节流 _should_consult_ai
+# --------------------------------------------------------------------------
+
+_BASE = {"plant": "生菜", "stage": "vegetative", "day": 10,
+         "soil": 40, "light": 50, "temp": 24, "hum": 60}
+
+
+def test_ai_throttle_first_call_always_consults():
+    assert gw._should_consult_ai(_BASE, None, None, now=0.0, min_interval=300) is True
+
+
+def test_ai_throttle_zero_interval_always_consults():
+    snap = gw._ai_snapshot(_BASE)
+    assert gw._should_consult_ai(_BASE, snap, 0.0, now=1.0, min_interval=0) is True
+
+
+def test_ai_throttle_stable_within_interval_skips():
+    snap = gw._ai_snapshot(_BASE)
+    # 完全没变 + 距上次仅 60s < 300s → 跳过
+    assert gw._should_consult_ai(dict(_BASE), snap, 0.0, now=60.0, min_interval=300) is False
+
+
+def test_ai_throttle_heartbeat_after_interval():
+    snap = gw._ai_snapshot(_BASE)
+    # 没变化，但已超过 min_interval → 心跳兜底，必问
+    assert gw._should_consult_ai(dict(_BASE), snap, 0.0, now=301.0, min_interval=300) is True
+
+
+def test_ai_throttle_significant_sensor_change_consults():
+    snap = gw._ai_snapshot(_BASE)
+    changed = dict(_BASE, soil=_BASE["soil"] - gw._AI_SOIL_DELTA)  # 土壤跌 8%
+    assert gw._should_consult_ai(changed, snap, 0.0, now=10.0, min_interval=300) is True
+
+
+def test_ai_throttle_minor_change_within_interval_skips():
+    snap = gw._ai_snapshot(_BASE)
+    minor = dict(_BASE, soil=_BASE["soil"] - 1, temp=_BASE["temp"] + 1)  # 小波动
+    assert gw._should_consult_ai(minor, snap, 0.0, now=60.0, min_interval=300) is False
+
+
+def test_ai_throttle_stage_change_consults():
+    snap = gw._ai_snapshot(_BASE)
+    nxt = dict(_BASE, stage="harvesting", day=26)
+    assert gw._should_consult_ai(nxt, snap, 0.0, now=60.0, min_interval=300) is True
