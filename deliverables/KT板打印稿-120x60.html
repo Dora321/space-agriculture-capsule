@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>太空农业智能种植舱 KT板打印稿 120x60</title>
+  <style>
+    @page {
+      size: 1200mm 600mm;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #d7e2dc;
+      color: #10201c;
+      font-family: "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }
+
+    .board {
+      width: 1200mm;
+      height: 600mm;
+      margin: 0 auto;
+      padding: 22mm;
+      display: grid;
+      grid-template-columns: 316mm 1fr 282mm;
+      grid-template-rows: 100%;
+      gap: 16mm;
+      background:
+        radial-gradient(circle at 8% 8%, rgba(88, 199, 232, .18) 0 42mm, transparent 43mm),
+        radial-gradient(circle at 92% 12%, rgba(85, 217, 141, .16) 0 48mm, transparent 49mm),
+        linear-gradient(135deg, #07110f 0%, #10201c 39%, #f4fbf7 39.2%, #f4fbf7 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.42) 0 .8mm, transparent .9mm),
+        radial-gradient(circle, rgba(255,255,255,.25) 0 .55mm, transparent .65mm);
+      background-size: 74mm 58mm, 112mm 86mm;
+      opacity: .24;
+      pointer-events: none;
+    }
+
+    .left,
+    .center,
+    .right {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+    }
+
+    .left {
+      color: #edf7f3;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12mm;
+    }
+
+    .kicker {
+      margin: 0 0 9mm;
+      font-size: 10mm;
+      line-height: 1;
+      letter-spacing: 0;
+      color: #9fe7c3;
+      font-weight: 900;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 35mm;
+      line-height: 1.03;
+      letter-spacing: 0;
+      font-weight: 900;
+    }
+
+    .en {
+      margin: 8mm 0 0;
+      font-size: 8.6mm;
+      line-height: 1.1;
+      color: #a8c3ba;
+      font-weight: 800;
+    }
+
+    .claim {
+      margin: 14mm 0 0;
+      padding-left: 7mm;
+      border-left: 2mm solid #55d98d;
+      font-size: 12mm;
+      line-height: 1.28;
+      font-weight: 900;
+      color: #f2fff8;
+    }
+
+    .intro {
+      margin: 0;
+      padding: 9mm;
+      border-radius: 8mm;
+      background: rgba(237,247,243,.08);
+      border: .7mm solid rgba(168,195,186,.28);
+      font-size: 6.2mm;
+      line-height: 1.55;
+      color: #d9f1e8;
+      font-weight: 650;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7mm;
+    }
+
+    .metric {
+      padding: 7mm;
+      border-radius: 7mm;
+      background: rgba(7,17,15,.52);
+      border: .8mm solid rgba(88,199,232,.34);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 17mm;
+      line-height: 1;
+      color: #55d98d;
+      font-weight: 900;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 3mm;
+      font-size: 5.3mm;
+      color: #cfe4dd;
+      font-weight: 800;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4mm;
+    }
+
+    .tag {
+      padding: 3.2mm 5.2mm;
+      border-radius: 99mm;
+      background: rgba(85,217,141,.13);
+      border: .55mm solid rgba(85,217,141,.42);
+      color: #dff9ee;
+      font-size: 4.8mm;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .center {
+      display: grid;
+      grid-template-rows: 194mm 181mm 1fr;
+      gap: 13mm;
+    }
+
+    .panel {
+      background: rgba(255,255,255,.96);
+      border: .8mm solid #bdd7ca;
+      border-radius: 8mm;
+      padding: 12mm;
+      box-shadow: 0 4mm 16mm rgba(7,17,15,.08);
+      overflow: hidden;
+    }
+
+    .section-title {
+      margin: 0 0 8mm;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8mm;
+      color: #07110f;
+      font-size: 10.5mm;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .section-title span {
+      font-size: 4.8mm;
+      color: #637a72;
+      font-weight: 800;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 1fr 58mm 1fr;
+      gap: 9mm;
+      height: 150mm;
+    }
+
+    .module {
+      border-radius: 7mm;
+      padding: 8mm;
+      border: .9mm solid;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 6mm;
+      min-width: 0;
+    }
+
+    .module h3 {
+      margin: 0;
+      font-size: 8mm;
+      line-height: 1.06;
+      letter-spacing: 0;
+      font-weight: 900;
+    }
+
+    .module ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 3.2mm;
+      font-size: 4.75mm;
+      line-height: 1.22;
+      font-weight: 750;
+    }
+
+    .esp {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6mm;
+    }
+
+    .sense {
+      background: #e9e7ff;
+      border-color: #7f77dd;
+      color: #302a78;
+    }
+
+    .think {
+      background: #ffeaf2;
+      border-color: #d4537e;
+      color: #72243e;
+    }
+
+    .act {
+      background: #eaf6df;
+      border-color: #639922;
+      color: #27500a;
+    }
+
+    .safe {
+      background: #fff2dc;
+      border-color: #f2bf5b;
+      color: #654108;
+    }
+
+    .bridge {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 6mm;
+      color: #55746a;
+      font-weight: 900;
+      font-size: 5.2mm;
+      line-height: 1.25;
+    }
+
+    .bridge .arrow {
+      font-size: 24mm;
+      line-height: 1;
+      color: #58c7e8;
+    }
+
+    .pi {
+      background: #e8f8ff;
+      border-color: #58c7e8;
+      color: #07384b;
+    }
+
+    .degrade {
+      margin-top: 9mm;
+      padding: 5mm 7mm;
+      border-radius: 5mm;
+      background: #07110f;
+      color: #edf7f3;
+      font-size: 5.3mm;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7mm;
+    }
+
+    .degrade b {
+      color: #55d98d;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 7mm;
+    }
+
+    .feature {
+      min-height: 124mm;
+      padding: 8mm;
+      border-radius: 7mm;
+      background: #f6fbf8;
+      border: .65mm solid #cfe5d9;
+    }
+
+    .feature .num {
+      width: 12mm;
+      height: 12mm;
+      border-radius: 99mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #07110f;
+      color: #55d98d;
+      font-size: 6mm;
+      font-weight: 900;
+      margin-bottom: 6mm;
+    }
+
+    .feature h3 {
+      margin: 0 0 5mm;
+      font-size: 6.4mm;
+      line-height: 1.12;
+      color: #07110f;
+      font-weight: 900;
+    }
+
+    .feature p {
+      margin: 0;
+      font-size: 4.35mm;
+      line-height: 1.42;
+      color: #36524a;
+      font-weight: 650;
+    }
+
+    .visuals {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 10mm;
+      height: 92mm;
+    }
+
+    .screen {
+      border-radius: 7mm;
+      overflow: hidden;
+      background: #0d1714;
+      border: .8mm solid #153b31;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      min-height: 0;
+    }
+
+    .image-stack {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 7mm;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .caption {
+      margin: 0;
+      color: #4e665e;
+      font-size: 4.7mm;
+      line-height: 1.35;
+      font-weight: 750;
+    }
+
+    .right {
+      display: grid;
+      grid-template-rows: 210mm 185mm 1fr;
+      gap: 13mm;
+    }
+
+    .crop-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+    }
+
+    .crop {
+      padding: 5mm;
+      border-radius: 5mm;
+      background: #f6fbf8;
+      border: .55mm solid #cfe5d9;
+    }
+
+    .crop strong {
+      display: block;
+      font-size: 5.5mm;
+      line-height: 1.1;
+      color: #07110f;
+      font-weight: 900;
+    }
+
+    .crop span {
+      display: block;
+      margin-top: 2.4mm;
+      font-size: 3.9mm;
+      line-height: 1.28;
+      color: #46635b;
+      font-weight: 700;
+    }
+
+    .data-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+    }
+
+    .data {
+      padding: 6mm;
+      min-height: 31mm;
+      border-radius: 5mm;
+      background: #07110f;
+      color: #edf7f3;
+    }
+
+    .data b {
+      display: block;
+      font-size: 9mm;
+      line-height: 1;
+      color: #58c7e8;
+      font-weight: 900;
+    }
+
+    .data span {
+      display: block;
+      margin-top: 2mm;
+      font-size: 4.3mm;
+      line-height: 1.18;
+      font-weight: 750;
+    }
+
+    .team {
+      color: #edf7f3;
+      background: #07110f;
+      border-color: rgba(85,217,141,.42);
+    }
+
+    .team .section-title {
+      color: #edf7f3;
+    }
+
+    .team .section-title span {
+      color: #a8c3ba;
+    }
+
+    .roles {
+      display: grid;
+      gap: 5mm;
+      margin-top: 2mm;
+    }
+
+    .role {
+      padding: 5mm 0;
+      border-bottom: .5mm solid rgba(237,247,243,.16);
+      font-size: 5.3mm;
+      line-height: 1.2;
+      color: #d9f1e8;
+      font-weight: 800;
+    }
+
+    .role b {
+      display: inline-block;
+      min-width: 30mm;
+      color: #55d98d;
+      font-size: 6.5mm;
+    }
+
+    .footer-note {
+      margin-top: 8mm;
+      color: #a8c3ba;
+      font-size: 4.3mm;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+      .board {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <section class="left">
+      <div>
+        <p class="kicker">未来在轨育种验证平台的地面雏形</p>
+        <h1>太空农业<br>智能种植舱</h1>
+        <p class="en">Space Agriculture Smart Planting Cabin</p>
+        <p class="claim">ESP32 舱内飞控 + 树莓派载荷计算机 + DeepSeek 云端决策</p>
+      </div>
+
+      <p class="intro">
+        2035 年，我是一名太空育种站的作物育种师。过去，太空育种要把种子送上天，再带回地面种 5 到 8 代筛选。如果种植、观察和验证本身就发生在太空舱里，育种反馈会更快。这个项目，就是未来“在轨育种验证平台”的地面原型。
+      </p>
+
+      <div class="metrics">
+        <div class="metric"><strong>8</strong><span>种作物参数库</span></div>
+        <div class="metric"><strong>4</strong><span>类环境感知</span></div>
+        <div class="metric"><strong>2</strong><span>类物理执行</span></div>
+        <div class="metric"><strong>133</strong><span>自动化测试 PASS</span></div>
+      </div>
+
+      <div class="tags">
+        <span class="tag">两层自治</span>
+        <span class="tag">自动浇水补光</span>
+        <span class="tag">实时遥测</span>
+        <span class="tag">安全降级</span>
+        <span class="tag">约 ¥140 / 套</span>
+      </div>
+    </section>
+
+    <section class="center">
+      <div class="panel">
+        <h2 class="section-title">系统架构 <span>ESP32 负责活下去，树莓派负责更聪明</span></h2>
+        <div class="architecture">
+          <div>
+            <div class="esp">
+              <div class="module sense">
+                <h3>感知<br>SENSE</h3>
+                <ul>
+                  <li>土壤湿度 ADC</li>
+                  <li>环境光照 ADC</li>
+                  <li>DHT 温湿度</li>
+                  <li>旋转编码器</li>
+                </ul>
+              </div>
+              <div class="module think">
+                <h3>决策<br>THINK</h3>
+                <ul>
+                  <li>本地规则常驻</li>
+                  <li>采纳 Pi advice</li>
+                  <li>先过安全护栏</li>
+                  <li>断联自动兜底</li>
+                </ul>
+              </div>
+              <div class="module act">
+                <h3>执行<br>ACT</h3>
+                <ul>
+                  <li>12V 水泵</li>
+                  <li>12V COB 补光</li>
+                  <li>WS2812 信号灯</li>
+                  <li>OLED 三页显示</li>
+                </ul>
+              </div>
+              <div class="module safe">
+                <h3>安全<br>SAFE</h3>
+                <ul>
+                  <li>动作时长上限</li>
+                  <li>每小时限频</li>
+                  <li>高低温保护</li>
+                  <li>传感器降级</li>
+                </ul>
+              </div>
+            </div>
+            <div class="degrade">两层降级链：<b>DeepSeek 精细判断</b> → <b>ESP32 本地规则保命</b></div>
+          </div>
+          <div class="bridge">
+            <div>UART<br>report / advice</div>
+            <div class="arrow">↔</div>
+            <div>JSON-over-Line<br>115200 baud</div>
+          </div>
+          <div class="module pi">
+            <h3>树莓派载荷计算机</h3>
+            <ul>
+              <li>接收 ESP32 report</li>
+              <li>调用 DeepSeek 生成 advice</li>
+              <li>转发 Web 地面站大屏</li>
+              <li>AI / 网络失败时不下发 advice，ESP32 自动回到本地规则</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="section-title">五大核心亮点 <span>面向太空育种的控制架构</span></h2>
+        <div class="features">
+          <div class="feature">
+            <div class="num">1</div>
+            <h3>深空自治架构</h3>
+            <p>断网时不是停机，而是自动切回 ESP32 本地规则，模拟深空通信延迟下的舱内自治。</p>
+          </div>
+          <div class="feature">
+            <div class="num">2</div>
+            <h3>决策/执行分离</h3>
+            <p>缺水、缺光、高温、缺肥等诊断信号全部广播；物理执行器只响应有硬件支撑的动作。</p>
+          </div>
+          <div class="feature">
+            <div class="num">3</div>
+            <h3>8 种作物库</h3>
+            <p>生菜、小白菜、菠菜、韭菜、番茄、辣椒、黄瓜、茄子，切换后策略自动适配。</p>
+          </div>
+          <div class="feature">
+            <div class="num">4</div>
+            <h3>生长数据闭环</h3>
+            <p>记录环境、阶段、动作、AI 观察，为“哪一株更值得留种”积累时间序列证据。</p>
+          </div>
+          <div class="feature">
+            <div class="num">5</div>
+            <h3>地面站遥测</h3>
+            <p>Web 大屏展示 LIVE 状态、传感器仪表、动作链路、决策原因和育种观察。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="section-title">现场可见证据 <span>实机、OLED 和 Web 大屏同步展示</span></h2>
+        <div class="visuals">
+          <div class="screen">
+            <img src="contest-demo-dashboard-preview.png" alt="Web 地面站大屏预览">
+          </div>
+          <div class="image-stack">
+            <div class="screen">
+              <img src="oled-screenshots/oled-3-page-contact-sheet-clear.png" alt="OLED 三页轮播预览">
+            </div>
+            <p class="caption">OLED 显示传感器、生长阶段和 Pi/UART 状态；Web 大屏显示实时遥测、动作链路、AI 原因和育种观察。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="panel">
+        <h2 class="section-title">8 种作物参数库 <span>叶菜 4 + 果菜 4</span></h2>
+        <div class="crop-grid">
+          <div class="crop"><strong>生菜</strong><span>苗期 / 生长期 / 采收期<br>控水促根，氮肥促叶</span></div>
+          <div class="crop"><strong>小白菜</strong><span>苗期 / 生长期 / 采收期<br>保持湿润，快速采收</span></div>
+          <div class="crop"><strong>菠菜</strong><span>苗期 / 生长期 / 采收期<br>忌积水，稳湿度</span></div>
+          <div class="crop"><strong>韭菜</strong><span>苗期 / 生长期 / 收割后<br>割后追氮，持续再生</span></div>
+          <div class="crop"><strong>番茄</strong><span>苗期 / 营养期 / 花期 / 果期<br>花期控水，果期补钾</span></div>
+          <div class="crop"><strong>辣椒</strong><span>苗期 / 营养期 / 花期 / 果期<br>控水促花，防高温</span></div>
+          <div class="crop"><strong>黄瓜</strong><span>苗期 / 营养期 / 花期 / 果期<br>果期水分连续</span></div>
+          <div class="crop"><strong>茄子</strong><span>苗期 / 营养期 / 花期 / 果期<br>门茄坐住后追肥</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="section-title">可验证数据 <span>评委现场能追问的硬指标</span></h2>
+        <div class="data-list">
+          <div class="data"><b>60s</b><span>默认采样周期</span></div>
+          <div class="data"><b>12</b><span>每小时最多动作</span></div>
+          <div class="data"><b>20s</b><span>单次执行上限</span></div>
+          <div class="data"><b>¥140</b><span>单套硬件成本</span></div>
+          <div class="data"><b>WATER</b><span>水泵物理动作</span></div>
+          <div class="data"><b>LIGHT</b><span>补光物理动作</span></div>
+        </div>
+      </div>
+
+      <div class="panel team">
+        <h2 class="section-title">2035 太空育种站团队 <span>项目关键词</span></h2>
+        <div class="roles">
+          <div class="role"><b>张煦涵</b>太空育种站长</div>
+          <div class="role"><b>陈美伊</b>农业育种专家</div>
+          <div class="role"><b>杨灏辰</b>总工程师</div>
+        </div>
+        <p class="footer-note">
+          ESP32 MicroPython / Raspberry Pi UART / DeepSeek / Web 地面站 / 在轨育种验证
+        </p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
