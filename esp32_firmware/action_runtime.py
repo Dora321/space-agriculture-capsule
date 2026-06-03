@@ -61,7 +61,7 @@ def execute_decision(
         if signals and getattr(config, "WS2812_PLAY_IDLE_ADVISORY", False):
             utils.play_signals(signals)
         if refresh_display is not None:
-            refresh_display(force=True, reset_page=True)
+            refresh_display(force=True)  # 刷新当前页最新数据，不重置页码（否则快速模式下页面每轮被打回第1页）
         return
 
     print(f"[Action] Executing: {action} ({duration}s) Reason: {reason}")
@@ -105,7 +105,7 @@ def execute_decision(
     utils.set_led("green")
     if refresh_display is not None:
         try:
-            refresh_display(force=True, reset_page=True)
+            refresh_display(force=True)  # 刷新当前页最新数据，不重置页码（否则快速模式下页面每轮被打回第1页）
         except Exception as e:
             print("[Action] refresh skipped:", e)
 
