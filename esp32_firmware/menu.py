@@ -177,6 +177,7 @@ class Menu:
             if self._control.pressed():
                 self._control.reset_press()
                 import status_strip
+                self._wait_release()   # 等确认键松开，否则灯效会被立即中止
                 if idx == 0:
                     # 水泵：开继电器 → 期间播金黄流水灯效 → 关继电器
                     dur = min(_cfg.PUMP_WATER_DEFAULT_SEC,
@@ -244,11 +245,19 @@ class Menu:
                 pass
 
         self._show_running("LED Demo", "START", 20)
+        self._wait_release()   # 等确认键松开，否则灯效会被立即中止
         try:
             import status_strip
             status_strip.demo_show(on_signal=_subtitle)
         except Exception as e:
             print("[Menu] LED demo error:", e)
+
+    def _wait_release(self, timeout_ms=700):
+        """等所有按键松开，避免刚按的"确认键"被灯效的按键中止逻辑误判为中止。"""
+        waited = 0
+        while waited < timeout_ms and self._control.is_held():
+            time.sleep_ms(15)
+            waited += 15
 
     def _show_demo_speed(self, on):
         """展示模式切换提示：FAST ON（约3秒响应）/ OFF（正常间隔）。"""

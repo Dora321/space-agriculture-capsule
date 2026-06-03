@@ -175,6 +175,13 @@ def _setup_menu():
         thresholds = getattr(config, "ANALOG_KEYPAD_THRESHOLDS", None)
         control = AnalogKeypad(config.ANALOG_KEYPAD_PIN, thresholds=thresholds)
         _menu = Menu(_display(), control, config.PLANT_LIST)
+        # 让 WS2812 阻塞动画可被按键中止：动画每帧检查是否有键按下，有则立即停止，
+        # 主循环随即处理按键 —— 解决"灯光闪烁时无法操控按钮"。
+        try:
+            import status_strip
+            status_strip.set_abort_check(control.is_held)
+        except Exception as e:
+            print("[Menu] strip abort hook skipped:", e)
         print("[Menu] Button menu initialized")
         return True
     except Exception as e:

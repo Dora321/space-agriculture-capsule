@@ -49,6 +49,35 @@ def test_demo_show_calls_on_signal_subtitle(monkeypatch):
     assert ss.SIGNAL_WATER in seen                     # 信号段字幕
 
 
+def test_abort_check_stops_demo(monkeypatch):
+    _patch_sleep(monkeypatch)
+    monkeypatch.setattr(config, "WS2812_ENABLED", True, raising=False)
+    ss.init()
+    ss.set_abort_check(lambda: True)   # 始终"有按键按下"
+    try:
+        calls = []
+        ss.demo_show(on_signal=lambda n: calls.append(n))
+        # 应在彩虹开场后立即中止，不会播完全部信号段
+        assert calls == ["RAINBOW"]
+    finally:
+        ss.set_abort_check(None)
+
+
+def test_abort_check_stops_play_for(monkeypatch):
+    _patch_sleep(monkeypatch)
+    monkeypatch.setattr(config, "WS2812_ENABLED", True, raising=False)
+    ss.init()
+    clk = {"t": 0}
+    monkeypatch.setattr(ss.time, "ticks_ms",
+                        lambda: clk.__setitem__("t", clk["t"] + 10) or clk["t"], raising=False)
+    monkeypatch.setattr(ss.time, "ticks_diff", lambda a, b: a - b, raising=False)
+    ss.set_abort_check(lambda: True)
+    try:
+        ss.play_for(ss.SIGNAL_WATER, total_sec=999)   # 靠 abort 立即结束，不死循环
+    finally:
+        ss.set_abort_check(None)
+
+
 def test_play_for_loops_then_off(monkeypatch):
     _patch_sleep(monkeypatch)
     monkeypatch.setattr(config, "WS2812_ENABLED", True, raising=False)

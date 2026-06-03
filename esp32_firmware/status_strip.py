@@ -195,6 +195,27 @@ def blink(state, times=3, interval_ms=300):
 
 # ============ 决策广播动画 ============
 
+# 按键中止钩子：动画每帧检查，有键按下即停，主循环随即处理按键，
+# 解决"灯光闪烁时无法操控按钮"。由 main 在键盘初始化后注册 control.is_held。
+_abort_check = None
+
+
+def set_abort_check(fn):
+    """注册"是否有按键按下"的回调；动画每帧据此可被中止。"""
+    global _abort_check
+    _abort_check = fn
+
+
+def _aborted():
+    return _abort_check is not None and _abort_check()
+
+
+def _naptick(ms):
+    """睡 ms 毫秒；若期间检测到按键则返回 True（动画应中止）。"""
+    time.sleep_ms(ms)
+    return _aborted()
+
+
 def _pulse(rgb, cycles=3, cycle_ms=600):
     """整条脉冲呼吸动画。"""
     steps = 20
@@ -207,7 +228,8 @@ def _pulse(rgb, cycles=3, cycle_ms=600):
             for i in range(_count):
                 _np[i] = c
             _np.write()
-            time.sleep_ms(half_ms // steps)
+            if _naptick(half_ms // steps):
+                return
         # 渐暗
         for s in range(steps):
             frac = 1 - s / steps
@@ -215,7 +237,8 @@ def _pulse(rgb, cycles=3, cycle_ms=600):
             for i in range(_count):
                 _np[i] = c
             _np.write()
-            time.sleep_ms(half_ms // steps)
+            if _naptick(half_ms // steps):
+                return
 
 
 def _breathe(rgb, cycles=3, cycle_ms=1200):
@@ -229,14 +252,16 @@ def _breathe(rgb, cycles=3, cycle_ms=1200):
             for i in range(_count):
                 _np[i] = c
             _np.write()
-            time.sleep_ms(half_ms // steps)
+            if _naptick(half_ms // steps):
+                return
         for s in range(steps):
             frac = 1 - s / steps
             c = _scale((int(rgb[0] * frac), int(rgb[1] * frac), int(rgb[2] * frac)))
             for i in range(_count):
                 _np[i] = c
             _np.write()
-            time.sleep_ms(half_ms // steps)
+            if _naptick(half_ms // steps):
+                return
 
 
 def _flow(rgb, duration_sec=5):
@@ -251,7 +276,8 @@ def _flow(rgb, duration_sec=5):
                 c = _scale((int(rgb[0] * brightness), int(rgb[1] * brightness), int(rgb[2] * brightness)))
                 _np[i] = c
             _np.write()
-            time.sleep_ms(head_ms)
+            if _naptick(head_ms):
+                return
 
 
 def _fast_blink(rgb, times=10, interval_ms=100):
@@ -261,11 +287,13 @@ def _fast_blink(rgb, times=10, interval_ms=100):
         for i in range(_count):
             _np[i] = c
         _np.write()
-        time.sleep_ms(interval_ms)
+        if _naptick(interval_ms):
+            return
         for i in range(_count):
             _np[i] = (0, 0, 0)
         _np.write()
-        time.sleep_ms(interval_ms)
+        if _naptick(interval_ms):
+            return
 
 
 def _rainbow(duration_sec=10):
@@ -282,7 +310,8 @@ def _rainbow(duration_sec=10):
             _np[i] = _scale((r, g, b))
         _np.write()
         offset += 1
-        time.sleep_ms(100)
+        if _naptick(100):
+            return
 
 
 # 信号 → 动画函数映射
@@ -333,6 +362,8 @@ def play_signals(signals, max_signals=3):
     # 物理信号优先
     ordered = sorted(signals, key=lambda s: 0 if s in PHYSICAL_SIGNALS else 1)
     for signal in ordered[:max_signals]:
+        if _aborted():          # 按键中止 → 不再播后续信号
+            break
         play_signal(signal)
 
 
@@ -374,13 +405,17 @@ def demo_show(on_signal=None):
         on_signal("RAINBOW")
     _rainbow(duration_sec=3)                              # 彩虹扫场开场
     for signal in _DEMO_SIGNALS:
+        if _aborted():                                   # 按键中止 → 结束演示
+            show_moisture(60)
+            return
         if on_signal:
             on_signal(signal)
         play_signal(signal, duration_sec=2)
         time.sleep_ms(200)
-    if on_signal:
-        on_signal("GEN UP")
-    play_signal(SIGNAL_BREEDING_GEN_UP, duration_sec=4)  # 升代彩虹高潮
+    if not _aborted():
+        if on_signal:
+            on_signal("GEN UP")
+        play_signal(SIGNAL_BREEDING_GEN_UP, duration_sec=4)  # 升代彩虹高潮
     show_moisture(60)                                     # 回到湿度显示收束
     time.sleep_ms(600)
     print("[Strip] Demo show done")
@@ -397,5 +432,7 @@ def play_for(signal, total_sec):
     start = time.ticks_ms()
     total_ms = int(total_sec * 1000)
     while time.ticks_diff(time.ticks_ms(), start) < total_ms:
+        if _aborted():          # 按键中止 → 提前结束（调用方 finally 会关执行器）
+            break
         play_signal(signal, duration_sec=2)
     off()
