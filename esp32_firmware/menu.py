@@ -103,8 +103,8 @@ class Menu:
             time.sleep_ms(50)
 
     def run_main_menu(self, state, get_wifi_status, get_ip):
-        """主菜单：Plant / Set Day / Manual / System Info / LED Demo / Demo Speed。蓝键直接退出。"""
-        items = ["Plant Select", "Set Day", "Manual Ctrl", "System Info", "LED Demo", "Demo Speed"]
+        """主菜单：Plant / Set Day / Manual / LED Demo / Demo Speed。蓝键直接退出。"""
+        items = ["Plant Select", "Set Day", "Manual Ctrl", "LED Demo", "Demo Speed"]
         idx = 0
         self._control.set_value(0)
         self._display.show_complete_menu("Menu", items, idx)
@@ -142,13 +142,10 @@ class Menu:
                 elif idx == 2:  # Manual Ctrl
                     self._run_manual_control(state)
                     self._display.show_complete_menu("Menu", items, idx)
-                elif idx == 3:  # System Info
-                    self._run_system_info(get_wifi_status, get_ip)
-                    self._display.show_complete_menu("Menu", items, idx)
-                elif idx == 4:  # LED Demo —— 现场一键播放灯效秀
+                elif idx == 3:  # LED Demo —— 现场一键播放灯效秀
                     self._run_led_demo()
                     self._display.show_complete_menu("Menu", items, idx)
-                elif idx == 5:  # Demo Speed —— 切换展示模式（快速响应真实传感器）
+                elif idx == 4:  # Demo Speed —— 切换展示模式（快速响应真实传感器）
                     state.fast_mode = not state.fast_mode
                     self._show_demo_speed(state.fast_mode)
                     self._display.show_complete_menu("Menu", items, idx)
