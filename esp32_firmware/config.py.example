@@ -55,6 +55,7 @@ DEMO_PLANT_TYPE = "生菜"
 # 开启后读取/决策间隔缩到 FAST_READ_INTERVAL 秒，且跳过动作限频，
 # 便于现场遮挡光照/土壤传感器后几秒内看到补光/浇水反应。
 FAST_READ_INTERVAL = 3
+FAST_MODE_ON_BOOT = True   # 开机即进入展示模式（快速响应）；设 False 则开机用正常间隔
 DEMO_START_SOIL = 42
 DEMO_SOIL_DROP = 7
 DEMO_RECOVER_SOIL = 55

@@ -20,6 +20,9 @@ from state import SystemState
 
 # 全局状态
 state = SystemState()
+# 开机默认展示模式（快速响应真实传感器）；可由 config.FAST_MODE_ON_BOOT 关闭，
+# 或运行时用菜单「Demo Speed」切换。
+state.fast_mode = bool(getattr(config, "FAST_MODE_ON_BOOT", True))
 
 # 菜单系统（模拟键盘 + OLED）
 _menu = None
