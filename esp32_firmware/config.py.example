@@ -50,6 +50,11 @@ MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
 DEMO_MODE = False
 DEMO_READ_INTERVAL = 5
 DEMO_PLANT_TYPE = "生菜"
+
+# 展示模式（读真实传感器但快速响应）——由菜单「Demo Speed」运行时切换，无需改本文件。
+# 开启后读取/决策间隔缩到 FAST_READ_INTERVAL 秒，且跳过动作限频，
+# 便于现场遮挡光照/土壤传感器后几秒内看到补光/浇水反应。
+FAST_READ_INTERVAL = 3
 DEMO_START_SOIL = 42
 DEMO_SOIL_DROP = 7
 DEMO_RECOVER_SOIL = 55

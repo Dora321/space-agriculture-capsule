@@ -103,8 +103,8 @@ class Menu:
             time.sleep_ms(50)
 
     def run_main_menu(self, state, get_wifi_status, get_ip):
-        """主菜单：Plant / Set Day / Manual / System Info / LED Demo。蓝键直接退出。"""
-        items = ["Plant Select", "Set Day", "Manual Ctrl", "System Info", "LED Demo"]
+        """主菜单：Plant / Set Day / Manual / System Info / LED Demo / Demo Speed。蓝键直接退出。"""
+        items = ["Plant Select", "Set Day", "Manual Ctrl", "System Info", "LED Demo", "Demo Speed"]
         idx = 0
         self._control.set_value(0)
         self._display.show_complete_menu("Menu", items, idx)
@@ -147,6 +147,10 @@ class Menu:
                     self._display.show_complete_menu("Menu", items, idx)
                 elif idx == 4:  # LED Demo —— 现场一键播放灯效秀
                     self._run_led_demo()
+                    self._display.show_complete_menu("Menu", items, idx)
+                elif idx == 5:  # Demo Speed —— 切换展示模式（快速响应真实传感器）
+                    state.fast_mode = not state.fast_mode
+                    self._show_demo_speed(state.fast_mode)
                     self._display.show_complete_menu("Menu", items, idx)
 
             if self._control.back_pressed():
@@ -248,6 +252,21 @@ class Menu:
             status_strip.demo_show(on_signal=_subtitle)
         except Exception as e:
             print("[Menu] LED demo error:", e)
+
+    def _show_demo_speed(self, on):
+        """展示模式切换提示：FAST ON（约3秒响应）/ OFF（正常间隔）。"""
+        print("[Menu] Demo Speed:", "ON" if on else "OFF")
+        try:
+            import display
+            if hasattr(display, "_check_init") and display._check_init():
+                display._oled.fill(0)
+                display._draw_inverted(">> Demo Speed")
+                display._draw_centered("FAST: ON" if on else "FAST: OFF", 24)
+                display._draw_centered("~3s response" if on else "normal interval", 44)
+                display._oled.show()
+        except Exception:
+            pass
+        time.sleep_ms(1100)
 
     def _show_running(self, title, action, duration_sec):
         """执行中画面：标题 + 动作 + 时长，在 actuator 阻塞期间保持显示。"""

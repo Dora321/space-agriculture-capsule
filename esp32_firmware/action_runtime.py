@@ -118,7 +118,9 @@ def safety_check(state, demo_enabled=False):
         print("[Safety] Actuator running, skipped")
         return False
 
-    if demo_enabled:
+    # demo_enabled（假数据）或 fast_mode（展示模式：真实传感器快速响应）均跳过限频，
+    # 让现场遮挡传感器后能连续、快速地触发动作
+    if demo_enabled or getattr(state, "fast_mode", False):
         return True
 
     if state.last_action != "idle":

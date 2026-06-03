@@ -16,6 +16,27 @@ def _demo_value(name, default):
     return getattr(config, name, default)
 
 
+def _read_interval(state, demo_enabled):
+    """每轮的传感器读取间隔（秒）。
+
+    优先级：展示模式(state.fast_mode，读真实传感器但快速) > DEMO_MODE(假数据) > 正常。
+    """
+    if getattr(state, "fast_mode", False):
+        return getattr(config, "FAST_READ_INTERVAL", 3)
+    if demo_enabled:
+        return getattr(config, "DEMO_READ_INTERVAL", config.READ_INTERVAL)
+    return config.READ_INTERVAL
+
+
+def _decision_interval(state, demo_enabled):
+    """每轮的决策间隔（秒），展示模式同样缩短，保证遮挡传感器后快速响应。"""
+    if getattr(state, "fast_mode", False):
+        return getattr(config, "FAST_READ_INTERVAL", 3)
+    if demo_enabled:
+        return getattr(config, "DEMO_READ_INTERVAL", getattr(config, "DECISION_INTERVAL", 300))
+    return getattr(config, "DECISION_INTERVAL", 300)
+
+
 def run_loop(
     state,
     demo_enabled=False,
@@ -31,13 +52,14 @@ def run_loop(
     uart_send_report=None,
 ):
     """Run the periodic read, decision, action, and UART report/advice loop."""
-    interval = _demo_value("DEMO_READ_INTERVAL", config.READ_INTERVAL) if demo_enabled else config.READ_INTERVAL
     last_read = 0
     last_decision = 0
 
     while True:
         try:
             now = time.time()
+            # 每轮按当前模式取间隔：展示模式(state.fast_mode)下读真实传感器但快速响应
+            interval = _read_interval(state, demo_enabled)
             if uart_poll is not None:
                 uart_poll()
 
@@ -75,11 +97,7 @@ def run_loop(
                 if uart_send_report is not None:
                     uart_send_report()
 
-                decision_interval = (
-                    _demo_value("DEMO_READ_INTERVAL", getattr(config, "DECISION_INTERVAL", 300))
-                    if demo_enabled
-                    else getattr(config, "DECISION_INTERVAL", 300)
-                )
+                decision_interval = _decision_interval(state, demo_enabled)
                 if now - last_decision >= decision_interval:
                     last_decision = now
 
