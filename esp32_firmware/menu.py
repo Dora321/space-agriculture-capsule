@@ -103,8 +103,8 @@ class Menu:
             time.sleep_ms(50)
 
     def run_main_menu(self, state, get_wifi_status, get_ip):
-        """主菜单：Plant / Set Day / Manual / System Info。蓝键直接退出。"""
-        items = ["Plant Select", "Set Day", "Manual Ctrl", "System Info"]
+        """主菜单：Plant / Set Day / Manual / System Info / LED Demo。蓝键直接退出。"""
+        items = ["Plant Select", "Set Day", "Manual Ctrl", "System Info", "LED Demo"]
         idx = 0
         self._control.set_value(0)
         self._display.show_complete_menu("Menu", items, idx)
@@ -145,6 +145,9 @@ class Menu:
                 elif idx == 3:  # System Info
                     self._run_system_info(get_wifi_status, get_ip)
                     self._display.show_complete_menu("Menu", items, idx)
+                elif idx == 4:  # LED Demo —— 现场一键播放灯效秀
+                    self._run_led_demo()
+                    self._display.show_complete_menu("Menu", items, idx)
 
             if self._control.back_pressed():
                 self._control.reset_press()
@@ -172,14 +175,27 @@ class Menu:
 
             if self._control.pressed():
                 self._control.reset_press()
+                import status_strip
                 if idx == 0:
-                    dur = _cfg.PUMP_WATER_DEFAULT_SEC
+                    # 水泵：开继电器 → 期间播金黄流水灯效 → 关继电器
+                    dur = min(_cfg.PUMP_WATER_DEFAULT_SEC,
+                              getattr(_cfg, "PUMP_MAX_RUN_SEC", 20))
                     self._show_running("Water Pump", "WATER", dur)
-                    actuators.run_water_pump(dur)
+                    actuators.water_pump_on()
+                    try:
+                        status_strip.play_for(status_strip.SIGNAL_WATER, dur)
+                    finally:
+                        actuators.water_pump_off()
                 elif idx == 1:
-                    dur = getattr(_cfg, "MANUAL_LIGHT_SEC", 30)
+                    # 补光：开继电器 → 期间播紫色脉冲灯效 → 关继电器
+                    dur = min(getattr(_cfg, "MANUAL_LIGHT_SEC", 30),
+                              getattr(_cfg, "LIGHT_MAX_RUN_SEC", 20))
                     self._show_running("Grow Light", "LIGHT", dur)
-                    actuators.run_light(dur)
+                    actuators.light_on()
+                    try:
+                        status_strip.play_for(status_strip.SIGNAL_LIGHT_LOW, dur)
+                    finally:
+                        actuators.light_off()
                 return
 
             if self._control.back_pressed():
@@ -206,6 +222,32 @@ class Menu:
                 self._control.reset_press()
                 return
             time.sleep_ms(100)
+
+    def _run_led_demo(self):
+        """现场一键灯效演示：播放 status_strip.demo_show()，OLED 同步显示当前灯效字幕。
+
+        灯条未启用/无硬件时静默返回（demo_show 内部判 _np）。
+        """
+        def _subtitle(name):
+            """每段灯效开始时在 OLED 显示其名字（字幕）。"""
+            try:
+                import display
+                if not hasattr(display, "_check_init") or not display._check_init():
+                    return
+                display._oled.fill(0)
+                display._draw_inverted(">> LED Demo")
+                display._draw_centered(str(name), 26)
+                display._draw_centered("playing...", 50)
+                display._oled.show()
+            except Exception:
+                pass
+
+        self._show_running("LED Demo", "START", 20)
+        try:
+            import status_strip
+            status_strip.demo_show(on_signal=_subtitle)
+        except Exception as e:
+            print("[Menu] LED demo error:", e)
 
     def _show_running(self, title, action, duration_sec):
         """执行中画面：标题 + 动作 + 时长，在 actuator 阻塞期间保持显示。"""

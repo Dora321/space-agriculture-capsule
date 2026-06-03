@@ -119,6 +119,22 @@ def water_pump_off():
     _water_running = False
 
 
+def light_on():
+    """手动持续开启补光灯（需手动关闭）"""
+    global _light_running
+    print("[Light] Manual ON")
+    _relay_on(_relay_light)
+    _light_running = True
+
+
+def light_off():
+    """手动关闭补光灯"""
+    global _light_running
+    print("[Light] Manual OFF")
+    _relay_off(_relay_light)
+    _light_running = False
+
+
 def all_off():
     """关闭所有执行器（紧急停止）"""
     global _water_running, _light_running

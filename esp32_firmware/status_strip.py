@@ -347,3 +347,55 @@ def test_sequence():
     show_moisture(50)
     time.sleep_ms(500)
     off()
+
+
+# 现场演示秀的信号顺序（编排过，视觉对比强）
+_DEMO_SIGNALS = [
+    SIGNAL_WATER,      # 金黄流水
+    SIGNAL_LIGHT_LOW,  # 紫色脉冲
+    SIGNAL_TEMP_HIGH,  # 红色脉冲
+    SIGNAL_HUMID_LOW,  # 青色脉冲
+    SIGNAL_NEED_N,     # 黄呼吸
+    SIGNAL_NEED_P,     # 粉呼吸
+    SIGNAL_NEED_K,     # 橙呼吸
+]
+
+
+def demo_show(on_signal=None):
+    """现场演示用编排灯效秀：彩虹开场 → 逐个信号动画 → 升代彩虹高潮 → 收束。
+
+    供 OLED 菜单「LED Demo」一键触发，让评委看到舱体能广播的全部状态信号。
+    on_signal(name): 可选回调，每段开始前以当前段名调用一次（供 OLED 同步显示字幕）。
+    """
+    if _np is None:
+        return
+    print("[Strip] Demo show start")
+    if on_signal:
+        on_signal("RAINBOW")
+    _rainbow(duration_sec=3)                              # 彩虹扫场开场
+    for signal in _DEMO_SIGNALS:
+        if on_signal:
+            on_signal(signal)
+        play_signal(signal, duration_sec=2)
+        time.sleep_ms(200)
+    if on_signal:
+        on_signal("GEN UP")
+    play_signal(SIGNAL_BREEDING_GEN_UP, duration_sec=4)  # 升代彩虹高潮
+    show_moisture(60)                                     # 回到湿度显示收束
+    time.sleep_ms(600)
+    print("[Strip] Demo show done")
+
+
+def play_for(signal, total_sec):
+    """在 total_sec 秒内循环播放某信号动画。
+
+    用于手动执行水泵/补光时，在执行器开启期间持续显示对应灯效
+    （单线程：动画循环本身就是"等待时长"）。
+    """
+    if _np is None:
+        return
+    start = time.ticks_ms()
+    total_ms = int(total_sec * 1000)
+    while time.ticks_diff(time.ticks_ms(), start) < total_ms:
+        play_signal(signal, duration_sec=2)
+    off()
