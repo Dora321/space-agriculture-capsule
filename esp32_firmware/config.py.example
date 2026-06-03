@@ -95,10 +95,10 @@ OLED_I2C_FREQ = 400000
 #   - 错误/离线：整条红色闪烁
 WS2812_PIN = 26
 WS2812_LED_COUNT = 11
-WS2812_ENABLED = False    # 稳定优先：禁用灯条，避免占用内存/电流并干扰 WiFi
-WS2812_BRIGHTNESS = 0.12  # 0.0-1.0，降低峰值电流，避免影响 WiFi
-WS2812_PLAY_IDLE_ADVISORY = False
-WS2812_PLAY_ACTION_ADVISORY = False
+WS2812_ENABLED = True     # 2026-06-03 启用：电源实测通过，常亮展示决策信号灯效
+WS2812_BRIGHTNESS = 0.6   # 0.0-1.0；0.6 实测可见度好。注意峰值电流随亮度上升
+WS2812_PLAY_IDLE_ADVISORY = True
+WS2812_PLAY_ACTION_ADVISORY = True
 
 # ============ 传感器参数 ============
 # 土壤湿度参数
