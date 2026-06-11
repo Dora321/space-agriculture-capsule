@@ -84,6 +84,19 @@ class TestIdleDecision:
         assert d["action"] != "light"
 
 
+    def test_low_sun_hours_without_low_current_light_does_not_trigger_light(self):
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            light=info["light_min"],
+            sun_minutes=0,
+            uptime_sec=50000,
+            plant_info=info,
+            current_time=100,
+        )
+        assert d["action"] != "light"
+
+
 class TestSinglePumpInvariant:
     """单水泵硬件不变量：本地决策永不产出 'nutrient' 动作"""
 

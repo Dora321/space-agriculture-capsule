@@ -170,18 +170,6 @@ def local_fallback_decision(
                 "signals": action_signals,
                 "breeding_observation": observation,
             }
-        if uptime_sec > 43200 and sun_hours < light_hours[0]:
-            deficit_h = light_hours[0] - sun_hours
-            light_dur = int(min(light_max_run, max(30, deficit_h * 3600 / 2)))
-            action_signals = ["LIGHT_LOW"] + [s for s in signals if s != "LIGHT_LOW"]
-            return {
-                "action": "light",
-                "duration_sec": light_dur,
-                "reason": f"sun LOW {sun_hours:.1f}h/{light_hours[0]}h",
-                "signals": action_signals,
-                "breeding_observation": observation,
-            }
-
     # 6. 高温但土壤不干、光照也不缺 -> 跳过浇水
     if high_temp_skip_water:
         return {

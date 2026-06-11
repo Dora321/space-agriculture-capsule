@@ -92,6 +92,11 @@ class TestPlantDatabase:
             assert 0 < hours[0] <= hours[1] <= 16, \
                 f"植物 '{name}' light_hours={hours} 超出合理范围"
 
+    def test_all_plants_use_ten_percent_light_trigger(self):
+        for name, info in _PLANT_DB.items():
+            assert info["light_min"] == 10, f"植物 '{name}' 补光触发阈值应为 10%"
+
+
 class TestGrowthStage:
     """生长阶段查询逻辑测试"""
 
