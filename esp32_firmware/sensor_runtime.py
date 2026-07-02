@@ -79,6 +79,9 @@ def read_all_sensors(state, demo_enabled=False, show_error=None):
             int(config.READ_INTERVAL / 60),
         )
 
+        if not sensor_failures:
+            utils.show_soil_indicator(state.soil_moisture)
+
         stage_name = state.growth_stage.get("stage", "unknown")
         fert = state.growth_stage.get("fert", "NPK")
         print(
@@ -118,6 +121,7 @@ def read_demo_sensors(state):
             max(0, state.read_count + 6),
             int(_demo_value("DEMO_READ_INTERVAL", 5)),
         )
+        utils.show_soil_indicator(state.soil_moisture)
 
         stage_name = state.growth_stage.get("stage", "unknown")
         print(
