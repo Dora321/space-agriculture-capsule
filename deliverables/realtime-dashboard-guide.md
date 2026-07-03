@@ -16,8 +16,12 @@ http://43.156.68.157:8790/api/experiment
 
 ```bash
 export SPACEFARM_EXPERIMENT_FILE="/opt/spacefarm-dashboard/data/experiment.json"
+export SPACEFARM_VISION_DATA_DIR="/opt/spacefarm-dashboard/data/vision"
 # 建议设置编辑口令；网页保存时填写同一口令
 export SPACEFARM_EXPERIMENT_TOKEN="replace-with-a-random-token"
+export DASHBOARD_TOKEN="replace-with-a-different-random-token"
+export VISION_UPLOAD_TOKEN="replace-with-a-third-random-token"
+export DASHBOARD_ALLOWED_ORIGIN="http://43.156.68.157:8790"
 python3 tools/dashboard_server.py --host 0.0.0.0 --port 8790
 ```
 
@@ -34,6 +38,8 @@ export SPACEFARM_DASHBOARD="http://43.156.68.157:8790/api/state"
 export SPACEFARM_EXPERIMENT_FILE="/var/lib/spacefarm/experiment.json"
 # 云端启用口令时，Pi 必须使用同一值
 export SPACEFARM_EXPERIMENT_TOKEN="replace-with-a-random-token"
+export DASHBOARD_TOKEN="replace-with-a-different-random-token"
+export VISION_UPLOAD_TOKEN="replace-with-a-third-random-token"
 python3 tools/serial_gateway.py \
   --port /dev/serial0 \
   --baud 115200 \
@@ -59,7 +65,17 @@ python3 tools/serial_gateway.py \
 
 - `/api/vision/status`
 - `/api/vision/latest`
-- `/api/vision/image`
+- `/api/vision/events?limit=4`
+- `/api/vision/images/{event_id}`
 - `/api/screening/latest`
 
-Camera Module 3 当前把结果保存在树莓派 SQLite。树莓派到腾讯云的图片和视觉 JSON 同步尚未实现，因此云端视觉接口可能返回 `{"available": false}`；这不代表摄像头不可用。
+`spacefarm-vision-sync.service` 从树莓派 SQLite 中租约一个未同步事件，先上传 JPEG，再幂等提交分析 JSON。成功才标记完成；失败按 30 秒起步指数退避，服务重启后 outbox 仍在。云端把图片写入专用目录、元数据写入 SQLite，因此 Dashboard 重启不会丢失最近视觉结果。
+
+筛选写入统一使用 `POST /api/screening/results`，输入必须是 `screening.input.v1` 的候选/对照逐周期分数。服务端自行复算独立周期数、ΔControl 中位数、IQR、优于对照比例、表型加权分和证据等级；客户端上传的派生数字会被忽略。
+
+## 生产安全
+
+- `/api/state` 使用 `DASHBOARD_TOKEN`；视觉和筛选写接口使用 `VISION_UPLOAD_TOKEN`。
+- 未配置令牌时，服务端只允许本机 loopback 写入，公网写请求返回 503。
+- CORS 只允许 `DASHBOARD_ALLOWED_ORIGIN` 的精确 origin，不发送 `Access-Control-Allow-Origin: *`。
+- 当前公网仍是 HTTP。正式长期运行应在前面增加 HTTPS 反向代理，避免令牌明文传输。

@@ -75,6 +75,7 @@ class CaptureService:
                     "plant_info": self.experiment.get("plant_info", {}),
                     "day": (telemetry or {}).get("day", (telemetry or {}).get("days")),
                     "stage": (telemetry or {}).get("stage"),
+                    "experiment_id": (telemetry or {}).get("experiment_id", ""),
                 },
             }, observations)
         except Exception as exc:

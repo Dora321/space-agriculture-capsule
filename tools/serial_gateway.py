@@ -289,11 +289,14 @@ def _ai_snapshot(report):
     return {k: report.get(k) for k in ("plant", "stage", "day", "soil", "light", "temp", "hum")}
 
 
-def _post_json(url, payload, timeout=2):
+def _post_json(url, payload, timeout=2, token=""):
     import urllib.request
     data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["X-Dashboard-Token"] = token
     req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"})
+        url, data=data, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
 
@@ -390,6 +393,7 @@ def main(argv=None):
         from tools.experiment_clock import ExperimentStore
     experiment_store = ExperimentStore(args.experiment_file)
     experiment_token = os.environ.get("SPACEFARM_EXPERIMENT_TOKEN", "")
+    dashboard_token = os.environ.get("DASHBOARD_TOKEN", "")
     next_experiment_sync = 0.0
 
     def on_report(report):
@@ -542,7 +546,7 @@ def main(argv=None):
                     ]
                     payload["breeding_observation"] = last_advice.get("breeding_observation", "")
                     try:
-                        _post_json(args.dashboard, payload)
+                        _post_json(args.dashboard, payload, token=dashboard_token)
                     except Exception as e:
                         print("[GW] dashboard forward failed:", e)
             for line in core.tick():

@@ -25,6 +25,8 @@ UART 网关环境增加：
 
 ```bash
 SPACEFARM_VISION_DB=/home/mx/spacefarm/data/vision/vision.sqlite3
+SPACEFARM_CLOUD_BASE_URL=http://43.156.68.157:8790
+VISION_UPLOAD_TOKEN=<与腾讯云一致的私有令牌>
 ```
 
 视觉上下文中的 `day` 不再依赖 ESP32 时钟。先在地面站顶部“实验设置”初始化播种日期；树莓派会把 `/api/experiment` 缓存到 `/var/lib/spacefarm/experiment.json`，再将权威日龄写入视觉遥测。
@@ -49,7 +51,15 @@ python3 tools/vision_service.py capture --experiment config/vision_experiment.js
 python3 tools/vision_service.py api-loop
 ```
 
-网页服务器会提供 `/api/vision/status`、`/api/vision/latest`、`/api/vision/image` 和 `/api/screening/latest`。`deliverables/groundstation.html` 每 10 秒独立刷新视觉面板。
+网页服务器会提供 `/api/vision/status`、`/api/vision/latest`、`/api/vision/events`、`/api/vision/images/{event_id}` 和 `/api/screening/latest`。`deliverables/groundstation.html` 每 10 秒独立刷新视觉面板。
+
+终端四：启动云端同步 Worker。它使用 SQLite `cloud_sync` outbox，断网指数退避，成功后才确认事件。
+
+```bash
+python3 tools/vision_service.py cloud-loop
+```
+
+正式部署使用 `spacefarm-vision-sync.service`。云端接口为 `/api/vision/status`、`/api/vision/events` 和 `/api/vision/images/{event_id}`；图片与 JSON 使用不同大小限制和同一上传令牌。
 
 ## 4. 科学口径
 

@@ -413,9 +413,11 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
                             (树莓派)             (port 8790)         (groundstation.html)
 ```
 
-Camera Module 3 使用独立数据流，不把图片塞进 `/api/state`：`vision-capture → SQLite 队列 → vision-api-worker → qwen3.7-plus → 结构化结果`。网页通过 `/api/vision/status`、`/api/vision/latest`、`/api/vision/image` 和 `/api/screening/latest` 独立读取视觉状态。树莓派到腾讯云的图片/结果同步仍是待办，不能把云端 `available:false` 解释成摄像头故障。
+Camera Module 3 使用独立数据流，不把图片塞进 `/api/state`：`vision-capture → SQLite 队列 → vision-api-worker → qwen3.7-plus → 本地持久 outbox → vision-cloud-sync → 腾讯云`。Pi 先 `PUT /api/vision/images/{event_id}` 上传带 SHA-256 的 JPEG，再以 `POST /api/vision/events` 幂等提交白名单化元数据；断网指数退避，恢复后每轮只补传一个事件。网页通过 `/api/vision/status`、`/api/vision/latest`、`/api/vision/events`、`/api/vision/images/{event_id}` 和 `/api/screening/latest` 读取云端持久数据。
 
 种植日龄配置使用 `浏览器 → /api/experiment（云端持久化）→ Pi 定时拉取与本地缓存 → UART experiment → ESP32`。`/api/state` 返回时也由云端实验档案覆盖旧日龄，保证刚保存后网页立即显示一致的 Dn；树莓派同步完成后，DeepSeek 与 Camera Module 3 也使用相同值。
+
+所有云端写接口均要求令牌：遥测使用 `DASHBOARD_TOKEN`，视觉与筛选使用 `VISION_UPLOAD_TOKEN`，实验设置使用 `SPACEFARM_EXPERIMENT_TOKEN`。未配置令牌时只允许 loopback 写入；生产 CORS 仅回显 `DASHBOARD_ALLOWED_ORIGIN` 的精确同源地址，不再发送通配符。视觉 JSON 上限 64KB、JPEG 上限 8MB，图片按事件 ID 固定 URL 返回 ETag 与 immutable 缓存。
 
 早期表型筛选使用第四条慢数据链：`视觉时间序列 + 同批固定对照 + 多周期环境摘要 → phenotype-screen-worker → /api/screening/results → 浏览器`。它展示 ΔControl、IQR、优于对照周期比例、数据质量和复筛建议，不通过 `/api/state` 或 UART 下发控制。
 
@@ -502,7 +504,7 @@ ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派�
 
 ## 10. 测试体系
 
-当前 `py -m pytest -q` 共 **188 项测试**，覆盖 ESP32 本地规则、动作安全、UART 协议、树莓派文本 AI、Camera Module 3 调度、SQLite 重试队列、多模态 schema、对照组聚合、Dashboard API 和 Markdown 链接完整性。测试总数以实际 pytest 输出为唯一权威来源，不再维护容易过期的逐文件手工计数表。
+当前 `py -m pytest -q` 共 **195 项测试**，覆盖 ESP32 本地规则、动作安全、UART 协议、树莓派文本 AI、Camera Module 3 调度、SQLite 重试队列、多模态 schema、对照组聚合、Dashboard API 和 Markdown 链接完整性。测试总数以实际 pytest 输出为唯一权威来源，不再维护容易过期的逐文件手工计数表。
 
 ---
 

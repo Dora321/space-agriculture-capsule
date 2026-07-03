@@ -25,7 +25,10 @@ def score_phenotype(metrics: Mapping[str, float]) -> dict:
     normalized = {}
     total = 0.0
     for key, weight in PHENOTYPE_WEIGHTS.items():
-        value = float(metrics[key])
+        try:
+            value = float(metrics[key])
+        except (TypeError, ValueError):
+            raise ValueError(f"{key} must be numeric")
         if not 0 <= value <= 100:
             raise ValueError(f"{key} must be between 0 and 100")
         normalized[key] = value

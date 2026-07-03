@@ -8,7 +8,7 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-188%2F188%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-195%2F195%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5135-orange)](#)
 
@@ -138,7 +138,7 @@ flowchart LR
 | 🛡️ **四级容错与降级机制** | 传感器坏了切安全值 | 在轨无人维修——传感器离线自动降级为安全模式，看门狗死机重启，执行器故障安全跳过 |
 | 📊 **Decision Plane / Action Plane 分离** | 决策层广播多维信号，执行层仅响应物理动作 | 决策能力与执行能力分离——缺肥/高温等 advisory 信号即时广播，无需等待执行器就位 |
 | 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策信号面板，超 120s 无数据自动切 DEMO |
-| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，188 用例 ALL PASS |
+| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，195 用例 ALL PASS |
 
 ---
 
@@ -154,7 +154,7 @@ flowchart LR
 | **AI** | DeepSeek V4 Flash（运行在树莓派侧） | ¥1/百万 tokens · 由树莓派 `pi_advisor` 调用，ESP32 不再直连（无 TLS 内存压力） |
 | **上位机** | 树莓派 + `serial_gateway` | UART 收 report / 调 DeepSeek 回 advice / 转发大屏 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 188 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 195 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
 **硬件成本**：¥135/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
@@ -191,6 +191,9 @@ ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，
 export SPACEFARM_AI_API_KEY="sk-..."                 # DeepSeek key（不进命令行）
 export SPACEFARM_DASHBOARD="http://43.156.68.157:8790/api/state"
 export SPACEFARM_EXPERIMENT_FILE="/var/lib/spacefarm/experiment.json"
+# 与云端私有环境文件保持一致；不要提交 Git
+export DASHBOARD_TOKEN="..."
+export VISION_UPLOAD_TOKEN="..."
 python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --ai-advice
 ```
 
@@ -208,6 +211,8 @@ py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 > 3. **避让进程沙箱/看门狗**——如有 openclaw 这类硬件看门狗，URL 用环境变量 `SPACEFARM_DASHBOARD` 经 systemd `Environment=` 传入，避免 `--dashboard` 里的 `board` 子串被误杀。
 >
 > 开机自启：装成 systemd 服务 `spacefarm-gateway.service`（`Environment=SPACEFARM_DASHBOARD=...` + `--auto-advice`），已验证云端大屏 `live:true` 实时刷新。
+
+Camera Module 3 的图片和分析结果由 `spacefarm-vision-sync.service` 从本地 SQLite outbox 独立上传腾讯云。同步顺序是“JPEG + SHA-256 → 事件 JSON”；断网时不丢数据，恢复后限速补传。视觉上传与水泵/补光控制链完全隔离。
 
 ### 3. 配置 ESP32
 
@@ -230,7 +235,7 @@ ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这
 py -m pytest
 ```
 
-预期输出：**188 passed**
+预期输出：**195 passed**
 
 ---
 
@@ -260,7 +265,7 @@ py -m pytest
 │   ├── uart_link.py         # ESP32<->树莓派 UART JSON-over-Line 协议层
 │   ├── config.py.example    # 配置模板（WiFi/AI/引脚）
 │   └── plants.json          # 8 种植物完整参数数据库
-├── tests/                   # pytest 自动化测试（188 用例 ALL PASS）
+├── tests/                   # pytest 自动化测试（195 用例 ALL PASS）
 │   ├── conftest.py          # MicroPython Mock 注入层
 │   ├── test_ai_parse.py     # AI 响应解析
 │   ├── test_config.py       # 配置 + 植物数据库
@@ -309,7 +314,7 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **188 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
+| 自动化测试 | **195 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |

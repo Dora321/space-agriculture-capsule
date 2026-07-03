@@ -54,6 +54,12 @@ class VisionStore:
           usage_id INTEGER PRIMARY KEY AUTOINCREMENT, used_at REAL NOT NULL,
           capture_id TEXT NOT NULL, image_bytes INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS cloud_sync (
+          capture_id TEXT PRIMARY KEY REFERENCES captures(capture_id) ON DELETE CASCADE,
+          status TEXT NOT NULL CHECK(status IN ('leased','retry','succeeded')),
+          attempts INTEGER NOT NULL DEFAULT 0, available_at REAL NOT NULL DEFAULT 0,
+          lease_until REAL, last_error TEXT, synced_at REAL, updated_at REAL NOT NULL
+        );
         """)
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(captures)")}
         if "context_json" not in columns:
@@ -207,6 +213,115 @@ class VisionStore:
             f"SELECT capture_id FROM captures {where} ORDER BY captured_at DESC LIMIT 1"
         ).fetchone()
         return None if row is None else self.get_capture(row["capture_id"])
+
+    def list_captures(self, *, limit: int = 4, succeeded_only: bool = True) -> list[dict[str, Any]]:
+        safe_limit = max(1, min(20, int(limit)))
+        where = "WHERE status='succeeded'" if succeeded_only else ""
+        rows = self.db.execute(
+            f"SELECT capture_id FROM captures {where} ORDER BY captured_at DESC LIMIT ?",
+            (safe_limit,),
+        ).fetchall()
+        return [self.get_capture(row["capture_id"]) for row in rows]
+
+    def import_remote_capture(
+        self, capture: Mapping[str, Any], observations: list[Mapping[str, Any]],
+        *, overview_path: str | Path, now: float | None = None,
+    ) -> None:
+        """Idempotently import one validated Pi event into the cloud database."""
+        if not observations:
+            raise ValueError("a capture requires at least one observation")
+        timestamp = time.time() if now is None else float(now)
+        captured_at = float(capture["captured_at"])
+        result = capture.get("result") or {
+            "schema": "vision.capture.v1",
+            "capture_id": capture["capture_id"],
+            "observations": [
+                {"pot_id": item["pot_id"], "analysis": item.get("analysis") or {}}
+                for item in observations
+            ],
+        }
+        with self.db:
+            self.db.execute(
+                "INSERT INTO captures(capture_id,captured_at,cycle_id,overview_path,status,"
+                "current_light,required_light,attempts,available_at,result_json,updated_at,context_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(capture_id) DO UPDATE SET "
+                "captured_at=excluded.captured_at,cycle_id=excluded.cycle_id,"
+                "overview_path=excluded.overview_path,status='succeeded',"
+                "current_light=excluded.current_light,required_light=excluded.required_light,"
+                "result_json=excluded.result_json,updated_at=excluded.updated_at,"
+                "context_json=excluded.context_json",
+                (
+                    capture["capture_id"], captured_at, capture.get("cycle_id", "unassigned"),
+                    str(overview_path), "succeeded", capture.get("current_light"),
+                    capture.get("required_light"), 0, captured_at, _dump(result), timestamp,
+                    _dump(capture.get("context", {})),
+                ),
+            )
+            for item in observations:
+                self.db.execute(
+                    "INSERT INTO observations(observation_id,capture_id,pot_id,material_id,"
+                    "is_control,roi_id,image_path,quality_json,analysis_json) VALUES(?,?,?,?,?,?,?,?,?) "
+                    "ON CONFLICT(capture_id,pot_id) DO UPDATE SET material_id=excluded.material_id,"
+                    "is_control=excluded.is_control,roi_id=excluded.roi_id,image_path=excluded.image_path,"
+                    "quality_json=excluded.quality_json,analysis_json=excluded.analysis_json",
+                    (
+                        item.get("observation_id", f'{capture["capture_id"]}:{item["pot_id"]}'),
+                        capture["capture_id"], item["pot_id"], item.get("material_id", ""),
+                        int(bool(item.get("is_control"))), item.get("roi_id", item["pot_id"]),
+                        str(overview_path), _dump(item.get("quality", {})),
+                        _dump(item.get("analysis", {})),
+                    ),
+                )
+
+    def lease_cloud_sync(self, worker_id: str, *, now: float | None = None,
+                         lease_sec: int = 120) -> dict[str, Any] | None:
+        """Lease the oldest analyzed capture not yet confirmed by the cloud."""
+        timestamp = time.time() if now is None else float(now)
+        with self.db:
+            self.db.execute(
+                "UPDATE cloud_sync SET status='retry',lease_until=NULL,updated_at=? "
+                "WHERE status='leased' AND lease_until<?", (timestamp, timestamp),
+            )
+            row = self.db.execute(
+                "SELECT c.capture_id FROM captures c LEFT JOIN cloud_sync s ON s.capture_id=c.capture_id "
+                "WHERE c.status='succeeded' AND (s.capture_id IS NULL OR "
+                "(s.status='retry' AND s.available_at<=?)) ORDER BY c.captured_at LIMIT 1",
+                (timestamp,),
+            ).fetchone()
+            if row is None:
+                return None
+            self.db.execute(
+                "INSERT INTO cloud_sync(capture_id,status,attempts,available_at,lease_until,updated_at) "
+                "VALUES(?,'leased',1,?,?,?) ON CONFLICT(capture_id) DO UPDATE SET "
+                "status='leased',attempts=attempts+1,lease_until=excluded.lease_until,"
+                "updated_at=excluded.updated_at",
+                (row["capture_id"], timestamp, timestamp + lease_sec, timestamp),
+            )
+        return self.get_capture(row["capture_id"])
+
+    def mark_cloud_synced(self, capture_id: str, *, now: float | None = None) -> None:
+        timestamp = time.time() if now is None else float(now)
+        self.db.execute(
+            "UPDATE cloud_sync SET status='succeeded',lease_until=NULL,last_error=NULL,"
+            "synced_at=?,updated_at=? WHERE capture_id=?",
+            (timestamp, timestamp, capture_id),
+        )
+
+    def mark_cloud_retry(self, capture_id: str, error: str, *, now: float | None = None,
+                         max_backoff_sec: int = 3600) -> float:
+        timestamp = time.time() if now is None else float(now)
+        row = self.db.execute(
+            "SELECT attempts FROM cloud_sync WHERE capture_id=?", (capture_id,)
+        ).fetchone()
+        attempts = int(row["attempts"]) if row else 1
+        delay = min(max_backoff_sec, 30 * (2 ** min(attempts - 1, 7)))
+        available_at = timestamp + delay
+        self.db.execute(
+            "UPDATE cloud_sync SET status='retry',available_at=?,lease_until=NULL,last_error=?,"
+            "updated_at=? WHERE capture_id=?",
+            (available_at, str(error)[:500], timestamp, capture_id),
+        )
+        return available_at
 
     def calls_today(self, *, now: float | None = None) -> int:
         timestamp = time.time() if now is None else float(now)

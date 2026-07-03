@@ -11,6 +11,7 @@ from vision.api_worker import VisionApiWorker
 from vision.camera import CameraModule3
 from vision.capture_service import CaptureService
 from vision.clients import OpenAICompatibleVisionClient
+from vision.cloud_sync import VisionCloudSyncWorker
 from vision.config import VisionConfig
 from vision.image_prepare import prepare_rois
 from vision.quality import inspect_image
@@ -33,7 +34,8 @@ def _load_experiment(path: str) -> dict:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="SpaceFarm Camera Module 3 services")
-    parser.add_argument("mode", choices=("capture", "api-once", "api-loop"))
+    parser.add_argument(
+        "mode", choices=("capture", "api-once", "api-loop", "cloud-once", "cloud-loop"))
     parser.add_argument("--experiment", default=os.environ.get("SPACEFARM_VISION_EXPERIMENT", ""))
     args = parser.parse_args(argv)
     config = VisionConfig.from_env()
@@ -56,6 +58,20 @@ def main(argv=None) -> int:
                 while True:
                     print("[VISION]", json.dumps(service.tick(), ensure_ascii=False))
                     time.sleep(config.schedule_check_sec)
+        elif args.mode in {"cloud-once", "cloud-loop"}:
+            worker = VisionCloudSyncWorker(
+                store,
+                base_url=os.environ.get("SPACEFARM_CLOUD_BASE_URL", ""),
+                token=os.environ.get("VISION_UPLOAD_TOKEN", ""),
+                timeout_sec=float(os.environ.get("SPACEFARM_CLOUD_TIMEOUT_SEC", "10")),
+            )
+            if args.mode == "cloud-once":
+                print("[VISION CLOUD]", worker.run_once())
+                return 0
+            interval = max(5.0, float(os.environ.get("SPACEFARM_CLOUD_SYNC_INTERVAL", "15")))
+            while True:
+                print("[VISION CLOUD]", worker.run_once())
+                time.sleep(interval)
         else:
             api_url = os.environ.get("SPACEFARM_VISION_API_URL", "")
             api_key = os.environ.get("SPACEFARM_VISION_API_KEY", "")

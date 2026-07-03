@@ -7,6 +7,7 @@ two mirrored protocol implementations can never silently drift apart.
 import importlib.util
 import pathlib
 import sys
+import urllib.request
 
 import uart_link  # ESP32 side (esp32_firmware on path via conftest)
 
@@ -184,6 +185,23 @@ def test_experiment_url_uses_dashboard_origin():
     assert gw._experiment_url_from_dashboard(
         "http://43.156.68.157:8790/api/state"
     ) == "http://43.156.68.157:8790/api/experiment"
+
+
+def test_dashboard_post_sends_configured_token(monkeypatch):
+    captured = {}
+
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def read(self): return b'{}'
+
+    def urlopen(request, timeout):
+        captured["token"] = request.get_header("X-dashboard-token")
+        return Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    gw._post_json("https://example.invalid/api/state", {"soil": 40}, token="secret")
+    assert captured["token"] == "secret"
 
 
 def test_dashboard_action_from_advice_normalizes_primary():

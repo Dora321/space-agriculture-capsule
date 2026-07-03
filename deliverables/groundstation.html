@@ -517,7 +517,9 @@ function renderVision(status,latest,screening){
   document.getElementById("visionGate").textContent=`每 2 小时 · 光照 ${light}/${required}`;
   const image=document.getElementById("visionImage");
   image.hidden=!latest.available;
-  if(latest.available) image.src=API_BASE+latest.overview_url+"&t="+Date.now();
+  if(latest.available && image.src!==new URL(API_BASE+latest.overview_url,location.href).href){
+    image.src=API_BASE+latest.overview_url;
+  }
   const list=document.getElementById("roiList"); list.replaceChildren();
   (latest.observations||[]).forEach(item=>{
     const card=document.createElement("div"); card.className="roi-card";

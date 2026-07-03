@@ -9,8 +9,10 @@ no live device has reported yet.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import signal
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -27,10 +29,15 @@ ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_PATH = ROOT / "deliverables" / "groundstation.html"
 TOKEN = os.getenv("DASHBOARD_TOKEN", "")
 EXPERIMENT_EDIT_TOKEN = os.getenv("SPACEFARM_EXPERIMENT_TOKEN", TOKEN)
+VISION_UPLOAD_TOKEN = os.getenv("VISION_UPLOAD_TOKEN", TOKEN)
+ALLOWED_ORIGIN = os.getenv("DASHBOARD_ALLOWED_ORIGIN", "").rstrip("/")
 MAX_REQUEST_BYTES = int(os.getenv("DASHBOARD_MAX_REQUEST_BYTES", "4096"))
+MAX_VISION_JSON_BYTES = int(os.getenv("VISION_MAX_JSON_BYTES", "65536"))
+MAX_VISION_IMAGE_BYTES = int(os.getenv("VISION_MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
 STALE_AFTER_SEC = int(os.getenv("DASHBOARD_STALE_AFTER_SEC", "120"))
 VISION_DATA_DIR = Path(os.getenv("SPACEFARM_VISION_DATA_DIR", "/var/lib/spacefarm/vision"))
 VISION_DB_PATH = VISION_DATA_DIR / "vision.sqlite3"
+VISION_IMAGE_DIR = VISION_DATA_DIR / "images"
 EXPERIMENT_PATH = Path(os.getenv(
     "SPACEFARM_EXPERIMENT_FILE", "/var/lib/spacefarm/experiment.json"))
 EXPERIMENT_STORE = ExperimentStore(EXPERIMENT_PATH)
@@ -39,6 +46,7 @@ LATEST_STATE: dict = {
     "live": False,
     "updated_at": 0,
 }
+_EVENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 try:
     signal.signal(signal.SIGPIPE, signal.SIG_IGN)
@@ -99,19 +107,33 @@ def _apply_experiment_state(state: dict) -> dict:
 
 
 def _validate_screening(data: dict) -> dict:
-    if not isinstance(data, dict) or data.get("schema") != "screening.result.v1":
-        raise ValueError("screening schema must be screening.result.v1")
-    grade = str(data.get("evidence_grade", ""))
-    if grade not in {"A", "B", "C", "D", "insufficient_data"}:
-        raise ValueError("invalid evidence grade")
-    value = dict(data)
-    value["evidence_grade"] = grade
+    try:
+        from screening.schemas import validate_screening_submission
+    except ImportError:
+        from tools.screening.schemas import validate_screening_submission
+    value = validate_screening_submission(data)
     value["updated_at"] = time.time()
     return value
 
 
-def _open_vision_store():
-    if not VISION_DB_PATH.exists():
+def _validate_vision_status(data: dict) -> dict:
+    try:
+        from vision.schemas import validate_cloud_status
+    except ImportError:
+        from tools.vision.schemas import validate_cloud_status
+    return validate_cloud_status(data)
+
+
+def _validate_vision_event(data: dict) -> dict:
+    try:
+        from vision.schemas import validate_cloud_event
+    except ImportError:
+        from tools.vision.schemas import validate_cloud_event
+    return validate_cloud_event(data)
+
+
+def _open_vision_store(*, create: bool = False):
+    if not create and not VISION_DB_PATH.exists():
         return None
     try:
         from vision.store import VisionStore
@@ -125,13 +147,11 @@ def _public_capture(value: dict | None) -> dict:
         return {"available": False}
     result = {k: v for k, v in value.items() if not k.endswith("_path")}
     result["available"] = True
-    result["overview_url"] = "/api/vision/image?capture_id=" + quote(value["capture_id"])
+    result["event_id"] = value["capture_id"]
+    result["overview_url"] = "/api/vision/images/" + quote(value["capture_id"])
     for item in result.get("observations", []):
         item.pop("image_path", None)
-        item["image_url"] = (
-            "/api/vision/image?capture_id=" + quote(value["capture_id"])
-            + "&pot_id=" + quote(item["pot_id"])
-        )
+        item["image_url"] = result["overview_url"]
     return result
 
 
@@ -151,6 +171,33 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/experiment":
             self._json_response(EXPERIMENT_STORE.status())
+            return
+        if path.startswith("/api/vision/images/"):
+            event_id = path.removeprefix("/api/vision/images/")
+            if not _EVENT_ID_RE.fullmatch(event_id):
+                self.send_error(400)
+                return
+            image_path = VISION_IMAGE_DIR / (event_id + ".jpg")
+            if not image_path.exists():
+                self.send_error(404)
+                return
+            self._send_immutable_image(image_path)
+            return
+        if path == "/api/vision/events":
+            store = _open_vision_store()
+            if store is None:
+                self._json_response({"available": False, "events": []})
+                return
+            try:
+                query = parse_qs(parsed.query)
+                try:
+                    limit = max(1, min(20, int(query.get("limit", ["4"])[0])))
+                except ValueError:
+                    limit = 4
+                events = [_public_capture(item) for item in store.list_captures(limit=limit)]
+                self._json_response({"available": bool(events), "events": events})
+            finally:
+                store.close()
             return
         if path in {"/api/vision/status", "/api/vision/latest", "/api/screening/latest"}:
             store = _open_vision_store()
@@ -203,47 +250,125 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         global LATEST_STATE
         path = urlparse(self.path).path
-        if path not in {"/api/state", "/api/screening/latest", "/api/experiment"}:
+        allowed = {
+            "/api/state", "/api/experiment", "/api/vision/status",
+            "/api/vision/events", "/api/screening/latest", "/api/screening/results",
+        }
+        if path not in allowed:
             self.send_error(404)
             return
-        required_token = EXPERIMENT_EDIT_TOKEN if path == "/api/experiment" else TOKEN
-        if required_token and self.headers.get("X-Dashboard-Token") != required_token:
-            self._json_response({"error": "unauthorized"}, status=401)
+        if path == "/api/experiment":
+            required_token = EXPERIMENT_EDIT_TOKEN
+        elif path.startswith("/api/vision/") or path.startswith("/api/screening/"):
+            required_token = VISION_UPLOAD_TOKEN
+        else:
+            required_token = TOKEN
+        if not self._authorize_write(required_token):
             return
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            if length <= 0:
-                self._json_response({"error": "empty request body"}, status=400)
+            max_bytes = (
+                MAX_VISION_JSON_BYTES
+                if path.startswith("/api/vision/") or path.startswith("/api/screening/")
+                else MAX_REQUEST_BYTES
+            )
+            payload = self._read_json(max_bytes)
+            if payload is None:
                 return
-            if length > MAX_REQUEST_BYTES:
-                self._json_response({"error": "request body too large"}, status=413)
-                return
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if path == "/api/state":
                 LATEST_STATE = _apply_experiment_state(_validate_state(payload))
                 response = {"ok": True}
-            elif path == "/api/screening/latest":
-                store = _open_vision_store()
-                if store is None:
-                    self._json_response({"error": "vision database is not initialized"}, status=503)
-                    return
+            elif path == "/api/vision/status":
+                store = _open_vision_store(create=True)
                 try:
-                    store.set_value("screening_latest", _validate_screening(payload))
+                    value = _validate_vision_status(payload)
+                    value["available"] = True
+                    store.set_status(value)
                 finally:
                     store.close()
                 response = {"ok": True}
-            else:
+            elif path == "/api/vision/events":
+                event = _validate_vision_event(payload)
+                image_path = VISION_IMAGE_DIR / (event["event_id"] + ".jpg")
+                if not image_path.exists():
+                    self._json_response({"error": "event image has not been uploaded"}, status=409)
+                    return
+                image_bytes = image_path.read_bytes()
+                if len(image_bytes) != event["image"]["bytes"]:
+                    self._json_response({"error": "image byte count mismatch"}, status=409)
+                    return
+                if hashlib.sha256(image_bytes).hexdigest() != event["image"]["sha256"]:
+                    self._json_response({"error": "image sha256 mismatch"}, status=409)
+                    return
+                store = _open_vision_store(create=True)
+                try:
+                    store.import_remote_capture(
+                        event, event["observations"], overview_path=image_path)
+                finally:
+                    store.close()
+                response = {"ok": True, "event_id": event["event_id"]}
+            elif path in {"/api/screening/latest", "/api/screening/results"}:
+                store = _open_vision_store(create=True)
+                try:
+                    value = _validate_screening(payload)
+                    store.set_value("screening_latest", value)
+                finally:
+                    store.close()
+                response = value
+            else:  # /api/experiment
                 response = EXPERIMENT_STORE.save(
                     payload, updated_by=payload.get("updated_by", "operator"))
             self._json_response(response)
         except (ValueError, json.JSONDecodeError) as exc:
             self._json_response({"error": str(exc)}, status=400)
 
+    def do_PUT(self):
+        path = urlparse(self.path).path
+        if not path.startswith("/api/vision/images/"):
+            self.send_error(404)
+            return
+        if not self._authorize_write(VISION_UPLOAD_TOKEN):
+            return
+        event_id = path.removeprefix("/api/vision/images/")
+        if not _EVENT_ID_RE.fullmatch(event_id):
+            self._json_response({"error": "invalid event_id"}, status=400)
+            return
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "image/jpeg":
+            self._json_response({"error": "only image/jpeg is accepted"}, status=415)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if length <= 0:
+            self._json_response({"error": "empty image"}, status=400)
+            return
+        if length > MAX_VISION_IMAGE_BYTES:
+            self._json_response({"error": "image is too large"}, status=413)
+            return
+        body = self.rfile.read(length)
+        if len(body) != length or not body.startswith(b"\xff\xd8\xff") or not body.endswith(b"\xff\xd9"):
+            self._json_response({"error": "invalid JPEG signature"}, status=400)
+            return
+        digest = hashlib.sha256(body).hexdigest()
+        claimed = self.headers.get("X-Content-SHA256", "").lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", claimed) or claimed != digest:
+            self._json_response({"error": "sha256 mismatch"}, status=400)
+            return
+        VISION_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+        destination = VISION_IMAGE_DIR / (event_id + ".jpg")
+        temporary = VISION_IMAGE_DIR / (event_id + f".{time.time_ns()}.upload")
+        temporary.write_bytes(body)
+        temporary.replace(destination)
+        self._json_response({"ok": True, "event_id": event_id, "sha256": digest})
+
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Dashboard-Token")
+        self._send_cors_headers()
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, X-Dashboard-Token, X-Content-SHA256",
+        )
         self.end_headers()
 
     def log_message(self, fmt, *args):
@@ -263,12 +388,65 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
+    def _send_immutable_image(self, path: Path):
+        body = path.read_bytes()
+        etag = '"' + hashlib.sha256(body).hexdigest() + '"'
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("ETag", etag)
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        self._send_cors_headers()
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def _authorize_write(self, token: str) -> bool:
+        if not token:
+            # Safe development fallback: unauthenticated writes are loopback-only.
+            if self.client_address[0] in {"127.0.0.1", "::1"}:
+                return True
+            self._json_response({"error": "write token is not configured"}, status=503)
+            return False
+        if self.headers.get("X-Dashboard-Token") != token:
+            self._json_response({"error": "unauthorized"}, status=401)
+            return False
+        return True
+
+    def _read_json(self, max_bytes: int):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if length <= 0:
+            self._json_response({"error": "empty request body"}, status=400)
+            return None
+        if length > max_bytes:
+            self._json_response({"error": "request body too large"}, status=413)
+            return None
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
+    def _send_cors_headers(self):
+        origin = self.headers.get("Origin", "").rstrip("/")
+        if ALLOWED_ORIGIN and origin == ALLOWED_ORIGIN:
+            self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
+            self.send_header("Vary", "Origin")
+
     def _json_response(self, data: dict, status: int = 200):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors_headers()
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Dashboard-Token")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         try:

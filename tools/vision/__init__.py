@@ -5,7 +5,7 @@ local code handles capture, deterministic quality checks, scheduling and storage
 an injected multimodal client performs plant interpretation remotely.
 """
 
-from .config import VisionConfig
-from .scheduler import CaptureScheduler, ScheduleDecision
-
-__all__ = ["VisionConfig", "CaptureScheduler", "ScheduleDecision"]
+# Keep package import side-effect free. Cloud dashboard deployments only need
+# ``vision.store`` and ``vision.schemas`` and intentionally do not install the
+# Raspberry Pi camera stack. Callers import concrete submodules directly.
+__all__ = []

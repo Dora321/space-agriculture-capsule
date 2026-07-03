@@ -1,6 +1,6 @@
 # Camera Module 3 多模态分析与 AI 早期表型筛选架构方案
 
-**状态：** 核心采集、API Worker、Dashboard 接口已实现；云端视觉同步与长期实验待完成
+**状态：** 核心采集、API Worker、云端视觉 outbox 同步和 Dashboard 接口已实现；长期实验待完成
 **更新：** 2026-07-03
 **适用系统：** ESP32 飞控 + 树莓派载荷计算机 + 云端地面站
 
@@ -611,12 +611,12 @@ tests/
 
 ### 17.5 云端 dashboard_server 接口
 
-当前 `dashboard_server.py` 只有内存中的 `/api/state`，且请求上限为 4KB。视觉接入需新增独立存储和接口：
+当前实现保留 `/api/state` 的 4KB 上限，并已增加独立的视觉 SQLite、图片目录、64KB JSON 上限和 8MB JPEG 上限：
 
 | 方法 | 路径 | 调用方 | 说明 |
 |---|---|---|---|
 | `POST` | `/api/vision/status` | 树莓派 Worker | 上报相机/调度/API 状态 |
-| `POST` | `/api/vision/events` | 树莓派 Worker | 按 `event_id` 幂等写 `vision.v1` |
+| `POST` | `/api/vision/events` | 树莓派 Worker | 按 `event_id` 幂等写 `vision.event.v1` 云端信封 |
 | `PUT` | `/api/vision/images/{event_id}` | 树莓派 Worker | 上传有限大小的 JPEG |
 | `GET` | `/api/vision/status` | 浏览器 | 读取视觉链健康状态 |
 | `GET` | `/api/vision/latest` | 浏览器 | 读取最新成功结果 |
@@ -633,7 +633,7 @@ tests/
 - 元数据写 SQLite，图片写专用目录；服务重启后仍可展示上一张图片。
 - 写接口使用 `DASHBOARD_TOKEN` 或独立 `VISION_UPLOAD_TOKEN`；同源 GET 不开放任意文件路径。
 - 只接受 `image/jpeg`，校验事件 ID、文件签名、字节数和 SHA-256，禁止目录穿越。
-- `vision.v1` 和 `phenotype_screen.v1` 的枚举、字符串长度、时间戳、数组长度全部白名单校验；ΔControl、中位数、IQR 和证据等级由服务端复算。
+- `vision.event.v1` 和 `phenotype_screen.v1` 的枚举、字符串长度、时间戳、数组长度全部白名单校验；ΔControl、中位数、IQR 和证据等级由服务端复算。
 - 多模态文本属于不可信输入。前端使用 `textContent`，不能像当前 `renderSignals()`、`renderLog()` 一样把模型文本拼进 `innerHTML`。
 - 生产环境同源访问，CORS 不再默认 `*`；如确需跨域则配置明确 origin。
 

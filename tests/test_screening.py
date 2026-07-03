@@ -1,6 +1,9 @@
 import pytest
 
-from tools.screening import PHENOTYPE_WEIGHTS, compare_candidate_to_control, score_phenotype
+from tools.screening import (
+    PHENOTYPE_WEIGHTS, compare_candidate_to_control, score_phenotype,
+    validate_screening_submission,
+)
 
 
 def test_rubric_weights_total_100_and_resource_reference_is_only_5_points():
@@ -42,3 +45,34 @@ def test_no_paired_control_is_insufficient_data():
     )
     assert result["evidence_grade"] == "insufficient_data"
     assert result["independent_cycles"] == 0
+
+
+def test_server_submission_recomputes_score_delta_and_grade():
+    payload = {
+        "schema": "screening.input.v1",
+        "result_id": "r1", "material_id": "candidate-A",
+        "control_material_id": "control", "cycle_group_id": "group-1",
+        "candidate_cycles": [
+            {"cycle_id": cycle, "score": 80} for cycle in ("c1", "c2", "c3")],
+        "control_cycles": [
+            {"cycle_id": cycle, "score": 70} for cycle in ("c1", "c2", "c3")],
+        "dimensions": {name: 80 for name in PHENOTYPE_WEIGHTS},
+        "data_coverage": .8, "ai_human_agreement": .75,
+        "evidence_grade": "A", "delta_control_median": 999,
+    }
+    result = validate_screening_submission(payload)
+    assert result["schema"] == "phenotype_screen.v1"
+    assert result["phenotype_score"] == 80
+    assert result["delta_control_median"] == 10
+    assert result["evidence_grade"] == "B"
+
+
+def test_server_submission_rejects_unbounded_or_invalid_cycle_values():
+    payload = {
+        "schema": "screening.input.v1", "material_id": "candidate-A",
+        "control_material_id": "control", "cycle_group_id": "group-1",
+        "candidate_cycles": [{"cycle_id": "c1", "score": 101}],
+        "control_cycles": [{"cycle_id": "c1", "score": 70}],
+    }
+    with pytest.raises(ValueError):
+        validate_screening_submission(payload)

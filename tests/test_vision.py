@@ -4,6 +4,7 @@ from tools.vision.api_worker import VisionApiWorker
 from tools.vision.camera import CameraModule3
 from tools.vision.capture_service import CaptureService
 from tools.vision.clients import OpenAICompatibleVisionClient
+from tools.vision.cloud_sync import VisionCloudSyncWorker
 from tools.vision.quality import evaluate_metrics
 from tools.vision.scheduler import (
     CaptureScheduler, READY, WAITING_INTERVAL, WAITING_LIGHT, WAITING_TELEMETRY,
@@ -208,3 +209,65 @@ def test_capture_service_does_not_queue_rejected_images(tmp_path):
     assert service.tick()["state"] == "QUALITY_REJECTED"
     assert store.latest_capture() is None
     store.close()
+
+
+def test_cloud_sync_worker_uploads_one_event_and_marks_outbox(tmp_path):
+    store = VisionStore(tmp_path / "vision.sqlite3")
+    capture, observations = _capture(tmp_path)
+    overview = tmp_path / "overview.jpg"
+    overview.write_bytes(b"\xff\xd8\xffoverview\xff\xd9")
+    capture["overview_path"] = str(overview)
+    capture["context"] = {"day": 8, "stage": "vegetative"}
+    store.create_capture(capture, observations)
+    store.mark_succeeded("cap-1", {
+        "capture_id": "cap-1", "model": {"name": "vision-test"},
+        "observations": [{
+            "pot_id": "P1", "analysis": {"plant": "生菜", "vigor": "normal"},
+        }],
+    }, now=101)
+    calls = []
+
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def read(self): return b'{"ok":true}'
+
+    def request_json(url, **kwargs):
+        calls.append((kwargs["method"], url, json.loads(kwargs["body"])))
+        return {"ok": True}
+
+    def urlopen(request, timeout):
+        calls.append((request.method, request.full_url, request.data))
+        return Response()
+
+    worker = VisionCloudSyncWorker(
+        store, base_url="https://cloud.example", token="secret", clock=lambda: 200,
+        request_json=request_json, urlopen=urlopen,
+    )
+    assert worker.run_once() == "succeeded"
+    assert worker.run_once() == "idle"
+    methods = [item[0] for item in calls]
+    assert "PUT" in methods and methods.count("POST") >= 1
+    event = next(item[2] for item in calls if item[0] == "POST" and item[1].endswith("/events"))
+    assert event["schema"] == "vision.event.v1"
+    assert event["event_id"] == "cap-1"
+    assert len(event["image"]["sha256"]) == 64
+    store.close()
+
+
+def test_cloud_outbox_retry_survives_reopen_and_uses_backoff(tmp_path):
+    db_path = tmp_path / "vision.sqlite3"
+    store = VisionStore(db_path)
+    capture, observations = _capture(tmp_path)
+    store.create_capture(capture, observations)
+    store.mark_succeeded("cap-1", {
+        "capture_id": "cap-1", "observations": [{"pot_id": "P1", "analysis": {}}],
+    }, now=100)
+    assert store.lease_cloud_sync("worker", now=100)["capture_id"] == "cap-1"
+    assert store.mark_cloud_retry("cap-1", "offline", now=100) == 130
+    store.close()
+
+    reopened = VisionStore(db_path)
+    assert reopened.lease_cloud_sync("worker", now=129) is None
+    assert reopened.lease_cloud_sync("worker", now=130)["capture_id"] == "cap-1"
+    reopened.close()
