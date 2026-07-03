@@ -57,7 +57,9 @@ def main(argv=None) -> int:
                 )
                 while True:
                     print("[VISION]", json.dumps(service.tick(), ensure_ascii=False))
-                    time.sleep(config.schedule_check_sec)
+                    # Poll local manual-capture requests promptly while the scheduler
+                    # still enforces the two-hour automatic capture interval.
+                    time.sleep(min(config.schedule_check_sec, 10))
         elif args.mode in {"cloud-once", "cloud-loop"}:
             worker = VisionCloudSyncWorker(
                 store,

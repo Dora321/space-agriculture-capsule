@@ -23,14 +23,28 @@ class CaptureService:
         self.inspect = inspect
         self.clock = clock
 
+    def _publish(self, status: Mapping[str, Any], *, now: float | None = None) -> dict[str, Any]:
+        timestamp = self.clock() if now is None else float(now)
+        value = dict(status)
+        self.store.set_status(value, now=timestamp)
+        self.store.set_value("health_capture", {
+            "alive": True,
+            "heartbeat_at": timestamp,
+            "state": value.get("state", "unknown"),
+            "last_error": value.get("reason", "") if value.get("state") == "CAPTURE_ERROR" else "",
+        }, now=timestamp)
+        return value
+
     def tick(self) -> dict[str, Any]:
         now = self.clock()
         telemetry = self.store.latest_telemetry()
+        manual_request = self.store.pending_manual_capture()
         decision = self.scheduler.evaluate(
             now=now,
             telemetry=telemetry,
             plant_info=self.experiment.get("plant_info"),
-            last_success_at=self.store.last_capture_at(),
+            last_accepted_capture_at=self.store.last_accepted_capture_at(),
+            ignore_interval=manual_request is not None,
         )
         status = {
             "state": decision.state,
@@ -38,10 +52,12 @@ class CaptureService:
             "current_light": decision.current_light,
             "required_light": decision.required_light,
             "next_eligible_at": decision.next_eligible_at,
+            "trigger": "manual" if manual_request else "automatic",
+            "manual_request_id": (
+                manual_request.get("request_id") if manual_request else None),
         }
-        self.store.set_status(status, now=now)
         if not decision.should_capture:
-            return status
+            return self._publish(status, now=now)
 
         capture_id = datetime.fromtimestamp(now, timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:8]
         capture_dir = self.data_dir / "captures" / capture_id
@@ -62,8 +78,11 @@ class CaptureService:
                     **status, "state": "QUALITY_REJECTED",
                     "reason": "image quality rejected for: " + ", ".join(rejected),
                 }
-                self.store.set_status(quality_status, now=self.clock())
-                return quality_status
+                if manual_request:
+                    self.store.finish_manual_capture(
+                        manual_request["request_id"], error=quality_status["reason"],
+                        now=self.clock())
+                return self._publish(quality_status)
             self.store.create_capture({
                 "capture_id": capture_id,
                 "captured_at": now,
@@ -80,8 +99,13 @@ class CaptureService:
             }, observations)
         except Exception as exc:
             error_status = {**status, "state": "CAPTURE_ERROR", "reason": f"{type(exc).__name__}: {exc}"}
-            self.store.set_status(error_status, now=self.clock())
-            return error_status
+            if manual_request:
+                self.store.finish_manual_capture(
+                    manual_request["request_id"], error=error_status["reason"],
+                    now=self.clock())
+            return self._publish(error_status)
         captured = {**status, "state": "QUEUED_FOR_ANALYSIS", "capture_id": capture_id}
-        self.store.set_status(captured, now=self.clock())
-        return captured
+        if manual_request:
+            self.store.finish_manual_capture(
+                manual_request["request_id"], capture_id=capture_id, now=self.clock())
+        return self._publish(captured)

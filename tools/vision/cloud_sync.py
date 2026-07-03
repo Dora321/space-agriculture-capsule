@@ -44,6 +44,7 @@ def capture_to_cloud_event(capture: dict[str, Any], image_bytes: bytes) -> dict[
             for item in capture.get("observations", [])
         ],
         "model": model,
+        "human_labels": capture.get("human_labels", [])[:20],
         "image": {
             "sha256": hashlib.sha256(image_bytes).hexdigest(),
             "bytes": len(image_bytes),
@@ -63,6 +64,14 @@ class VisionCloudSyncWorker:
         self.request_json = request_json
         self.urlopen = urlopen
 
+    def _finish(self, outcome: str, *, error: str = "") -> str:
+        now = self.clock()
+        self.store.set_value("health_cloud", {
+            "alive": True, "heartbeat_at": now, "state": outcome,
+            "last_error": str(error)[:240],
+        }, now=now)
+        return outcome
+
     def configured(self) -> bool:
         return bool(self.base_url and self.token)
 
@@ -81,7 +90,7 @@ class VisionCloudSyncWorker:
 
     def run_once(self) -> str:
         if not self.configured():
-            return "disabled"
+            return self._finish("disabled", error="cloud sync is not configured")
         status_error = None
         try:
             self._post_status()
@@ -92,7 +101,9 @@ class VisionCloudSyncWorker:
         now = self.clock()
         capture = self.store.lease_cloud_sync("vision-cloud", now=now)
         if capture is None:
-            return "status_retry" if status_error is not None else "idle"
+            if status_error is not None:
+                return self._finish("status_retry", error=f"{type(status_error).__name__}: {status_error}")
+            return self._finish("idle")
         capture_id = capture["capture_id"]
         try:
             image_bytes = Path(capture["overview_path"]).read_bytes()
@@ -114,8 +125,8 @@ class VisionCloudSyncWorker:
                 content_type="application/json", timeout=self.timeout_sec,
             )
             self.store.mark_cloud_synced(capture_id, now=self.clock())
-            return "succeeded"
+            return self._finish("succeeded")
         except Exception as exc:
             self.store.mark_cloud_retry(
                 capture_id, f"{type(exc).__name__}: {exc}", now=self.clock())
-            return "retry"
+            return self._finish("retry", error=f"{type(exc).__name__}: {exc}")

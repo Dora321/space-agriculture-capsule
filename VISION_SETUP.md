@@ -61,7 +61,21 @@ python3 tools/vision_service.py cloud-loop
 
 正式部署使用 `spacefarm-vision-sync.service`。云端接口为 `/api/vision/status`、`/api/vision/events` 和 `/api/vision/images/{event_id}`；图片与 JSON 使用不同大小限制和同一上传令牌。
 
-## 4. 科学口径
+## 4. 本机健康与人工复核
+
+```bash
+curl http://127.0.0.1:8791/healthz
+curl -X POST http://127.0.0.1:8791/v1/capture \
+  -H 'Content-Type: application/json' \
+  -d '{"operator":"team-2","reason":"现场复核"}'
+curl -X POST http://127.0.0.1:8791/v1/events/<event_id>/label \
+  -H 'Content-Type: application/json' \
+  -d '{"operator":"team-2","pot_id":"P1","label":{"plant":"生菜","vigor":"normal"},"note":"目视确认"}'
+```
+
+本机 API 只绑定 loopback。人工拍摄只绕过两小时间隔，不绕过遥测新鲜度、光线门和图像质量；标签为追加式审计记录，不改写模型原始结果。
+
+## 5. 科学口径
 
 - 两小时照片是同一植株的重复测量，不增加独立样本量 `n`。
 - `n` 只统计完成的独立种植周期；至少 3 轮才可给出 B 级初步证据，建议 5 轮。

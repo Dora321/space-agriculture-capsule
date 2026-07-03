@@ -184,6 +184,29 @@ def validate_cloud_event(data: Mapping[str, Any]) -> dict[str, Any]:
     if sum(item["is_control"] for item in observations) != 1:
         raise SchemaError("exactly one control observation is required")
 
+    raw_labels = data.get("human_labels", [])
+    if not isinstance(raw_labels, list) or len(raw_labels) > 20:
+        raise SchemaError("human_labels must contain at most 20 items")
+    human_labels = []
+    for raw in raw_labels:
+        if not isinstance(raw, Mapping):
+            raise SchemaError("each human label must be an object")
+        label_id = _short_text(raw.get("label_id"), 64)
+        pot_id = _short_text(raw.get("pot_id"), 32)
+        operator = _short_text(raw.get("operator"), 32)
+        if not _EVENT_ID_RE.fullmatch(label_id) or pot_id not in seen or not operator:
+            raise SchemaError("invalid human label identity")
+        human_labels.append({
+            "label_id": label_id,
+            "pot_id": pot_id,
+            "operator": operator,
+            "label": validate_analysis(raw.get("label", {})),
+            "note": _short_text(raw.get("note"), 240),
+            "created_at": _number(
+                raw.get("created_at"), minimum=1577836800, maximum=time.time() + 300,
+                name="label created_at"),
+        })
+
     context = data.get("context") if isinstance(data.get("context"), Mapping) else {}
     day = context.get("day")
     if day is not None:
@@ -205,6 +228,7 @@ def validate_cloud_event(data: Mapping[str, Any]) -> dict[str, Any]:
             "experiment_id": _short_text(context.get("experiment_id"), 48),
         },
         "observations": observations,
+        "human_labels": human_labels,
         "model": {
             "name": _short_text(model.get("name", model.get("model")), 80),
             "prompt_version": _short_text(model.get("prompt_version"), 40),

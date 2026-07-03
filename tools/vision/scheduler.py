@@ -41,11 +41,12 @@ class CaptureScheduler:
 
     def evaluate(self, *, now: float, telemetry: Optional[Mapping[str, Any]],
                  plant_info: Optional[Mapping[str, Any]] = None,
-                 last_success_at: Optional[float] = None) -> ScheduleDecision:
+                 last_accepted_capture_at: Optional[float] = None,
+                 ignore_interval: bool = False) -> ScheduleDecision:
         required = self._required_light(telemetry, plant_info)
         next_eligible = (
-            float(last_success_at) + self.interval_sec
-            if last_success_at is not None else float(now)
+            float(last_accepted_capture_at) + self.interval_sec
+            if last_accepted_capture_at is not None else float(now)
         )
 
         if not telemetry:
@@ -69,7 +70,7 @@ class CaptureScheduler:
                                     "light telemetry is invalid", None, required,
                                     next_eligible)
 
-        if now < next_eligible:
+        if now < next_eligible and not ignore_interval:
             return ScheduleDecision(False, WAITING_INTERVAL,
                                     "two-hour interval has not elapsed", current,
                                     required, next_eligible)

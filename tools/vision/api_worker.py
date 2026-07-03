@@ -17,23 +17,35 @@ class VisionApiWorker:
         self.max_attempts = max_attempts
         self.clock = clock
 
+    def _finish(self, outcome: str, *, error: str = "") -> str:
+        now = self.clock()
+        self.store.set_value("health_api", {
+            "alive": True,
+            "heartbeat_at": now,
+            "state": outcome,
+            "calls_today": self.store.calls_today(now=now),
+            "daily_limit": self.daily_limit,
+            "last_error": str(error)[:240],
+        }, now=now)
+        return outcome
+
     def run_once(self) -> str:
         now = self.clock()
         if self.store.calls_today(now=now) >= self.daily_limit:
-            return "daily_limit"
+            return self._finish("daily_limit")
         job = self.store.lease_next(self.worker_id, now=now)
         if job is None:
-            return "idle"
+            return self._finish("idle")
         try:
             image_bytes = sum(Path(item["image_path"]).stat().st_size for item in job["observations"])
             # Count attempted requests too: outages/retries must not bypass the cost cap.
             self.store.record_usage(job["capture_id"], image_bytes, now=now)
-            result, image_bytes = self.client.analyze(job)
+            result, _ = self.client.analyze(job)
             self.store.mark_succeeded(job["capture_id"], result, now=self.clock())
-            return "succeeded"
+            return self._finish("succeeded")
         except Exception as exc:
             self.store.mark_retry(
                 job["capture_id"], f"{type(exc).__name__}: {exc}",
                 max_attempts=self.max_attempts, now=self.clock(),
             )
-            return "retry"
+            return self._finish("retry", error=f"{type(exc).__name__}: {exc}")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -59,6 +60,21 @@ class VisionStore:
           status TEXT NOT NULL CHECK(status IN ('leased','retry','succeeded')),
           attempts INTEGER NOT NULL DEFAULT 0, available_at REAL NOT NULL DEFAULT 0,
           lease_until REAL, last_error TEXT, synced_at REAL, updated_at REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS manual_capture_requests (
+          request_id TEXT PRIMARY KEY, requested_at REAL NOT NULL,
+          operator TEXT NOT NULL, reason TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('pending','fulfilled','rejected')),
+          capture_id TEXT, error TEXT, updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS manual_capture_status_idx
+          ON manual_capture_requests(status, requested_at);
+        CREATE TABLE IF NOT EXISTS human_labels (
+          label_id TEXT PRIMARY KEY,
+          capture_id TEXT NOT NULL REFERENCES captures(capture_id) ON DELETE CASCADE,
+          pot_id TEXT NOT NULL, operator TEXT NOT NULL,
+          label_json TEXT NOT NULL, note TEXT NOT NULL,
+          created_at REAL NOT NULL
         );
         """)
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(captures)")}
@@ -122,13 +138,15 @@ class VisionStore:
                      str(item["image_path"]), _dump(item.get("quality", {}))),
                 )
 
-    def last_capture_at(self) -> float | None:
+    def last_accepted_capture_at(self) -> float | None:
+        """Latest physical capture that passed quality gates, regardless of AI outcome."""
         row = self.db.execute(
-            "SELECT MAX(captured_at) AS value FROM captures WHERE status!='failed'"
+            "SELECT MAX(captured_at) AS value FROM captures"
         ).fetchone()
         return None if row["value"] is None else float(row["value"])
 
-    def last_success_at(self) -> float | None:
+    def last_analysis_success_at(self) -> float | None:
+        """Latest capture whose multimodal analysis completed successfully."""
         row = self.db.execute(
             "SELECT MAX(captured_at) AS value FROM captures WHERE status='succeeded'"
         ).fetchone()
@@ -205,6 +223,7 @@ class VisionStore:
             raw_analysis = value.pop("analysis_json")
             value["analysis"] = json.loads(raw_analysis) if raw_analysis else None
             result["observations"].append(value)
+        result["human_labels"] = self.labels_for_capture(capture_id)
         return result
 
     def latest_capture(self, *, succeeded_only: bool = False) -> dict[str, Any] | None:
@@ -272,6 +291,18 @@ class VisionStore:
                         _dump(item.get("analysis", {})),
                     ),
                 )
+            for label in capture.get("human_labels", [])[:20]:
+                self.db.execute(
+                    "INSERT INTO human_labels(label_id,capture_id,pot_id,operator,label_json,note,created_at) "
+                    "VALUES(?,?,?,?,?,?,?) ON CONFLICT(label_id) DO UPDATE SET "
+                    "operator=excluded.operator,label_json=excluded.label_json,note=excluded.note,"
+                    "created_at=excluded.created_at",
+                    (
+                        label["label_id"], capture["capture_id"], label["pot_id"],
+                        label["operator"], _dump(label["label"]), label.get("note", ""),
+                        float(label["created_at"]),
+                    ),
+                )
 
     def lease_cloud_sync(self, worker_id: str, *, now: float | None = None,
                          lease_sec: int = 120) -> dict[str, Any] | None:
@@ -322,6 +353,105 @@ class VisionStore:
             (available_at, str(error)[:500], timestamp, capture_id),
         )
         return available_at
+
+    def request_manual_capture(self, *, operator: str, reason: str = "",
+                               now: float | None = None, cooldown_sec: int = 60) -> dict[str, Any]:
+        timestamp = time.time() if now is None else float(now)
+        with self.db:
+            pending = self.db.execute(
+                "SELECT * FROM manual_capture_requests WHERE status='pending' "
+                "ORDER BY requested_at DESC LIMIT 1"
+            ).fetchone()
+            if pending is not None:
+                value = dict(pending)
+                value["created"] = False
+                return value
+            latest = self.db.execute(
+                "SELECT requested_at FROM manual_capture_requests "
+                "ORDER BY requested_at DESC LIMIT 1"
+            ).fetchone()
+            if latest is not None and timestamp - float(latest["requested_at"]) < cooldown_sec:
+                raise ValueError("manual capture is rate limited")
+            request_id = "manual-" + uuid.uuid4().hex
+            self.db.execute(
+                "INSERT INTO manual_capture_requests(request_id,requested_at,operator,reason,"
+                "status,updated_at) VALUES(?,?,?,?,?,?)",
+                (request_id, timestamp, str(operator)[:32], str(reason)[:120],
+                 "pending", timestamp),
+            )
+        return {
+            "request_id": request_id, "requested_at": timestamp,
+            "operator": str(operator)[:32], "reason": str(reason)[:120],
+            "status": "pending", "capture_id": None, "error": None,
+            "updated_at": timestamp, "created": True,
+        }
+
+    def pending_manual_capture(self) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT * FROM manual_capture_requests WHERE status='pending' "
+            "ORDER BY requested_at LIMIT 1"
+        ).fetchone()
+        return None if row is None else dict(row)
+
+    def finish_manual_capture(self, request_id: str, *, capture_id: str | None = None,
+                              error: str = "", now: float | None = None) -> None:
+        timestamp = time.time() if now is None else float(now)
+        status = "fulfilled" if capture_id else "rejected"
+        self.db.execute(
+            "UPDATE manual_capture_requests SET status=?,capture_id=?,error=?,updated_at=? "
+            "WHERE request_id=? AND status='pending'",
+            (status, capture_id, str(error)[:240], timestamp, request_id),
+        )
+
+    def add_human_label(self, capture_id: str, pot_id: str, *, operator: str,
+                        label: Mapping[str, Any], note: str = "",
+                        now: float | None = None) -> dict[str, Any]:
+        timestamp = time.time() if now is None else float(now)
+        exists = self.db.execute(
+            "SELECT 1 FROM observations WHERE capture_id=? AND pot_id=?",
+            (capture_id, pot_id),
+        ).fetchone()
+        if exists is None:
+            raise KeyError("capture or pot_id not found")
+        value = {
+            "label_id": "label-" + uuid.uuid4().hex,
+            "capture_id": capture_id,
+            "pot_id": pot_id,
+            "operator": str(operator)[:32],
+            "label": dict(label),
+            "note": str(note)[:240],
+            "created_at": timestamp,
+        }
+        self.db.execute(
+            "INSERT INTO human_labels(label_id,capture_id,pot_id,operator,label_json,note,created_at) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (value["label_id"], capture_id, pot_id, value["operator"],
+             _dump(value["label"]), value["note"], timestamp),
+        )
+        capture = self.db.execute(
+            "SELECT status FROM captures WHERE capture_id=?", (capture_id,)
+        ).fetchone()
+        if capture is not None and capture["status"] == "succeeded":
+            self.db.execute(
+                "INSERT INTO cloud_sync(capture_id,status,attempts,available_at,updated_at) "
+                "VALUES(?,'retry',0,?,?) ON CONFLICT(capture_id) DO UPDATE SET "
+                "status='retry',available_at=excluded.available_at,lease_until=NULL,"
+                "last_error=NULL,updated_at=excluded.updated_at",
+                (capture_id, timestamp, timestamp),
+            )
+        return value
+
+    def labels_for_capture(self, capture_id: str) -> list[dict[str, Any]]:
+        rows = self.db.execute(
+            "SELECT * FROM human_labels WHERE capture_id=? ORDER BY created_at",
+            (capture_id,),
+        ).fetchall()
+        result = []
+        for row in rows:
+            value = dict(row)
+            value["label"] = json.loads(value.pop("label_json"))
+            result.append(value)
+        return result
 
     def calls_today(self, *, now: float | None = None) -> int:
         timestamp = time.time() if now is None else float(now)

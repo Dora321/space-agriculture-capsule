@@ -353,16 +353,18 @@ CAPTURED → READY → ANALYZING → SUCCEEDED
 
 ## 11. 本机 Vision API
 
+已实现为 `spacefarm-vision-local-api.service`，严格绑定 `127.0.0.1:8791`。健康检查读取三个服务心跳和SQLite用量；人工拍摄请求只绕过两小时间隔，不绕过遥测、光线和质量门；人工标签追加保存并重新进入云端 outbox，绝不覆盖原始模型结果。
+
 | 方法 | 路径 | 用途 |
 |---|---|---|
 | `GET` | `/healthz` | 相机、API Worker、额度、磁盘、最近成功时间 |
 | `GET` | `/v1/latest` | 最新成功 `vision.v1`，不含图片二进制 |
 | `GET` | `/v1/events?limit=N` | 最近视觉任务与状态 |
-| `GET` | `/v1/images/{event_id}-thumb.jpg` | 有大小上限的缩略图 |
+| `GET` | `/v1/images/{event_id}-thumb.jpg` | 有2MB上限的本地预览图 |
 | `POST` | `/v1/capture` | 本机人工触发，需限频 |
 | `POST` | `/v1/events/{event_id}/label` | 人工纠正模型结果 |
 
-API 只绑定 loopback。文件名由服务端事件 ID 生成，不接受任意路径。
+API 只绑定 loopback。文件名由服务端事件 ID 生成，不接受任意路径。当前提供 API/curl 复核能力；可点击的本地复核表单仍列为展示增强项。
 
 ## 12. 降级矩阵
 
@@ -447,7 +449,7 @@ tests/
 
 **出口：** 相机连续 8 小时定时拍摄稳定；选定 API 能返回可解析的目标 JSON。
 
-### Phase 1：采集与可靠队列（2–3 天）
+### Phase 1：采集与可靠队列（已完成）
 
 - 完成 `vision-capture`、质量门、JPEG 缓存、SQLite 状态机和 `/healthz`。
 - API 暂用 fake client，先验证进程隔离与崩溃恢复。
@@ -461,7 +463,7 @@ tests/
 
 **建议验收目标：** 在真实舱内独立批次图片上，作物 Top-1 ≥ 90%、每类召回率 ≥ 80%；同时统计 `unknown` 拒识与连续三帧后的 mismatch 误报。模型自报 certainty 不作为准确率证据。
 
-### Phase 3：视觉大屏与控制隔离（2–3 天）
+### Phase 3：视觉大屏与控制隔离（已完成）
 
 - 验证 `pi_advisor` 不读取视觉字段，视觉服务无执行器权限。
 - 大屏增加最新图片、分析卡片、调用状态和人工纠错。
