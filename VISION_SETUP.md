@@ -17,7 +17,7 @@ rpicam-still -o camera-test.jpg
 
 ## 2. 配置固定 ROI
 
-复制 `config/vision_experiment.example.json` 为 `config/vision_experiment.json`。示例按 2304×1296 画面横向均分四盆；实际部署时应根据相机固定后的真实构图测量 `x/y/width/height`，此后同一轮实验不得移动相机或花盆位置。
+复制 `config/vision_experiment.example.json` 为 `config/vision_experiment.json`。示例坐标来自当前 2304×1296 四分区圆盆构图，P1 为右下对照区；相机或花盆位置变化后必须重新测量 `x/y/width/height`，同一轮实验中不得移动机位。
 
 复制 `config/vision.env.example` 到 `/home/mx/spacefarm/.config/vision.env`，填写多模态 API 地址、密钥和支持图像输入的模型名，并设置权限为 `600`。API 密钥不要提交到 Git。
 

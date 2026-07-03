@@ -5,9 +5,9 @@
     "light_opt": 50
   },
   "rois": [
-    {"pot_id": "P1", "roi_id": "roi-p1", "material_id": "control-A", "is_control": true,  "x": 0,    "y": 0, "width": 576, "height": 648},
-    {"pot_id": "P2", "roi_id": "roi-p2", "material_id": "candidate-B", "is_control": false, "x": 576,  "y": 0, "width": 576, "height": 648},
-    {"pot_id": "P3", "roi_id": "roi-p3", "material_id": "candidate-C", "is_control": false, "x": 1152, "y": 0, "width": 576, "height": 648},
-    {"pot_id": "P4", "roi_id": "roi-p4", "material_id": "candidate-D", "is_control": false, "x": 1728, "y": 0, "width": 576, "height": 648}
+    {"pot_id": "P1", "roi_id": "roi-p1", "material_id": "control-A", "is_control": true,  "x": 1080, "y": 600, "width": 570, "height": 550},
+    {"pot_id": "P2", "roi_id": "roi-p2", "material_id": "candidate-B", "is_control": false, "x": 600,  "y": 600, "width": 480, "height": 550},
+    {"pot_id": "P3", "roi_id": "roi-p3", "material_id": "candidate-C", "is_control": false, "x": 1080, "y": 100, "width": 570, "height": 500},
+    {"pot_id": "P4", "roi_id": "roi-p4", "material_id": "candidate-D", "is_control": false, "x": 600,  "y": 100, "width": 480, "height": 500}
   ]
 }

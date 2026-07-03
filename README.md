@@ -8,9 +8,9 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-145%2F145%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-178%2F178%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
-[![Cost](https://img.shields.io/badge/BOM-%C2%A5140-orange)](#)
+[![Cost](https://img.shields.io/badge/BOM-%C2%A5135-orange)](#)
 
 ---
 
@@ -59,20 +59,20 @@
 | 太空约束 | 设计选择 | 实现方式 |
 |:---------|:---------|:---------|
 | 📡 通信延迟 & 不可靠 | **双层决策架构** | 云端 AI 在线时精细优化；断联时本地规则引擎自动接管，模拟深空延迟下的自治运行 |
-| 👨‍🚀 人力昂贵 | **全自动养护闭环** | 感知→决策→执行全链路自动化，旋转编码器一键切换 8 种作物，无需人工配置 |
+| 👨‍🚀 人力昂贵 | **全自动养护闭环** | 感知→决策→执行全链路自动化，四合一模拟按键一键切换 8 种作物，无需人工配置 |
 | 🔧 故障无人维修 | **四级容错与降级** | 传感器离线→自动切安全值；执行器故障→跳过继续运行；看门狗→死机自动重启 |
 | ⚡ 能源稀缺 | **采样与决策节流** | 采样周期 60s，AI 请求门控（阈值触发+周期复核），非必要时不浪费带宽和电力 |
 | ♻️ 资源浪费不可接受 | **精量滴灌 + 智能补光 + 安全上限** | 最小水量/补光释放，水泵/补光单次最长均为 20s、每小时最多 12 次动作，避免过量浇水或浪费 |
-| 🧪 多作物轮种需求 | **8 种作物完整数据库** | 每作物独立生长阶段模型（苗期→生长期→花期→果期→采收期），旋转编码器现场一键切换 |
+| 🧪 多作物轮种需求 | **8 种作物完整数据库** | 每作物独立生长阶段模型（苗期→生长期→花期→果期→采收期），四合一模拟按键现场一键切换 |
 
-系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵 + 12V 补光灯**自动浇水补光养护 **8 种作物**（旋转编码器现场切换）。**Decision Plane / Action Plane 分离架构**：决策层输出多维诊断信号（缺水、缺光、高温、缺肥等），物理执行器仅响应 WATER/LIGHT_LOW 两种信号，其余 advisory 信号通过 WS2812 灯条动画广播——实现「决策能力与执行能力分离」。OLED 三页轮播 + **WS2812 11 颗灯珠**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
+系统以 **ESP32 为下位机**，通过 **4 类传感器**实时感知环境，借助 **云端 DeepSeek 大模型 + 本地规则引擎**双重决策，驱动 **12V 水泵 + 12V 补光灯**自动浇水补光养护 **8 种作物**（四合一模拟按键现场切换）。**Decision Plane / Action Plane 分离架构**：决策层输出多维诊断信号（缺水、缺光、高温、缺肥等），物理执行器仅响应 WATER/LIGHT_LOW 两种信号，其余 advisory 信号通过 WS2812 灯条动画广播——实现「决策能力与执行能力分离」。OLED 三页轮播 + **WS2812 11 颗灯珠**作为机载仪表，Web 大屏作为地面遥测/育种科学家数据看板——形成一套面向**多品种平行筛选 + 全生长周期数据闭环**的最小化育种实验平台原型。
 
 项目面向 **STEM 科创教育**与**科技竞赛展示**（科学性 40 分 + 创新性 30 分 + 演讲 20 分 + 展示力 10 分）。
 
 <p align="center">
-  <img src="./deliverables/contest-demo-dashboard-preview.png" alt="Web大屏效果" width="30%" />
+  <img src="./deliverables/kt-board/dashboard.png" alt="Web大屏效果" width="30%" />
   <img src="./deliverables/oled-screenshots/oled-3-page-contact-sheet-clear.png" alt="OLED三页轮播" width="30%" />
-  <img src="./deliverables/figma-kt-redesign-v2-preview.png" alt="KT板预览" width="30%" />
+  <img src="./deliverables/kt-board/evolution.png" alt="KT板预览" width="30%" />
 </p>
 
 <p align="center"><em>从左到右：Web 实时大屏 | OLED 三页轮播 | KT 展板设计</em></p>
@@ -88,7 +88,7 @@ flowchart LR
             Soil["🌡️ 基质含水率<br/>ADC GPIO34"]
             LightS["☀️ 环境光照<br/>ADC GPIO32"]
             DHT["🌡️ 舱内温湿度<br/>DHT11 GPIO4"]
-            DIP["🔢 作物选择<br/>旋转编码器"]
+            DIP["🔢 作物选择<br/>四合一模拟按键"]
         end
 
         subgraph THINK["决策层 THINK"]
@@ -125,7 +125,7 @@ flowchart LR
 
 **核心循环**：每 60 秒采样 → 安全检查（防抖/限频/降级）→ 决策（在线 Pi advice 优先，否则本地规则）→ 执行动作 + WS2812 信号广播 → OLED 刷新 + 经 UART 把 report 发给树莓派转发大屏
 
-**三层降级**：① 树莓派调 DeepSeek（最聪明）→ ② 树莓派阈值规则 → ③ ESP32 本地规则（板上常驻）。任何一层断了下一层接住，模拟深空 4-24 分钟延迟下的全自治。
+**两层降级**：① 树莓派调 DeepSeek（最聪明）→ ② ESP32 本地规则（板上常驻）。上层断了下层接住，模拟深空通信延迟下的全自治。
 
 ---
 
@@ -134,11 +134,11 @@ flowchart LR
 | 亮点 | 地面视角 | 🚀 太空视角 |
 |:-----|:---------|:------------|
 | 🧠 **AI + 规则双决策引擎** | 网络断了自动切本地规则 | 模拟深空通信延迟——火星 4-24 分钟延迟下，地面无法实时干预，必须本地全自治决策 |
-| 🌱 **8 种作物生长阶段模型** | 旋转编码器现场一键切换 | 宇航员无需任何农业知识——一拨开关，系统自动匹配从苗期到采收期的完整水肥策略 |
+| 🌱 **8 种作物生长阶段模型** | 四合一模拟按键现场一键切换 | 宇航员无需任何农业知识——一拨开关，系统自动匹配从苗期到采收期的完整水肥策略 |
 | 🛡️ **四级容错与降级机制** | 传感器坏了切安全值 | 在轨无人维修——传感器离线自动降级为安全模式，看门狗死机重启，执行器故障安全跳过 |
 | 📊 **Decision Plane / Action Plane 分离** | 决策层广播多维信号，执行层仅响应物理动作 | 决策能力与执行能力分离——缺肥/高温等 advisory 信号即时广播，无需等待执行器就位 |
 | 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策信号面板，超 120s 无数据自动切 DEMO |
-| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，133 用例 ALL PASS |
+| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，178 用例 ALL PASS |
 
 ---
 
@@ -154,10 +154,10 @@ flowchart LR
 | **AI** | DeepSeek V4 Flash（运行在树莓派侧） | ¥1/百万 tokens · 由树莓派 `pi_advisor` 调用，ESP32 不再直连（无 TLS 内存压力） |
 | **上位机** | 树莓派 + `serial_gateway` | UART 收 report / 调 DeepSeek 回 advice / 转发大屏 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 133 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 178 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
-**硬件成本**：¥140/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
+**硬件成本**：¥135/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
 
 ---
 
@@ -197,7 +197,7 @@ Windows 调试串口可用：
 py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 ```
 
-决策三层降级：`--ai-advice` 让 Pi 调 **DeepSeek**（最聪明）；AI 失败自动回退 `--auto-advice` 的**阈值规则**；UART 断了 ESP32 还有**本地规则**兜底。`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
+决策两层降级：`--ai-advice` 让 Pi 调 **DeepSeek**（最聪明）；DeepSeek 失败或 UART 断了，ESP32 用板上**本地规则**兜底（树莓派阈值层已于 #45 移除）。`--test-advice water` 只下发一次浇水建议，用于验收“树莓派能让 ESP32 执行动作”。
 
 > ✅ **2026-05-30 实机验收通过**：`/dev/serial0` report/ping/pong/advice 全链路跑通，ESP32 `ai_src` 变 `pi`。部署时按顺序排查三点（详见 [ARCHITECTURE.md §1.2](./ARCHITECTURE.md#12-树莓派端部署要点2026-05-30-实机验收通过)）：
 > 1. **共地接牢、TX/RX 交叉**——否则 Pi 的 RX 悬空，只读到持续 `0xFF` 噪声；
@@ -227,7 +227,7 @@ ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这
 py -m pytest
 ```
 
-预期输出：**144 passed**
+预期输出：**178 passed**
 
 ---
 
@@ -245,7 +245,7 @@ py -m pytest
 │   ├── main.py              # 主入口 · 依赖注入接线
 │   ├── boot_runtime.py      # 启动序列编排
 │   ├── loop_runtime.py      # 主循环调度（采样→决策→执行→遥测）
-│   ├── sensors.py           # 传感器底层读取（土壤/光照/DHT/旋转编码器）
+│   ├── sensors.py           # 传感器底层读取（土壤/光照/DHT/四合一模拟按键）
 │   ├── actuators.py         # 执行器底层控制（12V 水泵 + 12V 补光灯双继电器）
 │   ├── status_strip.py      # WS2812 状态灯条（湿度温度计 + 决策信号动画）
 │   ├── decision.py          # 决策编排（AI门控 + 本地规则兜底）
@@ -254,24 +254,25 @@ py -m pytest
 │   ├── display_runtime.py   # OLED 生命周期管理（懒初始化 + advance_page）
 │   ├── buttons.py            # ADC 模拟键盘驱动（单 GPIO33 四键 + nav_held 长按加速）
 │   ├── menu.py               # OLED 菜单系统（植物/天数/手动控制/系统信息，蓝键统一返回）
-│   ├── telemetry.py         # Web 大屏实时遥测上报
 │   ├── uart_link.py         # ESP32<->树莓派 UART JSON-over-Line 协议层
-│   ├── ai_client.py         # DeepSeek API 客户端 + 代理中转
 │   ├── config.py.example    # 配置模板（WiFi/AI/引脚）
 │   └── plants.json          # 8 种植物完整参数数据库
-├── tests/                   # pytest 自动化测试（144 用例 ALL PASS）
+├── tests/                   # pytest 自动化测试（178 用例 ALL PASS）
 │   ├── conftest.py          # MicroPython Mock 注入层
 │   ├── test_ai_parse.py     # AI 响应解析
 │   ├── test_config.py       # 配置 + 植物数据库
 │   ├── test_local_decision.py # 本地决策逻辑
 │   └── test_loop_runtime.py # 主循环边界
-├── tools/                   # PC 端辅助工具
+├── tools/                   # 树莓派/PC/云端工具
 │   ├── dashboard_server.py  # 实时大屏 HTTP 服务器
 │   ├── serial_gateway.py    # 树莓派串口网关（收 report / 发 advice / 心跳）
-│   └── ai_proxy.py          # AI HTTP 代理中转服务器
+│   ├── pi_advisor.py        # DeepSeek 文本决策客户端
+│   ├── vision_service.py    # Camera Module 3 采集/API Worker 入口
+│   ├── vision/              # 图像质量、ROI、队列和多模态客户端
+│   └── screening/           # 对照组差值和跨周期证据等级
 ├── deliverables/            # 比赛交付物（大屏/KT板/评委材料）
-│   ├── contest-demo-dashboard.html  # Web 实时大屏
-│   ├── KT板展示设计-最新版.md       # KT 板完整设计规范
+│   ├── groundstation.html  # Web 实时大屏
+│   ├── kt-board/index.html  # 当前 KT 板源文件
 │   ├── 评委展示方案.md              # 30秒电梯演讲 + 3分钟话术
 │   └── 实机验收清单.md              # 比赛前硬件验收 Checklist
 ├── 智能种植舱控制器选型报告.md  # 硬件选型/接线/BOM/架构
@@ -290,7 +291,7 @@ py -m pytest
 | 5 年级专用：育种叙事背诵手册 | [deliverables/育种叙事-背诵手册.md](./deliverables/育种叙事-背诵手册.md) |
 | 比赛前 7 天倒计时清单 | [deliverables/比赛前7天-倒计时清单.md](./deliverables/比赛前7天-倒计时清单.md) |
 | 比赛前硬件验收 | [deliverables/实机验收清单.md](./deliverables/实机验收清单.md) |
-| 设计 KT 展板 | [deliverables/KT板展示设计-最新版.md](./deliverables/KT板展示设计-最新版.md) |
+| 设计 KT 展板 | [deliverables/kt-board/index.html](./deliverables/kt-board/index.html) |
 | 了解测试体系 | [测试指南](./测试指南.md) |
 | 查看系统架构设计 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | 查看开发日志 | [DEVLOG/](./DEVLOG/) |
@@ -305,14 +306,14 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **133 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
+| 自动化测试 | **178 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |
 | 决策延迟 | DeepSeek（树莓派调用）< 3s，本地规则 < 1ms | 实时筛选有价值的突变性状；满足深空 4-24 分钟通信延迟 |
 | 采样周期 | **60 秒**采样一次 | **高密度生长数据采集**，远超人工观测密度 |
 | 固件模块 | **十余个**，单文件最大约 300 行 | 模块化，便于在轨远程热更新维护 |
-| 硬件成本 | **¥140/套** | 低成本批量部署，覆盖更多品种平行实验 |
+| 硬件成本 | **¥135/套** | 低成本批量部署，覆盖更多品种平行实验 |
 | 实机运行 | 超过 **18 天**连续运行 | 跑通一个完整速生菜生长周期 |
 
 ---

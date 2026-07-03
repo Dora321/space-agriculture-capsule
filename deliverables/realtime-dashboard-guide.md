@@ -1,83 +1,48 @@
-# 实时大屏使用说明
+# 实时大屏部署说明
 
-## 腾讯云推荐端口
+当前架构只有树莓派联网。ESP32 通过 UART 把 `report` 发给树莓派，`serial_gateway.py` 再把遥测 POST 到大屏；不要向 ESP32 上传旧的 `telemetry.py` 或配置 Dashboard URL。
 
-保留原有 AI 代理：
-
-```text
-http://43.156.68.157:8787/decision
-```
-
-实时大屏新开端口：
+## 腾讯云地址
 
 ```text
 http://43.156.68.157:8790/
 http://43.156.68.157:8790/api/state
 ```
 
-腾讯云安全组需要额外放行：
+腾讯云安全组需允许 TCP 8790。公网接口为只读展示用途，不提供远程执行器控制。
 
-```text
-TCP 8790
-来源 0.0.0.0/0
-```
-
-## 1. 启动电脑端 Dashboard
-
-在项目根目录运行：
+## 启动 Dashboard
 
 ```bash
-py tools/dashboard_server.py --host 0.0.0.0 --port 8790
+python3 tools/dashboard_server.py --host 0.0.0.0 --port 8790
 ```
 
-浏览器打开：
-
-```text
-http://127.0.0.1:8790/
-```
-
-如果部署在腾讯云服务器上，浏览器打开：
-
-```text
-http://43.156.68.157:8790/
-```
-
-Windows 服务器也可以直接运行：
+本地浏览器打开 `http://127.0.0.1:8790/`。Windows 也可运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\start_dashboard_server.ps1
 ```
 
-## 2. 配置 ESP32
-
-在 `esp32_firmware/config.py` 中设置：
-
-```python
-DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
-DASHBOARD_TOKEN = ""
-DASHBOARD_TIMEOUT = 2
-```
-
-如果启用了令牌，电脑端先设置环境变量 `DASHBOARD_TOKEN`，ESP32 的
-`DASHBOARD_TOKEN` 也填同一个值。
-
-## 3. 上传新增文件
+## 树莓派网关
 
 ```bash
-py -m mpremote connect COM3 cp telemetry.py :
-py -m mpremote connect COM3 cp main.py :
-py -m mpremote connect COM3 cp config.py :
+export SPACEFARM_DASHBOARD="http://43.156.68.157:8790/api/state"
+python3 tools/serial_gateway.py \
+  --port /dev/serial0 \
+  --baud 115200 \
+  --ai-advice \
+  --plants-json esp32_firmware/plants.json
 ```
 
-AI 代理保持原来的端口，不要改成 8790：
+正式设备使用 `spacefarm-gateway.service` 开机自启。Dashboard 失败不会阻塞 UART 或 ESP32 本地规则。
 
-```python
-AI_PROXY_URL = "http://43.156.68.157:8787/decision"
-DASHBOARD_URL = "http://43.156.68.157:8790/api/state"
-```
+## 视觉接口
 
-## 4. 工作方式
+`groundstation.html` 另外读取：
 
-- 有 ESP32 实时上报时，网页自动显示 `LIVE`。
-- 没有实时数据或超过 120 秒未更新时，网页自动回到 `DEMO` 演示动画。
-- 上报失败不会影响浇水、本地规则或 AI 决策，只会在串口打印日志。
+- `/api/vision/status`
+- `/api/vision/latest`
+- `/api/vision/image`
+- `/api/screening/latest`
+
+Camera Module 3 当前把结果保存在树莓派 SQLite。树莓派到腾讯云的图片和视觉 JSON 同步尚未实现，因此云端视觉接口可能返回 `{"available": false}`；这不代表摄像头不可用。

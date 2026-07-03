@@ -13,31 +13,32 @@
 - [x] ~~验证 WiFi 沉默掉线根因~~ — **已随双层重构作废**：ESP32 不再使用 WiFi，联网由树莓派承担
 - [x] ~~AI 代理 EHOSTUNREACH 复查~~ — **已作废**：DeepSeek 改由树莓派 `pi_advisor` 调用，ESP32 不再走代理
 
-### 比赛前收尾
+### 当前实机收尾
 
-- [ ] **比赛现场彩排** — 验证菜单交互流程（蓝键进/退/蓝键返回），确认评委能独立操作
-- [ ] **config.py.example 检查** — `PAGE_ROTATE_SEC=0` 表示关闭自动翻页，与 display_runtime.py 逻辑对齐
-- [ ] **决定是否开启 NTP** — `NTP_SYNC_ON_CONNECT` 当前 False 导致 Day 永远=0、生长阶段算错；现场如演示天数则改 True
-- [ ] **现场目视确认浇水执行** — `--test-advice water` 的 advice 已实机下发，但 8s 水泵是否真出水仅剩现场目视确认（遥测侧 round-trip 已通，`ai_src=pi`）
-- [ ] **按键长期可靠** — 已换元器件、三键解码干净（#43）；比赛前再确认长期稳定，可选微调红键阈值（3137/3242 卡 3200 边界），并保持 `STARTUP_MENU_ON_BOOT=True`
-- [ ] **大屏离线字体本地化** — `groundstation.html` 用 Google Fonts CDN；离线 Pi 会回退系统字体，需要时下载 woff2 内嵌
-- [ ] **分支合并 master** — `refactor/remove-wifi-only-path` 重构 + 大屏全部实机验收通过后合并并推送
+- [ ] **恢复 ESP32 UART report** — 网关在线但视觉数据库尚未收到新遥测，自动拍照保持 `WAITING_TELEMETRY`
+- [ ] **标定 Camera Module 3 固定 ROI** — 按真实四分区花盆确定坐标；图像质量只评价种植区，不用整图背景分数
+- [ ] **现场目视确认浇水执行** — `--test-advice water` 已能下发，仍需确认水泵真实出水和回水
+- [ ] **决定种植天数来源** — 明确 NTP、手动天数或实验周期记录，避免 Day 长期为 0
+- [ ] **比赛现场彩排** — 验证四合一模拟按键、OLED、大屏、断网降级和讲解流程
 
 ## P1 待办
 
-- [ ] **育种观察日志大屏面板** — AI 返回的 `breeding_observation` 在大屏上展示为时间线（当前仅显示最新一条）
-- [ ] **KT 板 Decision Plane 架构说明** — 在 `deliverables/KT板展示设计-最新版.md` 增加「决策平面/执行平面」模块图和信号类型表
-- [ ] **智能种植舱控制器选型报告更新** — BOM 增加补光灯继电器 + COB 灯条，成本更新为 ¥140/套
+- [ ] **树莓派→腾讯云视觉同步** — 图片、分析 JSON 和筛选结果分开上传，断网进入 outbox，恢复后限速补传
+- [ ] **人工复核入口** — 允许确认/纠正作物、可见异常和候选结论，保留操作者与时间
+- [ ] **固定对照实验** — 同作物设置 P1 对照、P2–P4 候选，至少 3 个独立周期，推荐 5 个
+- [ ] **大屏时间线** — 展示最近有效图片、人工复核和跨周期证据，不生成虚构视觉观察
 
 ## P2 待办
 
-- [ ] **大屏信号触发演示按钮** — KT 板增加手动触发特定信号动画的按钮（演示用，不控制真实硬件）
-- [ ] **信号动画强度分级** — 同一信号根据严重程度（如 TEMP_HIGH 36℃ vs 42℃）使用不同动画频率/亮度
+- [ ] **大屏离线字体本地化** — 移除 Google Fonts 运行时依赖
+- [ ] **图片保留策略** — 明确原图、ROI、失败图和 API 结果的磁盘配额与清理周期
+- [ ] **模型校准集** — 用真实舱内图片评估 `qwen3.7-plus` 的拒识、异常描述和人工一致率
 
 ## 已完成
 
 | 日期 | 任务 | 详见 |
 |------|------|------|
+| 2026-06-05 | #47 KT 板重做（HyperFrames/纯 HTML，1200×600mm，`board.pdf` 可印；移入 `deliverables/kt-board/`）+ 反向同步仓库不变量：测试 159、成本 ¥135、作物切换改四合一模拟按键（README/ARCHITECTURE/CLAUDE 已同步，深层镜像见 P2） | [DEVLOG/2026-06-05.md](./DEVLOG/2026-06-05.md) |
 | 2026-05-31 | #44 地面站监控大屏 `groundstation.html`：retro-futuristic 航天控制台，接真实 `/api/state`（网关增强转发 AI reason/signals/育种观察）；DeepSeek 中文输出；北京时间/2035/育种团队/去界面英文；顶替云端大屏 | [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) |
 | 2026-05-31 | #43 重构实机验收：ESP32 烧新固件、DeepSeek 在 Pi 全链路跑通（`ai_src=pi`）；按键接触不良→换元器件修复；天数从 1 起算（OLED/大屏统一）；移除 2035 模式切换 | [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) |
 | 2026-05-30 | #42 砍单层老路 + DeepSeek 搬到树莓派（分支 `refactor/remove-wifi-only-path`，133 测试绿）：删 wifi_client/telemetry/ai_client，固件固定走双层；新增 `tools/pi_advisor.py` + `serial_gateway --ai-advice` 让 Pi 调 DeepSeek；三层降级成型 | [DEVLOG/2026-05-30.md](./DEVLOG/2026-05-30.md) |

@@ -116,11 +116,11 @@ These pieces of data are duplicated across files and must move together:
 
 | Datum | Authoritative source | Mirrors to update |
 |---|---|---|
-| Plant count phrasing | `plants.json` (8 entries, selectable via HS-S32-L rotary encoder + OLED menu) | `README.md`, `deliverables/评委展示方案.md`, `deliverables/KT板设计文档.md`, `deliverables/KT板展示设计-最新版.md`, `deliverables/KT板打印稿-120x90.html`, `智能种植舱控制器选型报告.md`. Canonical phrasing: **"8 种作物（叶菜 4 + 果菜 4）"**. The earlier 14/8 split has been retired (2026-05-27) to avoid judge confusion. DIP switch replaced by rotary encoder (2026-05-28). |
+| Plant count phrasing | `plants.json` (8 entries, selectable via a 4-key analog keypad on GPIO33 + OLED menu) | `README.md`, `deliverables/评委展示方案.md`, `deliverables/kt-board/index.html`, `智能种植舱控制器选型报告.md`. Canonical phrasing: **"8 种作物（叶菜 4 + 果菜 4）"**. |
 | Test count | `py -m pytest` output | README badge + `## 📊 数据见证` table + `测试指南.md` |
-| BOM / cost | `智能种植舱控制器选型报告.md` BOM table (current: ¥140/套 pump+light) | README badge, KT board, judge script |
-| Hardware action set | `action_runtime.py` `valid_actions` tuple (`water`, `light`, `idle`) | `tools/pi_advisor.SYSTEM_PROMPT`+`validate_decision`, `tools/ai_proxy._validate_decision`, `tools/dashboard_server._validate_state`, `deliverables/contest-demo-dashboard.html` action labels, `uart_link._PRIMARY_TO_ACTION`/`VALID_ACTIONS` |
-| Signal types | `status_strip.py` signal constants (WATER, LIGHT_LOW, LIGHT_HIGH, TEMP_HIGH, TEMP_LOW, HUMID_LOW, NEED_N, NEED_P, NEED_K, SENSOR_FAIL, OFFLINE_MODE, BREEDING_GEN_UP) | `ai_proxy._validate_decision` signal whitelist, `contest-demo-dashboard.html` SIGNAL_LABELS, `uart_link.VALID_SIGNALS`, `tools/serial_gateway.VALID_SIGNALS`, `tools/pi_advisor.VALID_SIGNALS` (cross-checked by `test_serial_gateway.test_signal_whitelists_match_between_sides` + `test_pi_advisor.test_signal_whitelist_matches_uart_link`) |
+| BOM / cost | `智能种植舱控制器选型报告.md` BOM table (current: ¥135/套 pump+light) | README badge, KT board, judge script |
+| Hardware action set | `action_runtime.py` `valid_actions` tuple (`water`, `light`, `idle`) | `tools/pi_advisor`, `tools/dashboard_server.py`, `deliverables/groundstation.html`, `uart_link._PRIMARY_TO_ACTION`/`VALID_ACTIONS` |
+| Signal types | `status_strip.py` signal constants | `groundstation.html`, `uart_link.VALID_SIGNALS`, `tools/serial_gateway.VALID_SIGNALS`, `tools/pi_advisor.VALID_SIGNALS` |
 | UART link protocol (2026-05-30) | `esp32_firmware/uart_link.py` (JSON-over-Line: report/advice/ping/pong, msg-type constants, `decode_line`/`encode_line`) | `tools/serial_gateway.py` mirrors it on CPython. The two are kept wire-compatible by the cross-side tests in `tests/test_serial_gateway.py`. When you change one side's framing/fields, change the other and run those tests. |
 | AI model name | Raspberry Pi env `SPACEFARM_AI_MODEL` (default in `tools/pi_advisor.DeepSeekAdvisor`) | judge Q&A in `deliverables/评委展示方案.md`, KT board tech-spec table |
 
@@ -133,11 +133,10 @@ When you change one, grep for the others before committing.
 - **Dashboard forwarding is the Pi gateway's job** (`serial_gateway` POSTs each ESP32 report to `--dashboard`/`$SPACEFARM_DASHBOARD`); failures are swallowed by design so dashboard outages don't stall the gateway. The ESP32 no longer uploads telemetry itself (`telemetry.py` was removed in the 2026-05-30 refactor).
 - **Pump + grow light architecture (2026-05-27)** — there is no nutrient pump. The action set is `{water, light, idle}`. `action_runtime` and `ai_proxy._validate_decision` and `dashboard_server._validate_state` all silently remap any legacy `nutrient` action to `idle` for forward-compat with old recordings/AI hallucinations. Don't reintroduce `nutrient` without first adding hardware back and updating all three sites.
 - **WS2812 is the only status indicator on GPIO26** — GPIO27 is free, the old red/green LED pins are gone. If you add new visual signaling, prefer extending `status_strip.py` over re-adding discrete LEDs.
-- **Decision Plane / Action Plane separation (2026-05-28)** — The decision output includes `signals[]` (advisory signals for WS2812 broadcast) and `breeding_observation` (growth observation for telemetry). PHYSICAL_SIGNALS = {WATER, LIGHT_LOW} trigger real actuators; all other signals (TEMP_HIGH, NEED_N, etc.) are advisory-only and broadcast via WS2812 animations. This means the system can diagnose conditions even without corresponding hardware (e.g., "缺氮" signal broadcasts without a nutrient pump). When adding new signal types, update: `status_strip.py` signal constants + animation mapping, `ai_proxy._validate_decision` signal whitelist, `contest-demo-dashboard.html` SIGNAL_LABELS.
+- **Decision Plane / Action Plane separation** — only `water|light|idle` can reach physical actuators. Camera Module 3 and multimodal results are screening-only and never enter the actuator decision path.
 
 ## Source-of-truth notes
 
-- `deliverables/仓库架构评估.md` is the project's own architecture self-assessment; keep it updated if you do structural refactors.
 - `deliverables/实机验收清单.md` is the pre-demo hardware checklist — useful to read before suggesting hardware-touching changes.
 - `测试指南.md` documents the four-tier test taxonomy; if you add a new test class, slot it into the table at line 232 onward.
 - `智能种植舱控制器选型报告.md` is the hardware BOM and wiring report — when answering hardware questions, prefer it over inferring from code.
