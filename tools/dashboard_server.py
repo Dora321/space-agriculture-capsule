@@ -15,7 +15,7 @@ import signal
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +23,8 @@ DASHBOARD_PATH = ROOT / "deliverables" / "groundstation.html"
 TOKEN = os.getenv("DASHBOARD_TOKEN", "")
 MAX_REQUEST_BYTES = int(os.getenv("DASHBOARD_MAX_REQUEST_BYTES", "4096"))
 STALE_AFTER_SEC = int(os.getenv("DASHBOARD_STALE_AFTER_SEC", "120"))
+VISION_DATA_DIR = Path(os.getenv("SPACEFARM_VISION_DATA_DIR", "/var/lib/spacefarm/vision"))
+VISION_DB_PATH = VISION_DATA_DIR / "vision.sqlite3"
 
 LATEST_STATE: dict = {
     "live": False,
@@ -73,11 +75,49 @@ def _validate_state(data: dict) -> dict:
     return state
 
 
+def _validate_screening(data: dict) -> dict:
+    if not isinstance(data, dict) or data.get("schema") != "screening.result.v1":
+        raise ValueError("screening schema must be screening.result.v1")
+    grade = str(data.get("evidence_grade", ""))
+    if grade not in {"A", "B", "C", "D", "insufficient_data"}:
+        raise ValueError("invalid evidence grade")
+    value = dict(data)
+    value["evidence_grade"] = grade
+    value["updated_at"] = time.time()
+    return value
+
+
+def _open_vision_store():
+    if not VISION_DB_PATH.exists():
+        return None
+    try:
+        from vision.store import VisionStore
+    except ImportError:
+        from tools.vision.store import VisionStore
+    return VisionStore(VISION_DB_PATH)
+
+
+def _public_capture(value: dict | None) -> dict:
+    if not value:
+        return {"available": False}
+    result = {k: v for k, v in value.items() if not k.endswith("_path")}
+    result["available"] = True
+    result["overview_url"] = "/api/vision/image?capture_id=" + quote(value["capture_id"])
+    for item in result.get("observations", []):
+        item.pop("image_path", None)
+        item["image_url"] = (
+            "/api/vision/image?capture_id=" + quote(value["capture_id"])
+            + "&pot_id=" + quote(item["pot_id"])
+        )
+    return result
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "SpaceFarmDashboard/1.0"
 
     def do_GET(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in {"/", "/dashboard", "/dashboard.html"}:
             self._send_file(DASHBOARD_PATH, "text/html; charset=utf-8")
             return
@@ -85,6 +125,49 @@ class Handler(BaseHTTPRequestHandler):
             data = dict(LATEST_STATE)
             data["live"] = bool(data.get("live")) and time.time() - data.get("updated_at", 0) <= STALE_AFTER_SEC
             self._json_response(data)
+            return
+        if path in {"/api/vision/status", "/api/vision/latest", "/api/screening/latest"}:
+            store = _open_vision_store()
+            if store is None:
+                self._json_response({"available": False})
+                return
+            try:
+                if path == "/api/vision/status":
+                    self._json_response(store.status() or {"available": False})
+                elif path == "/api/vision/latest":
+                    self._json_response(_public_capture(store.latest_capture()))
+                else:
+                    self._json_response(store.get_value("screening_latest") or {"available": False})
+            finally:
+                store.close()
+            return
+        if path == "/api/vision/image":
+            store = _open_vision_store()
+            if store is None:
+                self.send_error(404)
+                return
+            try:
+                query = parse_qs(parsed.query)
+                capture_id = query.get("capture_id", [""])[0]
+                capture = store.get_capture(capture_id)
+                if not capture:
+                    self.send_error(404)
+                    return
+                pot_id = query.get("pot_id", [""])[0]
+                file_path = capture["overview_path"]
+                if pot_id:
+                    match = next((x for x in capture["observations"] if x["pot_id"] == pot_id), None)
+                    if match is None:
+                        self.send_error(404)
+                        return
+                    file_path = match["image_path"]
+                resolved = Path(file_path).resolve()
+                if VISION_DATA_DIR.resolve() not in resolved.parents:
+                    self.send_error(403)
+                    return
+                self._send_file(resolved, "image/jpeg")
+            finally:
+                store.close()
             return
         if path == "/health":
             self._json_response({"ok": True, "has_live_state": bool(LATEST_STATE.get("live"))})
@@ -94,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         global LATEST_STATE
         path = urlparse(self.path).path
-        if path != "/api/state":
+        if path not in {"/api/state", "/api/screening/latest"}:
             self.send_error(404)
             return
         if TOKEN and self.headers.get("X-Dashboard-Token") != TOKEN:
@@ -109,7 +192,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._json_response({"error": "request body too large"}, status=413)
                 return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            LATEST_STATE = _validate_state(payload)
+            if path == "/api/state":
+                LATEST_STATE = _validate_state(payload)
+            else:
+                store = _open_vision_store()
+                if store is None:
+                    self._json_response({"error": "vision database is not initialized"}, status=503)
+                    return
+                try:
+                    store.set_value("screening_latest", _validate_screening(payload))
+                finally:
+                    store.close()
             self._json_response({"ok": True})
         except (ValueError, json.JSONDecodeError) as exc:
             self._json_response({"error": str(exc)}, status=400)

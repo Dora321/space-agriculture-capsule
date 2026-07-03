@@ -1,0 +1,17 @@
+[Unit]
+Description=SpaceFarm remote multimodal analysis worker
+After=network-online.target spacefarm-vision-capture.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mx
+WorkingDirectory=/home/mx/spacefarm
+EnvironmentFile=/home/mx/spacefarm/.config/vision.env
+ExecStart=/usr/bin/python3 -u /home/mx/spacefarm/tools/vision_service.py api-loop
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

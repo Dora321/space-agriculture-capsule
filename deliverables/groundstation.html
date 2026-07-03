@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>月球温室 · 在轨育种监控站</title>
+<title>太空农业种植舱 · 地面原理样机</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -207,6 +207,18 @@ canvas{width:100%;height:180px;display:block}
 .logstream .t{color:var(--glow)}
 .logstream .w{color:var(--amber)}
 
+/* Camera Module 3 / AI 早期表型筛选（与执行器控制链隔离） */
+.vision-shot{width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid var(--line);
+  border-radius:3px;background:#03060b;margin:8px 0}
+.vision-row{display:flex;justify-content:space-between;gap:10px;color:var(--ink-dim);
+  font-size:.72rem;line-height:1.8}
+.vision-row b{color:var(--ink);text-align:right}
+.roi-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+.roi-card{border:1px solid var(--line);padding:7px;font-size:.67rem;color:var(--ink-dim)}
+.roi-card b{display:block;color:var(--glow);margin-bottom:2px}
+.vision-note{margin-top:9px;padding:7px;border-left:2px solid var(--purple);
+  color:var(--ink-dim);font-size:.68rem;background:rgba(176,107,255,.05)}
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}
@@ -221,13 +233,13 @@ canvas{width:100%;height:180px;display:block}
   <div class="mission-bar">
     <div class="m-left">
       <div>
-        <div class="m-logo">LUNA <b>GREENHOUSE</b></div>
-        <div class="m-sub">在轨作物育种监控站</div>
+        <div class="m-logo">SPACE FARM <b>TESTBED</b></div>
+        <div class="m-sub">太空农业种植舱 · 地面原理样机</div>
       </div>
     </div>
     <div class="m-right">
-      <div class="m-stat"><div class="lbl">任务日</div><div class="val" id="mday">217</div></div>
-      <div class="m-stat"><div class="lbl">坐标</div><div class="val">月球 · 南极</div></div>
+      <div class="m-stat"><div class="lbl">种植日</div><div class="val" id="mday">—</div></div>
+      <div class="m-stat"><div class="lbl">平台</div><div class="val">地面验证舱</div></div>
       <div class="m-stat"><div class="lbl">上行延迟</div><div class="val" id="uplink"><span class="pulse-dot"></span>1.3s</div></div>
       <div class="m-stat"><div class="lbl">北京时间</div><div class="val" id="clock">--:--:--</div></div>
     </div>
@@ -281,7 +293,7 @@ canvas{width:100%;height:180px;display:block}
       </div>
 
       <div class="panel d3">
-        <div class="panel-t"><span>◢</span> AI 多维决策链 <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
+        <div class="panel-t"><span>◢</span> 环境控制决策链（传感器） <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
         <div class="chain">
           <div class="chain-step">
             <div class="cs-h">输入 · 环境感知</div>
@@ -301,8 +313,8 @@ canvas{width:100%;height:180px;display:block}
         </div>
         <div id="signals"></div>
         <div class="breeding">
-          <div class="bt">🌱 育种观察</div>
-          <div class="bx" id="breedObs">"叶片色泽较上一代更深绿，株高增速 +12%，建议进入花期前补充磷肥。"</div>
+          <div class="bt">环境状态摘要</div>
+          <div class="bx" id="breedObs">等待传感器控制链数据；图像表型结论请查看 Camera Module 3 面板。</div>
         </div>
       </div>
     </div>
@@ -342,6 +354,18 @@ canvas{width:100%;height:180px;display:block}
       </div>
 
       <div class="panel d4">
+        <div class="panel-t"><span>◢</span> Camera Module 3 · 表型筛选</div>
+        <div class="vision-row"><span>采集状态</span><b id="visionStatus">等待视觉服务</b></div>
+        <div class="vision-row"><span>拍照门槛</span><b id="visionGate">每 2 小时 · 光照达标</b></div>
+        <img class="vision-shot" id="visionImage" alt="最近一次舱内固定视角照片" hidden>
+        <div class="roi-list" id="roiList"></div>
+        <div class="vision-row"><span>独立种植周期 n</span><b id="screenCycles">0</b></div>
+        <div class="vision-row"><span>相对对照组</span><b id="screenDelta">数据不足</b></div>
+        <div class="vision-row"><span>证据等级</span><b id="screenGrade">—</b></div>
+        <div class="vision-note">视觉结论仅用于候选材料筛选，不参与水泵与补光灯控制。</div>
+      </div>
+
+      <div class="panel d4">
         <div class="panel-t"><span>◢</span> 育种团队实时任务板</div>
         <div class="crew">
           <div class="member"><div class="av">张</div><div><div class="m-name">张煦涵</div><div class="m-role">太空育种站长</div><div class="m-task" id="taskLead">任务排程待同步</div></div></div>
@@ -363,6 +387,47 @@ canvas{width:100%;height:180px;display:block}
 const API_BASE = "";              // 同源访问留空；跨机填 "http://<ip>:8790"
 const USE_MOCK = false;           // 接真实 /api/state；无 live 数据时自动回退模拟
 const POLL_MS  = 3000;            // 轮询间隔
+
+async function fetchJson(path){
+  const res=await fetch(API_BASE+path+(path.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});
+  if(!res.ok) throw new Error(path+" HTTP "+res.status);
+  return res.json();
+}
+function renderVision(status,latest,screening){
+  const stateText={WAITING_TELEMETRY:"等待新遥测",WAITING_INTERVAL:"等待两小时间隔",
+    WAITING_LIGHT:"等待光照达标",READY:"可以拍摄",QUEUED_FOR_ANALYSIS:"已拍摄，等待 AI",
+    CAPTURE_ERROR:"相机采集异常",QUALITY_REJECTED:"图像质量未通过，等待重拍"};
+  document.getElementById("visionStatus").textContent=stateText[status.state]||status.state||"暂无数据";
+  const light=status.current_light==null?"—":status.current_light;
+  const required=status.required_light==null?"—":status.required_light;
+  document.getElementById("visionGate").textContent=`每 2 小时 · 光照 ${light}/${required}`;
+  const image=document.getElementById("visionImage");
+  image.hidden=!latest.available;
+  if(latest.available) image.src=API_BASE+latest.overview_url+"&t="+Date.now();
+  const list=document.getElementById("roiList"); list.replaceChildren();
+  (latest.observations||[]).forEach(item=>{
+    const card=document.createElement("div"); card.className="roi-card";
+    const title=document.createElement("b");
+    title.textContent=`${item.pot_id} · ${item.is_control?"对照组":"候选组"}`;
+    const detail=document.createElement("span");
+    const a=item.analysis||{};
+    detail.textContent=a.breeding_observation||a.vigor||"等待多模态分析";
+    card.append(title,detail); list.appendChild(card);
+  });
+  document.getElementById("screenCycles").textContent=screening.independent_cycles||0;
+  document.getElementById("screenDelta").textContent=screening.delta_control_median==null
+    ?"数据不足":`${screening.delta_control_median>=0?"+":""}${screening.delta_control_median} 分`;
+  document.getElementById("screenGrade").textContent=screening.evidence_grade||"—";
+}
+async function updateVision(){
+  try{
+    const [status,latest,screening]=await Promise.all([
+      fetchJson("/api/vision/status"),fetchJson("/api/vision/latest"),fetchJson("/api/screening/latest")]);
+    renderVision(status,latest,screening);
+  }catch(e){
+    document.getElementById("visionStatus").textContent="视觉服务离线";
+  }
+}
 
 // ---- 模拟数据（结构 = 树莓派应返回的 JSON）----
 function mockState(reason="树莓派遥测离线，已切换演示模式"){
@@ -749,16 +814,18 @@ function renderLog(logs=LOGS, append=false){
 }
 
 function clock(){
-  // 北京时间（UTC+8）；任务叙事年份固定 2035，月日时分秒用真实北京时间
+  // 北京时间（UTC+8），显示真实日期，不使用虚构在轨时间。
   const b=new Date(Date.now()+8*3600*1000), p=n=>String(n).padStart(2,'0');
-  document.getElementById("clock").textContent="2035-"+p(b.getUTCMonth()+1)+"-"+p(b.getUTCDate())+
+  document.getElementById("clock").textContent=b.getUTCFullYear()+"-"+p(b.getUTCMonth()+1)+"-"+p(b.getUTCDate())+
     " "+p(b.getUTCHours())+":"+p(b.getUTCMinutes())+":"+p(b.getUTCSeconds());
 }
 
 /* init */
 seedHist();renderLog();
 update();drawChart();clock();
+updateVision();
 setInterval(update,POLL_MS);
+setInterval(updateVision,10000);
 setInterval(clock,1000);
 window.addEventListener("resize",drawChart);
 </script>

@@ -122,3 +122,28 @@ def test_validate_state_truncates_long_breeding_observation():
         "breeding_observation": long_text,
     })
     assert len(state["breeding_observation"]) == 200
+
+
+def test_validate_screening_accepts_known_evidence_grade():
+    dashboard_server = _load_dashboard_server()
+    result = dashboard_server._validate_screening({
+        "schema": "screening.result.v1",
+        "evidence_grade": "B",
+        "independent_cycles": 3,
+    })
+    assert result["evidence_grade"] == "B"
+    assert result["updated_at"] > 0
+
+
+def test_public_capture_does_not_expose_local_paths():
+    dashboard_server = _load_dashboard_server()
+    result = dashboard_server._public_capture({
+        "capture_id": "cap-1",
+        "overview_path": "/private/overview.jpg",
+        "observations": [{
+            "pot_id": "P1", "image_path": "/private/p1.jpg", "analysis": None,
+        }],
+    })
+    assert "overview_path" not in result
+    assert "image_path" not in result["observations"][0]
+    assert result["overview_url"].startswith("/api/vision/image?")

@@ -289,6 +289,10 @@ def main(argv=None):
                         default=os.environ.get("SPACEFARM_PLANTS_JSON", ""),
                         help="path to plants.json for plant thresholds (optional, "
                              "improves AI prompt quality)")
+    parser.add_argument("--vision-db",
+                        default=os.environ.get("SPACEFARM_VISION_DB", ""),
+                        help="SQLite path used to mirror the latest telemetry for the "
+                             "camera scheduler (empty disables vision telemetry)")
     parser.add_argument("--ai-min-interval", type=float,
                         default=float(os.environ.get("SPACEFARM_AI_MIN_INTERVAL", "300")),
                         help="稳定期 AI 节流：无显著变化时两次 DeepSeek 调用的最小间隔(秒)。"
@@ -302,10 +306,21 @@ def main(argv=None):
     except ImportError:
         raise SystemExit("pyserial not installed: pip install pyserial")
 
+    vision_store = None
+    vision_sink = None
+    if args.vision_db:
+        from vision.store import VisionStore
+        from vision.telemetry_sink import TelemetrySink
+        vision_store = VisionStore(args.vision_db)
+        vision_sink = TelemetrySink(vision_store)
+        print("[GW] vision telemetry enabled:", args.vision_db)
+
     def on_report(report):
         # Dashboard forwarding happens in the main loop so it can merge the active
         # AI advice (reason / signals / duration / breeding) into the payload.
         print("[GW] report:", report)
+        if vision_sink is not None:
+            vision_sink.submit(report)
 
     def on_pong(_pong):
         pass  # liveness only; nothing to do
@@ -438,6 +453,10 @@ def main(argv=None):
         print("\n[GW] stopped")
     finally:
         ser.close()
+        if vision_sink is not None:
+            vision_sink.close()
+        if vision_store is not None:
+            vision_store.close()
 
 
 if __name__ == "__main__":
