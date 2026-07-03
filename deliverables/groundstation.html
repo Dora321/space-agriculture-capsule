@@ -74,6 +74,10 @@ body::after{
 }
 .m-logo b{color:var(--glow);text-shadow:0 0 18px var(--glow-soft)}
 .m-sub{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--ink-dim);letter-spacing:1px}
+.experiment-btn{border:1px solid var(--glow);background:var(--glow-soft);color:var(--glow);
+  padding:8px 12px;border-radius:3px;font-family:'JetBrains Mono';font-size:.68rem;
+  letter-spacing:1px;cursor:pointer}
+.experiment-btn:hover{box-shadow:0 0 14px var(--glow-soft)}
 .m-right{display:flex;gap:30px;align-items:center;font-family:'JetBrains Mono',monospace}
 .m-stat{text-align:right}
 .m-stat .lbl{font-size:.6rem;color:var(--ink-dim);letter-spacing:2px;text-transform:uppercase}
@@ -219,6 +223,27 @@ canvas{width:100%;height:180px;display:block}
 .vision-note{margin-top:9px;padding:7px;border-left:2px solid var(--purple);
   color:var(--ink-dim);font-size:.68rem;background:rgba(176,107,255,.05)}
 
+/* 实验日期设置：只写实验元数据，不提供执行器控制 */
+.modal-backdrop{position:fixed;inset:0;z-index:20;background:rgba(2,5,10,.82);
+  display:grid;place-items:center;padding:20px;backdrop-filter:blur(5px)}
+.modal-backdrop[hidden]{display:none}
+.experiment-modal{width:min(520px,100%);border:1px solid var(--glow);
+  background:linear-gradient(180deg,#0d1624,#080d16);padding:22px;box-shadow:0 0 40px rgba(30,240,200,.12)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;
+  font-family:'Orbitron';letter-spacing:1px}
+.modal-close{border:0;background:transparent;color:var(--ink-dim);font-size:1.4rem;cursor:pointer}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-field{display:flex;flex-direction:column;gap:5px;font-family:'JetBrains Mono';font-size:.67rem;color:var(--ink-dim)}
+.form-field.wide{grid-column:1/-1}
+.form-field input{background:#050a12;border:1px solid var(--line);color:var(--ink);padding:9px;border-radius:3px;font:inherit}
+.form-help{font-size:.66rem;color:var(--ink-dim);line-height:1.6;margin:13px 0}
+.form-status{min-height:20px;color:var(--glow);font-family:'JetBrains Mono';font-size:.7rem;margin-bottom:10px}
+.form-actions{display:flex;justify-content:flex-end;gap:9px}
+.form-actions button{padding:8px 14px;border-radius:3px;cursor:pointer;font-family:'JetBrains Mono';font-size:.7rem}
+.btn-secondary{border:1px solid var(--line);background:transparent;color:var(--ink-dim)}
+.btn-primary{border:1px solid var(--glow);background:var(--glow-soft);color:var(--glow)}
+@media(max-width:700px){.mission-bar{align-items:flex-start;gap:12px}.m-right{gap:12px;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}}
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}
@@ -236,6 +261,7 @@ canvas{width:100%;height:180px;display:block}
         <div class="m-logo">SPACE FARM <b>TESTBED</b></div>
         <div class="m-sub">太空农业种植舱 · 地面原理样机</div>
       </div>
+      <button class="experiment-btn" id="openExperiment" type="button">实验设置</button>
     </div>
     <div class="m-right">
       <div class="m-stat"><div class="lbl">种植日</div><div class="val" id="mday">—</div></div>
@@ -378,6 +404,25 @@ canvas{width:100%;height:180px;display:block}
   </div>
 </div>
 
+<div class="modal-backdrop" id="experimentBackdrop" hidden>
+  <section class="experiment-modal" role="dialog" aria-modal="true" aria-labelledby="experimentTitle">
+    <div class="modal-head"><span id="experimentTitle">初始化种植实验</span><button class="modal-close" id="closeExperiment" type="button" aria-label="关闭">×</button></div>
+    <form id="experimentForm">
+      <div class="form-grid">
+        <label class="form-field"><span>实验编号</span><input id="experimentId" maxlength="48" pattern="[A-Za-z0-9._-]+" required></label>
+        <label class="form-field"><span>作物</span><input id="experimentPlant" maxlength="24" placeholder="例如：生菜"></label>
+        <label class="form-field"><span>播种日期</span><input id="plantingDate" type="date" required></label>
+        <label class="form-field"><span>日龄修正（天）</span><input id="dayOffset" type="number" min="-365" max="365" value="0" required></label>
+        <label class="form-field"><span>操作者</span><input id="experimentOperator" maxlength="32" placeholder="姓名或队员编号"></label>
+        <label class="form-field"><span>修改口令（如服务器启用）</span><input id="experimentToken" type="password" autocomplete="current-password"></label>
+      </div>
+      <p class="form-help">播种当天记为 D1。保存后由树莓派在约 30 秒内同步；视觉分析只读取该日龄，不会因此控制水泵或补光灯。</p>
+      <div class="form-status" id="experimentStatus"></div>
+      <div class="form-actions"><button class="btn-secondary" id="cancelExperiment" type="button">取消</button><button class="btn-primary" type="submit">保存实验</button></div>
+    </form>
+  </section>
+</div>
+
 <script>
 /* ============================================================
    数据源：接树莓派时，只改 API_BASE，并把 USE_MOCK 设为 false
@@ -393,6 +438,75 @@ async function fetchJson(path){
   if(!res.ok) throw new Error(path+" HTTP "+res.status);
   return res.json();
 }
+
+const experimentBackdrop=document.getElementById("experimentBackdrop");
+const experimentStatus=document.getElementById("experimentStatus");
+function taipeiDate(){return new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Taipei"});}
+function suggestedExperimentId(){return "EXP-"+taipeiDate().replaceAll("-","")+"-A";}
+function showExperimentStatus(message,isError=false){
+  experimentStatus.textContent=message;
+  experimentStatus.style.color=isError?"var(--red)":"var(--glow)";
+}
+async function loadExperiment(fillForm=false){
+  try{
+    const value=await fetchJson("/api/experiment");
+    if(fillForm){
+      document.getElementById("experimentId").value=value.experiment_id||suggestedExperimentId();
+      document.getElementById("experimentPlant").value=value.plant||"";
+      document.getElementById("plantingDate").value=value.planting_date||taipeiDate();
+      document.getElementById("dayOffset").value=value.day_offset??0;
+      document.getElementById("experimentOperator").value=value.updated_by||"";
+    }
+    if(value.configured){
+      showExperimentStatus(`当前 ${value.experiment_id} · D${value.plant_day} · ${value.day_source==="adjusted"?"含人工修正":"自动计算"}`);
+      const mday=document.getElementById("mday");
+      mday.title=`${value.planting_date} 播种 · ${value.day_source}`;
+    }else if(fillForm){
+      showExperimentStatus("尚未初始化，请填写后保存。");
+    }
+    return value;
+  }catch(error){
+    if(fillForm) showExperimentStatus("实验配置读取失败："+error.message,true);
+    return null;
+  }
+}
+async function openExperimentSettings(){
+  experimentBackdrop.hidden=false;
+  showExperimentStatus("正在读取实验配置……");
+  await loadExperiment(true);
+  document.getElementById("experimentId").focus();
+}
+function closeExperimentSettings(){experimentBackdrop.hidden=true;}
+document.getElementById("openExperiment").addEventListener("click",openExperimentSettings);
+document.getElementById("closeExperiment").addEventListener("click",closeExperimentSettings);
+document.getElementById("cancelExperiment").addEventListener("click",closeExperimentSettings);
+experimentBackdrop.addEventListener("click",event=>{if(event.target===experimentBackdrop)closeExperimentSettings();});
+document.getElementById("experimentForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  showExperimentStatus("正在保存……");
+  const token=document.getElementById("experimentToken").value;
+  const headers={"Content-Type":"application/json"};
+  if(token) headers["X-Dashboard-Token"]=token;
+  const payload={
+    experiment_id:document.getElementById("experimentId").value.trim(),
+    plant:document.getElementById("experimentPlant").value.trim(),
+    planting_date:document.getElementById("plantingDate").value,
+    day_offset:Number(document.getElementById("dayOffset").value),
+    timezone:"Asia/Taipei",
+    updated_by:document.getElementById("experimentOperator").value.trim()||"operator"
+  };
+  try{
+    const response=await fetch(API_BASE+"/api/experiment",{method:"POST",headers,body:JSON.stringify(payload)});
+    const value=await response.json();
+    if(!response.ok) throw new Error(value.error||("HTTP "+response.status));
+    if(token) sessionStorage.setItem("spacefarmExperimentToken",token);
+    showExperimentStatus(`保存成功：${value.experiment_id} · 当前 D${value.plant_day}`);
+    setTimeout(closeExperimentSettings,700);
+  }catch(error){
+    showExperimentStatus("保存失败："+error.message,true);
+  }
+});
+document.getElementById("experimentToken").value=sessionStorage.getItem("spacefarmExperimentToken")||"";
 function renderVision(status,latest,screening){
   const stateText={WAITING_TELEMETRY:"等待新遥测",WAITING_INTERVAL:"等待两小时间隔",
     WAITING_LIGHT:"等待光照达标",READY:"可以拍摄",QUEUED_FOR_ANALYSIS:"已拍摄，等待 AI",
@@ -436,7 +550,7 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
   const cropName="番茄", gen=GEN_BY_PLANT[cropName]||4;
   const sn={soil:r(38,46),light:r(50,60),temp:r(23,26),hum:r(60,70)};
   return {
-    mission_day:217, uplink:"模拟", uptime:"演示模式",
+    mission_day:15, uplink:"模拟", uptime:"演示模式",
     crop:{name:cropName,en:PLANT_EN[cropName]||"Tomato",gen,stage:"营养生长期",day:15,harvest:"第 42 天",progress:36,
       code:"TOM-L"+gen+"-015",goal:"低重力坐果与品质筛选",phase:"叶面积扩展期"},
     sensors:sn,
@@ -622,10 +736,10 @@ function mapState(d){
   const judgeMap={water:"基质偏干 · 需精量补水",light:"光照低于阈值 · 需补光",idle:"环境稳定 · 无需主动干预"};
   const outMap={water:"水泵执行中 · 补光灯待机 · 持续监控",light:"水泵待机 · 补光灯执行中 · 持续监控",idle:"水泵待机 · 补光灯待机 · 继续监控"};
   return {
-    mission_day:217, uplink:"1.3s",
+    mission_day:day, uplink:"1.3s",
     uptime:(+d.uptime_sec>0)?(Math.floor(d.uptime_sec/86400)+" 天 "+Math.floor((d.uptime_sec%86400)/3600)+" 时"):"实时在线",
     crop:{name:d.plant||"——",en:PLANT_EN[d.plant]||"—",gen,stage:STAGE_CN[stage]||stage,
-      day,harvest:"约第 "+Math.max(30,day+25)+" 天",progress:STAGE_PCT[stage]||30,
+      day,daySource:d.day_source||"device",harvest:"约第 "+Math.max(30,day+25)+" 天",progress:STAGE_PCT[stage]||30,
       code:(PLANT_CODE[d.plant]||"GEN")+"-L"+gen+"-"+String(day).padStart(3,"0"),
       goal:LEAFY.includes(d.plant)?"低重力密植产量筛选":"低重力坐果与品质筛选",
       phase:PHASE_CN[stage]||(STAGE_CN[stage]||stage)},
@@ -729,7 +843,8 @@ function renderTeam(team){
 }
 async function update(){
   const d=await fetchTelemetry();
-  document.getElementById("mday").textContent=d.mission_day;
+  document.getElementById("mday").textContent="D"+d.crop.day;
+  document.getElementById("mday").title=d.crop.daySource==="adjusted"?"树莓派自动计算 + 人工修正":(d.crop.daySource==="auto"?"树莓派按播种日期自动计算":"设备上报");
   document.getElementById("cropName").textContent=d.crop.name;
   document.getElementById("cropEn").textContent=d.crop.en;
   document.getElementById("cropGen").textContent="第 "+d.crop.gen+" 代";
@@ -824,8 +939,10 @@ function clock(){
 seedHist();renderLog();
 update();drawChart();clock();
 updateVision();
+loadExperiment(false);
 setInterval(update,POLL_MS);
 setInterval(updateVision,10000);
+setInterval(()=>loadExperiment(false),30000);
 setInterval(clock,1000);
 window.addEventListener("resize",drawChart);
 </script>

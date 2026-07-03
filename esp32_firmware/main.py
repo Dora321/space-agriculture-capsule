@@ -134,6 +134,15 @@ def _poll_uart():
                 if decision is not None:
                     state.pending_pi_decision = decision
                     print("[UART] Pi advice queued:", decision.get("action"))
+            elif msg.get("t") == uart_link.MSG_EXPERIMENT:
+                day = uart_link.experiment_to_day(msg)
+                if day is not None:
+                    state.manual_day = day
+                    state.days_since_planting = day
+                    state.day_source = "pi"
+                    state.experiment_id = str(msg.get("experiment_id", ""))[:48]
+                    state.growth_stage = config.get_growth_stage(state.plant_info, day)
+                    print("[UART] Experiment day synced:", day)
         return bool(msgs)
     except Exception as e:
         print("[UART] poll skipped:", e)
@@ -286,6 +295,12 @@ def init_system():
     print("[Net] ESP32 networking disabled: Raspberry Pi handles WiFi/AI/dashboard")
     state.wifi_connected = False
     _init_uart_link()
+    if getattr(config, "UART_ENABLED", False):
+        # Avoid presenting a stale hard-coded planting date while waiting for Pi sync.
+        # The blue-key Set Day menu remains available if the Pi is offline.
+        state.manual_day = 1
+        state.days_since_planting = 1
+        state.day_source = "awaiting_pi"
 
     # ── 现在再 import 重模块 ──────────────────────────────────
     import boot_runtime

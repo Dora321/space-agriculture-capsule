@@ -17,14 +17,23 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
+try:
+    from experiment_clock import ExperimentStore
+except ImportError:
+    from tools.experiment_clock import ExperimentStore
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_PATH = ROOT / "deliverables" / "groundstation.html"
 TOKEN = os.getenv("DASHBOARD_TOKEN", "")
+EXPERIMENT_EDIT_TOKEN = os.getenv("SPACEFARM_EXPERIMENT_TOKEN", TOKEN)
 MAX_REQUEST_BYTES = int(os.getenv("DASHBOARD_MAX_REQUEST_BYTES", "4096"))
 STALE_AFTER_SEC = int(os.getenv("DASHBOARD_STALE_AFTER_SEC", "120"))
 VISION_DATA_DIR = Path(os.getenv("SPACEFARM_VISION_DATA_DIR", "/var/lib/spacefarm/vision"))
 VISION_DB_PATH = VISION_DATA_DIR / "vision.sqlite3"
+EXPERIMENT_PATH = Path(os.getenv(
+    "SPACEFARM_EXPERIMENT_FILE", "/var/lib/spacefarm/experiment.json"))
+EXPERIMENT_STORE = ExperimentStore(EXPERIMENT_PATH)
 
 LATEST_STATE: dict = {
     "live": False,
@@ -75,6 +84,20 @@ def _validate_state(data: dict) -> dict:
     return state
 
 
+def _apply_experiment_state(state: dict) -> dict:
+    """Overlay the cloud experiment calendar without mutating its input."""
+    value = dict(state)
+    experiment = EXPERIMENT_STORE.status()
+    if experiment.get("configured"):
+        value["days"] = experiment["plant_day"]
+        value["experiment_id"] = experiment["experiment_id"]
+        value["planting_date"] = experiment["planting_date"]
+        value["day_offset"] = experiment["day_offset"]
+        value["day_source"] = experiment["day_source"]
+        value["experiment_elapsed_hours"] = experiment["experiment_elapsed_hours"]
+    return value
+
+
 def _validate_screening(data: dict) -> dict:
     if not isinstance(data, dict) or data.get("schema") != "screening.result.v1":
         raise ValueError("screening schema must be screening.result.v1")
@@ -122,9 +145,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_file(DASHBOARD_PATH, "text/html; charset=utf-8")
             return
         if path == "/api/state":
-            data = dict(LATEST_STATE)
+            data = _apply_experiment_state(LATEST_STATE)
             data["live"] = bool(data.get("live")) and time.time() - data.get("updated_at", 0) <= STALE_AFTER_SEC
             self._json_response(data)
+            return
+        if path == "/api/experiment":
+            self._json_response(EXPERIMENT_STORE.status())
             return
         if path in {"/api/vision/status", "/api/vision/latest", "/api/screening/latest"}:
             store = _open_vision_store()
@@ -177,10 +203,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         global LATEST_STATE
         path = urlparse(self.path).path
-        if path not in {"/api/state", "/api/screening/latest"}:
+        if path not in {"/api/state", "/api/screening/latest", "/api/experiment"}:
             self.send_error(404)
             return
-        if TOKEN and self.headers.get("X-Dashboard-Token") != TOKEN:
+        required_token = EXPERIMENT_EDIT_TOKEN if path == "/api/experiment" else TOKEN
+        if required_token and self.headers.get("X-Dashboard-Token") != required_token:
             self._json_response({"error": "unauthorized"}, status=401)
             return
         try:
@@ -193,8 +220,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if path == "/api/state":
-                LATEST_STATE = _validate_state(payload)
-            else:
+                LATEST_STATE = _apply_experiment_state(_validate_state(payload))
+                response = {"ok": True}
+            elif path == "/api/screening/latest":
                 store = _open_vision_store()
                 if store is None:
                     self._json_response({"error": "vision database is not initialized"}, status=503)
@@ -203,9 +231,20 @@ class Handler(BaseHTTPRequestHandler):
                     store.set_value("screening_latest", _validate_screening(payload))
                 finally:
                     store.close()
-            self._json_response({"ok": True})
+                response = {"ok": True}
+            else:
+                response = EXPERIMENT_STORE.save(
+                    payload, updated_by=payload.get("updated_by", "operator"))
+            self._json_response(response)
         except (ValueError, json.JSONDecodeError) as exc:
             self._json_response({"error": str(exc)}, status=400)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Dashboard-Token")
+        self.end_headers()
 
     def log_message(self, fmt, *args):
         print(f"[Dashboard] {self.address_string()} - {fmt % args}")
@@ -229,6 +268,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Dashboard-Token")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         try:
@@ -253,6 +293,7 @@ def main() -> None:
     server = _Server((args.host, args.port), Handler)
     print(f"[Dashboard] Open http://127.0.0.1:{args.port}/")
     print(f"[Dashboard] ESP32 POST endpoint: http://<this-computer-ip>:{args.port}/api/state")
+    print(f"[Dashboard] Experiment settings: http://<this-computer-ip>:{args.port}/api/experiment")
     server.serve_forever()
 
 

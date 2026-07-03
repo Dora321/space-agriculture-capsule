@@ -39,7 +39,7 @@ UART_OFFLINE_TIMEOUT_MS = 30000
 READ_INTERVAL = 60        # 传感器读取间隔（秒），不低于 60 秒（正式运行建议 300 秒 = 5 分钟）
 DECISION_INTERVAL = 60    # 本地动作决策间隔（秒），默认每分钟随采样判断一次；云端 AI 另有请求门控
 PAGE_ROTATE_SEC = 0       # OLED 页面切换：0=手动（红/黄按键），>0=自动轮播秒数
-STARTUP_MENU_ON_BOOT = False  # False=开机直接运行；True=开机先选作物/天数
+STARTUP_MENU_ON_BOOT = False  # Pi 同步实验日龄；蓝键菜单保留离线临时设置
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数
 MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
@@ -63,10 +63,9 @@ DEMO_LIGHT_LEVEL = 72
 DEMO_TEMPERATURE = 24.5
 DEMO_HUMIDITY = 62
 
-# ============ 种植日期 ============
-# 格式: (年, 月, 日)，系统据此计算种植天数和生长阶段
-# 每次重新种植时更新此值
-PLANTING_DATE = (2026, 5, 1)  # 例: 2026年5月1日播种
+# ============ 离线种植日期兜底 ============
+# 正常双层模式以树莓派实验档案为准；只有 Pi 长期离线时才使用此日期。
+PLANTING_DATE = (2026, 5, 1)
 
 # ============ GPIO 引脚定义 ============
 # 传感器

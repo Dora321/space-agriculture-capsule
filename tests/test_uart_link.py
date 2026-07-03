@@ -172,6 +172,13 @@ def test_advice_accepts_bare_string_signals():
     assert d["signals"] == ["WATER", "LIGHT_LOW"]
 
 
+def test_experiment_to_day_validates_range_and_type():
+    assert uart_link.experiment_to_day({"t": "experiment", "plant_day": "8"}) == 8
+    assert uart_link.experiment_to_day({"t": "experiment", "plant_day": 0}) is None
+    assert uart_link.experiment_to_day({"t": "experiment", "plant_day": 1000}) is None
+    assert uart_link.experiment_to_day({"t": "advice", "plant_day": 8}) is None
+
+
 # --------------------------------------------------------------------------
 # UartLink framing / polling
 # --------------------------------------------------------------------------

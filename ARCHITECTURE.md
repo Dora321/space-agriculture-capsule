@@ -87,6 +87,8 @@ ESP32 GND            -> Raspberry Pi GND pin 6
 
 Camera Module 3 通过 CSI-2 直连树莓派。`spacefarm-vision-capture` 负责采集、图片质量检查、固定 ROI 和缓存；`spacefarm-vision-api` 异步调用 `qwen3.7-plus`，校验并存储结构化结果。树莓派不运行植物识别模型。`serial_gateway` 只把最新 ESP32 遥测镜像到视觉数据库，图片不经过 UART，视觉结果也不进入水泵/补光决策。
 
+实验日龄使用独立的元数据链：网页 `POST /api/experiment` 初始化实验编号和播种日期，腾讯云持久化；树莓派网关每 30 秒拉取到本地缓存，按北京时间以播种当天 D1 计算，再覆盖遥测、视觉上下文和 AI 提示词中的旧日龄。Pi 通过 UART `experiment` 消息把同一日龄同步到 ESP32；该消息不包含执行器动作。云端断开时 Pi 使用缓存，Pi 断开时 ESP32 才使用菜单 `Set Day` 临时兜底。
+
 自动拍摄采用光线门控：以当前作物 `light_opt` 为默认达标线，距上次成功拍摄至少 2 小时后才允许再次拍摄；光线不足时顺延，不拍照、不调用多模态 API，也不为拍照额外开启补光灯。
 
 `tools/screening` 按独立种植周期配对候选和固定对照，输出表型分、ΔControl、IQR、数据质量和 A/B/C/D 证据等级。每 2 小时照片只是重复测量，独立 `n` 按完整种植周期计算；少于 3 周期或缺少有效对照时不得给出正式复筛建议。
@@ -413,6 +415,8 @@ ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ d
 
 Camera Module 3 使用独立数据流，不把图片塞进 `/api/state`：`vision-capture → SQLite 队列 → vision-api-worker → qwen3.7-plus → 结构化结果`。网页通过 `/api/vision/status`、`/api/vision/latest`、`/api/vision/image` 和 `/api/screening/latest` 独立读取视觉状态。树莓派到腾讯云的图片/结果同步仍是待办，不能把云端 `available:false` 解释成摄像头故障。
 
+种植日龄配置使用 `浏览器 → /api/experiment（云端持久化）→ Pi 定时拉取与本地缓存 → UART experiment → ESP32`。`/api/state` 返回时也由云端实验档案覆盖旧日龄，保证刚保存后网页立即显示一致的 Dn；树莓派同步完成后，DeepSeek 与 Camera Module 3 也使用相同值。
+
 早期表型筛选使用第四条慢数据链：`视觉时间序列 + 同批固定对照 + 多周期环境摘要 → phenotype-screen-worker → /api/screening/results → 浏览器`。它展示 ΔControl、IQR、优于对照周期比例、数据质量和复筛建议，不通过 `/api/state` 或 UART 下发控制。
 
 ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派网关收到 `report` 后转发 `/api/state`。ESP32 的 `wifi=false` 是预期状态——树莓派才是联网节点。OLED 第三页也切换为 Pi/UART 语义：`PI:OK AI:PI` 表示树莓派链路在线，`PI:OFF AI:LOCAL` 表示树莓派离线、ESP32 本地规则自治。
@@ -498,7 +502,7 @@ ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派�
 
 ## 10. 测试体系
 
-当前 `py -m pytest -q` 共 **178 项测试**，覆盖 ESP32 本地规则、动作安全、UART 协议、树莓派文本 AI、Camera Module 3 调度、SQLite 重试队列、多模态 schema、对照组聚合、Dashboard API 和 Markdown 链接完整性。测试总数以实际 pytest 输出为唯一权威来源，不再维护容易过期的逐文件手工计数表。
+当前 `py -m pytest -q` 共 **188 项测试**，覆盖 ESP32 本地规则、动作安全、UART 协议、树莓派文本 AI、Camera Module 3 调度、SQLite 重试队列、多模态 schema、对照组聚合、Dashboard API 和 Markdown 链接完整性。测试总数以实际 pytest 输出为唯一权威来源，不再维护容易过期的逐文件手工计数表。
 
 ---
 

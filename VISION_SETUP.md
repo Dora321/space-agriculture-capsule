@@ -27,6 +27,8 @@ UART 网关环境增加：
 SPACEFARM_VISION_DB=/home/mx/spacefarm/data/vision/vision.sqlite3
 ```
 
+视觉上下文中的 `day` 不再依赖 ESP32 时钟。先在地面站顶部“实验设置”初始化播种日期；树莓派会把 `/api/experiment` 缓存到 `/var/lib/spacefarm/experiment.json`，再将权威日龄写入视觉遥测。
+
 ## 3. 手动联调
 
 终端一：启动 UART 网关，并让它把最新遥测非阻塞地镜像到视觉数据库。

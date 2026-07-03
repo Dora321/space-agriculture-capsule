@@ -8,7 +8,7 @@
 
 [![MicroPython](https://img.shields.io/badge/MicroPython-ESP32-009688?logo=micropython)](https://micropython.org)
 [![AI](https://img.shields.io/badge/AI-DeepSeek_V4-536DFE)](https://platform.deepseek.com)
-[![Tests](https://img.shields.io/badge/tests-178%2F178%20PASS-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-188%2F188%20PASS-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Cost](https://img.shields.io/badge/BOM-%C2%A5135-orange)](#)
 
@@ -138,7 +138,7 @@ flowchart LR
 | 🛡️ **四级容错与降级机制** | 传感器坏了切安全值 | 在轨无人维修——传感器离线自动降级为安全模式，看门狗死机重启，执行器故障安全跳过 |
 | 📊 **Decision Plane / Action Plane 分离** | 决策层广播多维信号，执行层仅响应物理动作 | 决策能力与执行能力分离——缺肥/高温等 advisory 信号即时广播，无需等待执行器就位 |
 | 📊 **Web 实时遥测大屏** | 远程看传感器数据 | 模拟休斯顿/北京飞控中心——SVG 仪表 + 趋势曲线 + 决策信号面板，超 120s 无数据自动切 DEMO |
-| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，178 用例 ALL PASS |
+| 🔬 **四级测试体系 + 故障演练** | pytest 自动化测试 | 在轨故障预案验证——通过 Mock 注入模拟断网、传感器失效、执行器卡死等场景，188 用例 ALL PASS |
 
 ---
 
@@ -154,7 +154,7 @@ flowchart LR
 | **AI** | DeepSeek V4 Flash（运行在树莓派侧） | ¥1/百万 tokens · 由树莓派 `pi_advisor` 调用，ESP32 不再直连（无 TLS 内存压力） |
 | **上位机** | 树莓派 + `serial_gateway` | UART 收 report / 调 DeepSeek 回 advice / 转发大屏 |
 | **前端** | HTML5 + CSS3 + SVG + Canvas | 实时大屏端口 8790，Python HTTP Server 托管 |
-| **测试** | pytest 178 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
+| **测试** | pytest 188 用例 + MicroPython Mock | `conftest.py` 注入 machine/network/DHT 等模拟 |
 | **工具链** | mpremote + esptool | MicroPython 固件烧录、文件上传、REPL 调试 |
 
 **硬件成本**：¥135/套（批量采购可压至 ¥125/套以内），详见 [选型报告](./智能种植舱控制器选型报告.md#三4-完整-bom-汇总)。
@@ -178,6 +178,8 @@ powershell -ExecutionPolicy Bypass -File tools\start_dashboard_server.ps1
 > 🛰️ **地面站监控大屏**：`deliverables/groundstation.html` 是 retro-futuristic 航天控制台风格的实时大屏（已部署云端 `43.156.68.157:8790`），轮询同一 `/api/state` 接口，显示传感器/生长曲线/DeepSeek 多维决策/育种团队。dashboard_server 在 `/` 服务该 HTML。详见 [DEVLOG/2026-05-31.md](./DEVLOG/2026-05-31.md) #44。
 > 详细部署说明见 [大屏部署指南](./deliverables/realtime-dashboard-guide.md)
 
+大屏顶部的“实验设置”用于初始化实验编号、作物和播种日期。播种当天统一记为 D1；配置由云端 `/api/experiment` 保存，树莓派每 30 秒拉取并缓存到本地，断网后仍可继续计算日龄。若服务器启用了编辑口令，云端和树莓派需设置相同的 `SPACEFARM_EXPERIMENT_TOKEN`。
+
 ### 2. 启动树莓派 UART 网关（双层架构的核心，必需）
 
 ESP32 不再自己联网——联网、大屏、AI 全部由树莓派经 UART 承担。按架构文档连接 UART2：
@@ -188,6 +190,7 @@ ESP32 GPIO17 → 树莓派 GPIO15/RXD，ESP32 GPIO16 ← 树莓派 GPIO14/TXD，
 ```bash
 export SPACEFARM_AI_API_KEY="sk-..."                 # DeepSeek key（不进命令行）
 export SPACEFARM_DASHBOARD="http://43.156.68.157:8790/api/state"
+export SPACEFARM_EXPERIMENT_FILE="/var/lib/spacefarm/experiment.json"
 python3 tools/serial_gateway.py --port /dev/serial0 --baud 115200 --ai-advice
 ```
 
@@ -213,7 +216,7 @@ py tools\serial_gateway.py --port COM5 --test-advice water --test-duration 8
 cp esp32_firmware/config.py.example esp32_firmware/config.py
 ```
 
-ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这些都搬到了树莓派侧）。`config.py` 只剩 UART、传感器/执行器引脚、安全护栏、作物列表等。DeepSeek 的 key/model 改在树莓派用 `SPACEFARM_AI_*` 环境变量配置（见上一步）。
+ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这些都搬到了树莓派侧）。正常模式下日龄也由树莓派通过 UART 同步；OLED 菜单的 `Set Day` 仅作为 Pi 离线时的临时兜底。DeepSeek 的 key/model 改在树莓派用 `SPACEFARM_AI_*` 环境变量配置（见上一步）。
 
 > 完整烧录和接线说明见 [固件 README](./esp32_firmware/README.md)
 
@@ -227,7 +230,7 @@ ESP32 端配置已大幅精简——**不再有 WiFi/AI/Dashboard 密钥**（这
 py -m pytest
 ```
 
-预期输出：**178 passed**
+预期输出：**188 passed**
 
 ---
 
@@ -257,7 +260,7 @@ py -m pytest
 │   ├── uart_link.py         # ESP32<->树莓派 UART JSON-over-Line 协议层
 │   ├── config.py.example    # 配置模板（WiFi/AI/引脚）
 │   └── plants.json          # 8 种植物完整参数数据库
-├── tests/                   # pytest 自动化测试（178 用例 ALL PASS）
+├── tests/                   # pytest 自动化测试（188 用例 ALL PASS）
 │   ├── conftest.py          # MicroPython Mock 注入层
 │   ├── test_ai_parse.py     # AI 响应解析
 │   ├── test_config.py       # 配置 + 植物数据库
@@ -306,7 +309,7 @@ py -m pytest
 
 | 指标 | 数值 | 育种平台能力解读 |
 |:-----|:-----|:-----------------|
-| 自动化测试 | **178 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
+| 自动化测试 | **188 个用例 ALL PASS** | 科研级数据可靠性保证，含断网/传感器失效/温度安全护栏/Decision Plane 信号故障预案 |
 | 支持作物 | **8 种**（叶菜 4 + 果菜 4） | **多品种平行筛选能力** |
 | 生长阶段模型 | 每作物 **3-5 个阶段** | **全生长周期数据闭环**（苗期→营养→花期→果期→采收期）|
 | 容错能力 | 传感器离线降级 + 看门狗 + 动作限频 | 长周期育种实验不被中断 |

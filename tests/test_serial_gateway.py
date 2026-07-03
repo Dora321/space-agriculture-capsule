@@ -126,6 +126,20 @@ def test_make_advice_increments_seq_and_filters_signals():
     assert a1["signals"] == [{"sig": "LIGHT_LOW", "conf": 1.0}]
 
 
+def test_make_experiment_sync_is_non_control_message():
+    core = gw.GatewayCore(now_fn=Clock(0))
+    message = gw.decode_line(core.make_experiment_sync({
+        "experiment_id": "EXP-1",
+        "planting_date": "2026-07-03",
+        "plant_day": 8,
+        "day_source": "auto",
+        "updated_at": "2026-07-10T08:00:00+08:00",
+    }))
+    assert message["t"] == "experiment"
+    assert message["plant_day"] == 8
+    assert "primary" not in message
+
+
 # --------------------------------------------------------------------------
 # report -> dashboard state translation
 # --------------------------------------------------------------------------
@@ -149,6 +163,27 @@ def test_report_to_dashboard_state_translation():
     assert state["action_count"] == 2
     assert state["error_count"] == 1
     assert state["decision_source"] == "pi"
+
+
+def test_experiment_overrides_device_day_without_losing_original():
+    report = gw._apply_experiment_to_report({"t": "report", "day": 2}, {
+        "configured": True,
+        "experiment_id": "EXP-1",
+        "planting_date": "2026-07-03",
+        "plant_day": 8,
+        "day_offset": 0,
+        "day_source": "auto",
+        "experiment_elapsed_hours": 48.0,
+    })
+    assert report["day"] == 8
+    assert report["device_day"] == 2
+    assert report["day_source"] == "auto"
+
+
+def test_experiment_url_uses_dashboard_origin():
+    assert gw._experiment_url_from_dashboard(
+        "http://43.156.68.157:8790/api/state"
+    ) == "http://43.156.68.157:8790/api/experiment"
 
 
 def test_dashboard_action_from_advice_normalizes_primary():
@@ -192,6 +227,16 @@ def test_pi_advice_decodes_and_converts_on_esp():
     assert decision["reason"] == "补光补钾"
     assert decision["signals"] == ["LIGHT_LOW", "NEED_K"]
     assert decision["seq"] == 1
+
+
+def test_pi_experiment_sync_decodes_on_esp():
+    core = gw.GatewayCore(now_fn=Clock(0))
+    line = core.make_experiment_sync({
+        "experiment_id": "EXP-1", "planting_date": "2026-07-03",
+        "plant_day": 8, "day_source": "auto", "updated_at": "now",
+    })
+    obj = uart_link.decode_line(line)
+    assert uart_link.experiment_to_day(obj) == 8
 
 
 def test_pi_ping_decodes_and_esp_pongs():

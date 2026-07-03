@@ -147,3 +147,22 @@ def test_public_capture_does_not_expose_local_paths():
     assert "overview_path" not in result
     assert "image_path" not in result["observations"][0]
     assert result["overview_url"].startswith("/api/vision/image?")
+
+
+def test_apply_experiment_state_uses_authoritative_day():
+    dashboard_server = _load_dashboard_server()
+    class FakeStore:
+        @staticmethod
+        def status():
+            return {
+                "configured": True, "experiment_id": "EXP-1",
+                "planting_date": "2026-07-03", "plant_day": 8,
+                "day_offset": 2, "day_source": "adjusted",
+                "experiment_elapsed_hours": 48.0,
+            }
+
+    dashboard_server.EXPERIMENT_STORE = FakeStore()
+    state = dashboard_server._apply_experiment_state({"days": 1, "soil": 40})
+    assert state["days"] == 8
+    assert state["experiment_id"] == "EXP-1"
+    assert state["day_source"] == "adjusted"

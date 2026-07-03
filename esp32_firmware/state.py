@@ -38,4 +38,6 @@ class SystemState:
         self.start_time = 0
         self.demo_soil_moisture = None
         self.manual_day = None      # 手动设置的种植天数；None 则按 config.PLANTING_DATE 计算
+        self.day_source = "device"  # device/manual/pi；Pi 同步后以实验档案为准
+        self.experiment_id = ""
         self.fast_mode = False      # 展示模式：读真实传感器但快速响应（缩短读取/决策间隔）
