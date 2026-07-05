@@ -393,10 +393,12 @@ canvas{width:100%;height:180px;display:block}
 
       <div class="panel d4">
         <div class="panel-t"><span>◢</span> 育种团队实时任务板</div>
+        <!-- 机组：把（姓名）替换为队员姓名；岗位与四人分工一致 -->
         <div class="crew">
-          <div class="member"><div class="av">张</div><div><div class="m-name">张煦涵</div><div class="m-role">太空育种站长</div><div class="m-task" id="taskLead">任务排程待同步</div></div></div>
-          <div class="member"><div class="av">陈</div><div><div class="m-name">陈美伊</div><div class="m-role">农业育种专家</div><div class="m-task" id="taskBreed">观察记录待同步</div></div></div>
-          <div class="member"><div class="av">杨</div><div><div class="m-name">杨灏辰</div><div class="m-role">总工程师</div><div class="m-task" id="taskEng">设备巡检待同步</div></div></div>
+          <div class="member"><div class="av">长</div><div><div class="m-name">（姓名）</div><div class="m-role">太空育种站长</div><div class="m-task" id="taskLead">任务排程待同步</div></div></div>
+          <div class="member"><div class="av">工</div><div><div class="m-name">（姓名）</div><div class="m-role">总工程师</div><div class="m-task" id="taskEng">设备巡检待同步</div></div></div>
+          <div class="member"><div class="av">脑</div><div><div class="m-name">（姓名）</div><div class="m-role">系统工程师</div><div class="m-task" id="taskSys">决策链待同步</div></div></div>
+          <div class="member"><div class="av">眼</div><div><div class="m-name">（姓名）</div><div class="m-role">育种科学家</div><div class="m-task" id="taskBreed">观察记录待同步</div></div></div>
         </div>
       </div>
 
@@ -839,9 +841,11 @@ function renderHealth(h){
 }
 function renderTeam(team){
   if(!team) return;
-  document.getElementById("taskLead").textContent=team.lead;
-  document.getElementById("taskBreed").textContent=team.breed;
-  document.getElementById("taskEng").textContent=team.eng;
+  const set=(id,v)=>{ if(v!=null){ const e=document.getElementById(id); if(e) e.textContent=v; } };
+  set("taskLead",team.lead);
+  set("taskEng",team.eng);
+  set("taskSys",team.sys);
+  set("taskBreed",team.breed);
 }
 async function update(){
   const d=await fetchTelemetry();
