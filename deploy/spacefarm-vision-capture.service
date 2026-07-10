@@ -1,6 +1,6 @@
 [Unit]
 Description=SpaceFarm Camera Module 3 capture scheduler
-After=multi-user.target spacefarm-gateway.service
+After=spacefarm-gateway.service
 
 [Service]
 Type=simple

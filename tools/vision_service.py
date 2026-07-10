@@ -54,6 +54,7 @@ def main(argv=None) -> int:
                     store=store, scheduler=scheduler, camera=camera,
                     experiment=experiment, data_dir=config.data_dir,
                     prepare=prepare_rois, inspect=inspect_image,
+                    quality_retry_sec=config.schedule_check_sec,
                 )
                 while True:
                     print("[VISION]", json.dumps(service.tick(), ensure_ascii=False))
@@ -66,6 +67,8 @@ def main(argv=None) -> int:
                 base_url=os.environ.get("SPACEFARM_CLOUD_BASE_URL", ""),
                 token=os.environ.get("VISION_UPLOAD_TOKEN", ""),
                 timeout_sec=float(os.environ.get("SPACEFARM_CLOUD_TIMEOUT_SEC", "10")),
+                max_image_bytes=int(os.environ.get(
+                    "SPACEFARM_CLOUD_MAX_IMAGE_BYTES", "120000")),
             )
             if args.mode == "cloud-once":
                 print("[VISION CLOUD]", worker.run_once())

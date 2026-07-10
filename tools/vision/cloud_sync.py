@@ -52,17 +52,58 @@ def capture_to_cloud_event(capture: dict[str, Any], image_bytes: bytes) -> dict[
     }
 
 
+def prepare_cloud_preview(path: str | Path, max_bytes: int = 120_000) -> bytes:
+    """Create a bounded dashboard preview without changing the archived original.
+
+    Multimodal analysis consumes the per-ROI JPEG files before cloud sync.  The
+    cloud image is display-only, so a smaller preview keeps weak field uplinks
+    from blocking the durable outbox for several minutes.
+    """
+    source = Path(path)
+    raw = source.read_bytes()
+    if len(raw) <= max_bytes:
+        return raw
+    try:
+        import cv2  # type: ignore
+    except ImportError:
+        return raw
+    image = cv2.imread(str(source))
+    if image is None:
+        return raw
+    best = raw
+    for max_edge in (1280, 1024, 896, 768, 640):
+        height, width = image.shape[:2]
+        scale = min(1.0, max_edge / max(height, width))
+        candidate = image if scale == 1.0 else cv2.resize(
+            image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        for quality in (80, 70, 60, 50):
+            ok, encoded = cv2.imencode(
+                ".jpg", candidate, [cv2.IMWRITE_JPEG_QUALITY, quality])
+            if not ok:
+                continue
+            value = encoded.tobytes()
+            if len(value) < len(best):
+                best = value
+            if len(value) <= max_bytes:
+                return value
+    return best
+
+
 class VisionCloudSyncWorker:
     def __init__(self, store: Any, *, base_url: str, token: str,
-                 timeout_sec: float = 10, clock=time.time,
-                 request_json=_request, urlopen=urllib.request.urlopen):
+                 timeout_sec: float = 10, max_image_bytes: int = 120_000,
+                 clock=time.time, request_json=_request,
+                 urlopen=urllib.request.urlopen,
+                 prepare_image=prepare_cloud_preview):
         self.store = store
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout_sec = timeout_sec
+        self.max_image_bytes = max(10_000, int(max_image_bytes))
         self.clock = clock
         self.request_json = request_json
         self.urlopen = urlopen
+        self.prepare_image = prepare_image
 
     def _finish(self, outcome: str, *, error: str = "") -> str:
         now = self.clock()
@@ -106,7 +147,8 @@ class VisionCloudSyncWorker:
             return self._finish("idle")
         capture_id = capture["capture_id"]
         try:
-            image_bytes = Path(capture["overview_path"]).read_bytes()
+            image_bytes = self.prepare_image(
+                capture["overview_path"], self.max_image_bytes)
             event = capture_to_cloud_event(capture, image_bytes)
             image_url = self.base_url + "/api/vision/images/" + quote(capture_id)
             image_headers_body = image_bytes

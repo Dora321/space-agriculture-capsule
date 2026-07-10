@@ -93,7 +93,7 @@ body::after{
   display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
   grid-template-areas:
     "sample sample sample sensors sensors sensors chart chart chart chart chart chart"
-    "decision decision decision decision decision decision actuator actuator actuator vision vision vision"
+    "decision decision decision decision decision actuator actuator actuator vision vision vision vision"
     "events events events events health health team team team team team team";
   gap:12px;
 }
@@ -227,15 +227,18 @@ canvas{width:100%;height:116px;display:block}
 .logstream .w{color:var(--amber)}
 
 /* Camera Module 3 / AI 早期表型筛选（与执行器控制链隔离） */
-.vision-shot{width:100%;height:84px;object-fit:cover;border:1px solid var(--line);
-  border-radius:3px;background:#03060b;margin:8px 0}
+.vision-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr);gap:10px;align-items:start}
+.vision-media,.vision-details{min-width:0}
+.vision-shot{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:contain;border:1px solid var(--line);
+  border-radius:7px;background:#03060b;margin:0;transform:rotate(180deg);transform-origin:center}
+.vision-shot[hidden]{display:none}
 .vision-row{display:flex;justify-content:space-between;gap:10px;color:var(--ink-dim);
-  font-size:.72rem;line-height:1.8}
-.vision-row b{color:var(--ink);text-align:right}
-.roi-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
-.roi-card{border:1px solid var(--line);padding:7px;font-size:.67rem;color:var(--ink-dim)}
+  font-size:.67rem;line-height:1.55;padding-bottom:3px}
+.vision-row b{color:var(--ink);text-align:right;min-width:0}
+.roi-list{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
+.roi-card{border:1px solid var(--line);border-radius:5px;padding:6px;font-size:.61rem;line-height:1.35;color:var(--ink-dim);min-width:0}
 .roi-card b{display:block;color:var(--glow);margin-bottom:2px}
-.vision-note{margin-top:7px;padding:6px;border-left:2px solid var(--violet);
+.vision-note{margin-top:7px;padding:6px 7px;border-left:2px solid var(--violet);
   color:var(--ink-dim);font-size:.68rem;background:rgba(176,107,255,.05)}
 
 /* 实验日期设置：只写实验元数据，不提供执行器控制 */
@@ -280,6 +283,7 @@ canvas{width:100%;height:116px;display:block}
   .chain{display:flex;flex-direction:column}
   .chain-arrow{padding:3px}.chain-arrow::before{content:"▼";font-size:.7rem}
   canvas{height:180px}
+  .vision-layout{grid-template-columns:1fr}
   .vision-shot{height:auto;aspect-ratio:16/9}
 }
 @media(max-width:700px){
@@ -298,7 +302,8 @@ canvas{width:100%;height:116px;display:block}
   .chain-step{padding:6px 8px}.cs-h{margin-bottom:3px}.cs-b{font-size:.61rem}.cs-reason{font-size:.59rem}
   .panel-decision .signal{padding:3px 6px;font-size:.59rem}.breeding{padding:6px 8px}.breeding .bt{margin-bottom:3px}.breeding .bx{font-size:.67rem}
   .actx-card{padding:6px 8px}.actx-h{margin-bottom:5px}.actx-rows{gap:3px;font-size:.63rem}.actx-foot{margin-top:6px;padding-top:5px}
-  .vision-row{font-size:.64rem;line-height:1.5}.vision-shot{height:60px;margin:5px 0}.roi-list{margin-top:5px}.roi-card{padding:4px;font-size:.58rem}.vision-note{font-size:.59rem;margin-top:4px}
+  .vision-layout{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr);gap:7px}
+  .vision-row{font-size:.58rem;line-height:1.35;padding-bottom:2px}.vision-shot{height:auto;margin:0;aspect-ratio:16/9}.roi-list{margin:4px 0;gap:3px}.roi-card{padding:3px;font-size:.51rem;line-height:1.25}.vision-note{font-size:.54rem;line-height:1.3;margin-top:4px;padding:4px 5px}
   .member{padding:5px 7px}.member .av{width:28px;height:28px}.member .m-name{font-size:.82rem}.member .m-task{font-size:.56rem}
   .logstream{max-height:82px;font-size:.58rem;line-height:1.55}
 }
@@ -441,14 +446,20 @@ canvas{width:100%;height:116px;display:block}
 
       <div class="panel panel-vision d4">
         <div class="panel-t"><span>◢</span> Camera Module 3 · 表型筛选</div>
-        <div class="vision-row"><span>采集状态</span><b id="visionStatus">等待视觉服务</b></div>
-        <div class="vision-row"><span>拍照门槛</span><b id="visionGate">每 2 小时 · 光照达标</b></div>
-        <img class="vision-shot" id="visionImage" alt="最近一次舱内固定视角照片" hidden>
-        <div class="roi-list" id="roiList"></div>
-        <div class="vision-row"><span>独立种植周期 n</span><b id="screenCycles">0</b></div>
-        <div class="vision-row"><span>相对对照组</span><b id="screenDelta">数据不足</b></div>
-        <div class="vision-row"><span>证据等级</span><b id="screenGrade">—</b></div>
-        <div class="vision-note">视觉结论仅用于候选材料筛选，不参与水泵与补光灯控制。</div>
+        <div class="vision-layout">
+          <div class="vision-media">
+            <img class="vision-shot" id="visionImage" alt="最近一次舱内固定视角照片" hidden>
+            <div class="vision-note">完整固定视角 · 视觉结论仅用于候选材料筛选，不参与水泵与补光灯控制。</div>
+          </div>
+          <div class="vision-details">
+            <div class="vision-row"><span>采集状态</span><b id="visionStatus">等待视觉服务</b></div>
+            <div class="vision-row"><span>拍照门槛</span><b id="visionGate">每 2 小时 · 光照达标</b></div>
+            <div class="roi-list" id="roiList"></div>
+            <div class="vision-row"><span>独立种植周期 n</span><b id="screenCycles">0</b></div>
+            <div class="vision-row"><span>相对对照组</span><b id="screenDelta">数据不足</b></div>
+            <div class="vision-row"><span>证据等级</span><b id="screenGrade">—</b></div>
+          </div>
+        </div>
       </div>
 
       <div class="panel panel-team d4">

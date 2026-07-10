@@ -215,6 +215,37 @@ def test_capture_service_does_not_queue_rejected_images(tmp_path):
     store.close()
 
 
+def test_capture_service_rate_limits_automatic_quality_retries(tmp_path):
+    store = VisionStore(tmp_path / "vision.sqlite3")
+    store.save_telemetry({"light": 70}, received_at=100)
+    attempts = []
+
+    class Camera:
+        def capture(self, path):
+            attempts.append(str(path))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"overview")
+
+    def prepare(_source, output_dir, rois):
+        return [{**rois[0], "image_path": str(output_dir / "bad.jpg")}]
+
+    now = [100]
+    service = CaptureService(
+        store=store, scheduler=CaptureScheduler(), camera=Camera(),
+        experiment={"rois": [{"pot_id": "P1", "roi_id": "r1"}]},
+        data_dir=tmp_path, prepare=prepare,
+        inspect=lambda _path: evaluate_metrics(blur_score=1, brightness=.5),
+        quality_retry_sec=600, clock=lambda: now[0],
+    )
+    assert service.tick()["state"] == "QUALITY_REJECTED"
+    now[0] = 110
+    waiting = service.tick()
+    assert waiting["state"] == "WAITING_INTERVAL"
+    assert waiting["next_eligible_at"] == 700
+    assert len(attempts) == 1
+    store.close()
+
+
 def test_cloud_sync_worker_uploads_one_event_and_marks_outbox(tmp_path):
     store = VisionStore(tmp_path / "vision.sqlite3")
     capture, observations = _capture(tmp_path)
@@ -280,6 +311,40 @@ def test_cloud_outbox_retry_survives_reopen_and_uses_backoff(tmp_path):
     assert reopened.lease_cloud_sync("worker", now=129) is None
     assert reopened.lease_cloud_sync("worker", now=130)["capture_id"] == "cap-1"
     reopened.close()
+
+
+def test_cloud_sync_uses_bounded_preview_bytes(tmp_path):
+    store = VisionStore(tmp_path / "vision.sqlite3")
+    capture, observations = _capture(tmp_path)
+    overview = tmp_path / "overview.jpg"
+    overview.write_bytes(b"original-large-image")
+    capture["overview_path"] = str(overview)
+    store.create_capture(capture, observations)
+    store.mark_succeeded("cap-1", {
+        "capture_id": "cap-1",
+        "observations": [{"pot_id": "P1", "analysis": {}}],
+    }, now=100)
+    preview = b"\xff\xd8\xffsmall-preview\xff\xd9"
+    uploaded = []
+
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def read(self): return b'{"ok":true}'
+
+    def urlopen(request, timeout):
+        uploaded.append(request.data)
+        return Response()
+
+    worker = VisionCloudSyncWorker(
+        store, base_url="https://cloud.example", token="secret",
+        request_json=lambda *_args, **_kwargs: {"ok": True},
+        urlopen=urlopen,
+        prepare_image=lambda path, limit: preview,
+    )
+    assert worker.run_once() == "succeeded"
+    assert uploaded == [preview]
+    store.close()
 
 
 def test_manual_capture_bypasses_interval_but_keeps_light_gate(tmp_path):

@@ -13,7 +13,8 @@ class CaptureService:
     def __init__(self, *, store: Any, scheduler: Any, camera: Any,
                  experiment: Mapping[str, Any], data_dir: str | Path,
                  prepare: Callable[..., list[dict[str, Any]]],
-                 inspect: Callable[..., Any], clock=time.time):
+                 inspect: Callable[..., Any], quality_retry_sec: float = 600,
+                 clock=time.time):
         self.store = store
         self.scheduler = scheduler
         self.camera = camera
@@ -21,6 +22,7 @@ class CaptureService:
         self.data_dir = Path(data_dir)
         self.prepare = prepare
         self.inspect = inspect
+        self.quality_retry_sec = max(1.0, float(quality_retry_sec))
         self.clock = clock
 
     def _publish(self, status: Mapping[str, Any], *, now: float | None = None) -> dict[str, Any]:
@@ -59,9 +61,27 @@ class CaptureService:
         if not decision.should_capture:
             return self._publish(status, now=now)
 
+        # The service polls every ten seconds so manual requests feel immediate.
+        # Persist a separate physical-attempt cooldown to prevent a rejected or
+        # failed automatic image from making the camera retry on every poll.
+        last_attempt = self.store.get_value("last_capture_attempt") or {}
+        last_attempt_at = float(last_attempt.get("attempted_at", 0) or 0)
+        if (not manual_request and last_attempt_at
+                and now < last_attempt_at + self.quality_retry_sec):
+            return self._publish({
+                **status,
+                "state": "WAITING_INTERVAL",
+                "reason": "waiting for capture retry cooldown",
+                "next_eligible_at": last_attempt_at + self.quality_retry_sec,
+            }, now=now)
+
         capture_id = datetime.fromtimestamp(now, timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:8]
         capture_dir = self.data_dir / "captures" / capture_id
         overview = capture_dir / "overview.jpg"
+        self.store.set_value(
+            "last_capture_attempt", {"attempted_at": now, "capture_id": capture_id},
+            now=now,
+        )
         try:
             self.camera.capture(overview)
             prepared = self.prepare(overview, capture_dir / "rois", list(self.experiment["rois"]))
