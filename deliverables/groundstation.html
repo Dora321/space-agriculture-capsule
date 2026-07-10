@@ -85,6 +85,10 @@ body::after{
   padding:8px 13px;border-radius:7px;font-family:'JetBrains Mono';font-size:.68rem;
   letter-spacing:1px;cursor:pointer}
 .experiment-btn:hover{box-shadow:0 0 14px var(--glow-soft)}
+.header-actions{display:flex;align-items:center;gap:8px}
+.theme-toggle{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.theme-icon{font-size:.9rem;line-height:1;transition:transform .35s ease}
+.theme-toggle:hover .theme-icon{transform:rotate(180deg)}
 .m-right{display:flex;gap:0;align-items:center;font-family:'JetBrains Mono',monospace}
 .m-stat{text-align:right;padding:2px 17px;border-left:1px solid rgba(120,180,185,.12)}
 .m-stat:first-child{border-left:0}
@@ -344,6 +348,205 @@ canvas{width:100%;height:116px;display:block}
   .logstream{max-height:82px;font-size:.58rem;line-height:1.55}
 }
 
+</style>
+<style id="ecoTheme">
+/* ===== 现代生态实验室主题（可关闭） ===== */
+:root{
+  --bg:#eef1e8;
+  --bg-panel:rgba(255,255,250,.93);
+  --bg-panel-2:rgba(246,248,240,.96);
+  --grid:rgba(63,101,77,.055);
+  --ink:#19372d;
+  --ink-dim:#6b7f73;
+  --glow:#2f7656;
+  --glow-soft:rgba(47,118,86,.12);
+  --amber:#ad742f;
+  --red:#b8564c;
+  --violet:#796987;
+  --blue:#4f7f8c;
+  --line:rgba(50,91,70,.16);
+  --line-strong:rgba(47,118,86,.3);
+  --shadow:0 18px 44px rgba(54,70,56,.1);
+  --shadow-soft:0 8px 24px rgba(54,70,56,.075);
+}
+body{
+  background:
+    linear-gradient(128deg,rgba(228,235,219,.72),transparent 38%),
+    linear-gradient(180deg,#f6f5ed 0%,#edf1e8 55%,#e7ede2 100%);
+  color:var(--ink);
+  font-family:'Microsoft YaHei','PingFang SC','Noto Sans SC',sans-serif;
+}
+body::before{
+  opacity:.7;
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:72px 72px;
+  mask-image:linear-gradient(to bottom,#000,transparent 88%);
+}
+body::after{
+  opacity:1;
+  background:
+    radial-gradient(circle at 5% 2%,rgba(132,163,111,.19),transparent 28%),
+    radial-gradient(circle at 94% 12%,rgba(196,169,110,.13),transparent 27%),
+    radial-gradient(circle at 80% 94%,rgba(89,132,111,.1),transparent 32%);
+}
+.noise{display:none}
+.wrap{max-width:1720px}
+
+.mission-bar{
+  border-color:rgba(48,89,67,.17);
+  background:rgba(255,255,250,.9);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.85);
+  backdrop-filter:blur(16px);
+}
+.mission-bar::before{
+  width:5px;background:linear-gradient(180deg,#2f7656,#9aad74);box-shadow:none;
+}
+.mission-bar::after{
+  left:5px;background:linear-gradient(90deg,rgba(47,118,86,.5),rgba(183,128,55,.2),transparent 70%);
+}
+.m-logo{
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  font-size:1.42rem;letter-spacing:.7px;color:#173d31;font-weight:800;
+}
+.m-logo b{color:#4e795c;text-shadow:none;font-weight:600}
+.m-sub{color:#7a8c80;letter-spacing:.5px}
+.experiment-btn{
+  border-color:rgba(47,118,86,.35);background:#edf4eb;color:#2f6d50;
+  border-radius:999px;font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  letter-spacing:.4px;font-weight:600;box-shadow:none;
+}
+.experiment-btn:hover{background:#e2eddf;box-shadow:none}
+.m-stat{border-left-color:rgba(47,92,68,.12)}
+.m-stat .lbl{color:#829187;letter-spacing:1px}
+.m-stat .val{color:#2f6d50;text-shadow:none}
+.pulse-dot{background:#5a8d68;box-shadow:0 0 0 4px rgba(90,141,104,.13)}
+
+.panel{
+  border-color:var(--line);
+  background:rgba(255,255,250,.91);
+  box-shadow:var(--shadow-soft),inset 0 1px 0 rgba(255,255,255,.88);
+  backdrop-filter:blur(12px);
+}
+.panel::before{
+  background:linear-gradient(125deg,rgba(124,157,104,.065),transparent 34%);
+}
+.panel::after{
+  top:12px;right:12px;width:7px;height:7px;border:0;border-radius:50%;
+  background:#8da16f;opacity:.55;
+}
+.panel-t{
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;color:#2c493d;
+  letter-spacing:.45px;font-weight:700;
+}
+.panel-t>span:first-child{
+  width:8px;height:8px;display:inline-block;overflow:hidden;border-radius:50%;
+  background:#5d8965;color:transparent;flex:none;
+}
+.panel-t::after{background:linear-gradient(90deg,rgba(70,112,83,.17),transparent)}
+.panel-decision{border-color:rgba(47,118,86,.24);box-shadow:var(--shadow-soft),inset 3px 0 0 rgba(92,135,94,.45)}
+.panel-actuator{border-color:rgba(173,116,47,.2);box-shadow:var(--shadow-soft),inset 3px 0 0 rgba(183,136,69,.36)}
+.panel-vision{border-color:rgba(94,125,99,.27);box-shadow:0 12px 32px rgba(54,70,56,.1),inset 3px 0 0 rgba(85,126,91,.5)}
+.panel-team{border-color:rgba(79,127,140,.2)}
+
+.crop-name{color:#1d4938;text-shadow:none;font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+.crop-gen{color:#6f607d;border-color:rgba(121,105,135,.36);background:rgba(121,105,135,.07)}
+.stage-bar,.gauge .gtrack{background:rgba(45,77,60,.08)}
+.stage-fill{background:linear-gradient(90deg,#397759,#9aaa6e);box-shadow:none}
+.gauge{
+  border-color:rgba(54,98,74,.14);
+  background:linear-gradient(145deg,rgba(249,250,244,.98),rgba(239,244,235,.93));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+.gauge::before{opacity:.32}
+.gauge .gv{text-shadow:none}
+.ai-primary,.signal{background:rgba(88,130,94,.055)}
+.tag-real{background:rgba(47,118,86,.11)}
+.tag-virt{background:rgba(99,119,106,.1)}
+.breeding{
+  background:linear-gradient(135deg,rgba(121,105,135,.07),rgba(244,242,235,.5));
+  border-color:rgba(121,105,135,.17);
+}
+.breeding .bt{font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.4px}
+.breeding .bx{font-family:'Microsoft YaHei','PingFang SC',sans-serif;font-style:normal}
+
+.chain-step{
+  border-color:rgba(65,104,80,.16);
+  background:linear-gradient(145deg,rgba(249,250,245,.98),rgba(238,243,234,.9));
+}
+.chain-step::after{color:rgba(47,118,86,.06)}
+.chain-step.out{
+  border-color:rgba(47,118,86,.3);
+  background:linear-gradient(145deg,rgba(224,238,222,.92),rgba(244,247,239,.95));
+}
+.cs-h{font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.7px}
+.chain-arrow::before{text-shadow:none;color:#78967b}
+.actx-card{
+  border-color:rgba(173,116,47,.16);
+  background:linear-gradient(145deg,rgba(250,249,242,.98),rgba(244,241,230,.88));
+}
+.actx-h{font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+.actx-h .ai{background:rgba(47,118,86,.08)}
+.act{background:rgba(247,248,240,.8)}
+.st-on{background:rgba(47,118,86,.12)}
+.st-idle{background:rgba(99,119,106,.09)}
+.st-virt{background:rgba(121,105,135,.1)}
+
+.member{
+  border-color:rgba(67,108,82,.13);
+  background:linear-gradient(145deg,rgba(249,250,245,.96),rgba(239,244,235,.88));
+}
+.member .av{
+  background:linear-gradient(135deg,rgba(93,137,101,.16),rgba(185,157,101,.13));
+  border-color:rgba(76,114,87,.18);color:#3c7356;
+}
+.member .m-name,.actx-h{color:#27463a}
+.logstream::-webkit-scrollbar-thumb{background:rgba(47,118,86,.23)}
+
+.vision-media::before{
+  content:"最新舱内影像";background:rgba(249,249,241,.88);border-color:rgba(47,118,86,.27);
+  color:#2f6f51;box-shadow:0 3px 12px rgba(26,52,37,.1);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.25px;
+}
+.vision-shot{
+  background:#dfe5dc;border-color:rgba(47,84,64,.2);
+  box-shadow:0 10px 24px rgba(51,70,55,.12),0 0 0 1px rgba(255,255,255,.65);
+}
+.vision-state{border-color:rgba(83,112,94,.18);background:rgba(83,112,94,.06)}
+.vision-state.ok{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.08)}
+.vision-state.wait{border-color:rgba(173,116,47,.28);background:rgba(173,116,47,.07)}
+.vision-state.error{border-color:rgba(184,86,76,.28);background:rgba(184,86,76,.07)}
+.roi-card{border-color:rgba(58,99,73,.15);background:rgba(244,247,239,.82)}
+.roi-card.control{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.06)}
+.roi-card.candidate{border-color:rgba(121,105,135,.2);background:rgba(121,105,135,.045)}
+.vision-note{background:rgba(121,105,135,.055);border-left-color:#8b7893}
+.vision-capture-meta i{box-shadow:none}
+
+.modal-backdrop{background:rgba(38,48,39,.48)}
+.experiment-modal{
+  border-color:rgba(47,118,86,.35);background:#fbfbf5;border-radius:14px;
+  box-shadow:0 24px 60px rgba(37,52,39,.2);
+}
+.modal-head{font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.3px;color:#24483a}
+.form-field input{background:#f6f7f1;border-color:rgba(55,94,70,.18);color:var(--ink);border-radius:7px}
+.btn-primary{background:#2f7656;border-color:#2f7656;color:#fff}
+.btn-secondary{background:#f5f6ef}
+
+</style>
+<script>
+(() => {
+  let theme="eco";
+  try{
+    const saved=localStorage.getItem("spacefarmTheme");
+    if(saved==="eco"||saved==="cyber") theme=saved;
+  }catch(_error){}
+  document.documentElement.dataset.theme=theme;
+  if(theme==="cyber") document.getElementById("ecoTheme").sheet.disabled=true;
+})();
+</script>
+<style>
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
@@ -359,10 +562,15 @@ canvas{width:100%;height:116px;display:block}
   <div class="mission-bar">
     <div class="m-left">
       <div>
-        <div class="m-logo">SPACE FARM <b>TESTBED</b></div>
-        <div class="m-sub">太空农业种植舱 · 地面原理样机</div>
+        <div class="m-logo">SPACE FARM <b>LAB</b></div>
+        <div class="m-sub">太空农业种植舱 · 生态育种实验室</div>
       </div>
-      <button class="experiment-btn" id="openExperiment" type="button">实验设置</button>
+      <div class="header-actions">
+        <button class="experiment-btn" id="openExperiment" type="button">实验设置</button>
+        <button class="experiment-btn theme-toggle" id="themeToggle" type="button" aria-label="切换显示主题">
+          <span class="theme-icon" aria-hidden="true">◐</span><span id="themeToggleLabel">科技主题</span>
+        </button>
+      </div>
     </div>
     <div class="m-right">
       <div class="m-stat"><div class="lbl">种植日</div><div class="val" id="mday">—</div></div>
@@ -551,6 +759,25 @@ async function fetchJson(path){
 
 const experimentBackdrop=document.getElementById("experimentBackdrop");
 const experimentStatus=document.getElementById("experimentStatus");
+const ecoTheme=document.getElementById("ecoTheme");
+const themeToggle=document.getElementById("themeToggle");
+const themeToggleLabel=document.getElementById("themeToggleLabel");
+function applyTheme(theme,persist=false){
+  const useEco=theme!=="cyber";
+  ecoTheme.sheet.disabled=!useEco;
+  document.documentElement.dataset.theme=useEco?"eco":"cyber";
+  themeToggleLabel.textContent=useEco?"科技主题":"生态主题";
+  themeToggle.title=useEco?"切换为深色科技控制台":"切换为现代生态实验室";
+  themeToggle.setAttribute("aria-pressed",String(useEco));
+  document.querySelector(".m-logo b").textContent=useEco?"LAB":"TESTBED";
+  document.querySelector(".m-sub").textContent=useEco?"太空农业种植舱 · 生态育种实验室":"太空农业种植舱 · 地面原理样机";
+  if(persist){
+    try{localStorage.setItem("spacefarmTheme",useEco?"eco":"cyber");}catch(_error){}
+    drawChart();
+  }
+}
+applyTheme(document.documentElement.dataset.theme||"eco");
+themeToggle.addEventListener("click",()=>applyTheme(document.documentElement.dataset.theme==="eco"?"cyber":"eco",true));
 function taipeiDate(){return new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Taipei"});}
 function suggestedExperimentId(){return "EXP-"+taipeiDate().replaceAll("-","")+"-A";}
 function showExperimentStatus(message,isError=false){
@@ -1016,13 +1243,15 @@ function pushChart(sn){
 function drawChart(){
   const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=180*devicePixelRatio;
   cx.clearRect(0,0,w,h);
+  const themeStyle=getComputedStyle(document.documentElement);
+  const color=name=>themeStyle.getPropertyValue(name).trim();
   // 网格
-  cx.strokeStyle="rgba(60,120,140,0.1)";cx.lineWidth=1;
+  cx.strokeStyle=document.documentElement.dataset.theme==="eco"?"rgba(61,99,74,0.1)":"rgba(60,120,140,0.1)";cx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=h/4*i;cx.beginPath();cx.moveTo(0,y);cx.lineTo(w,y);cx.stroke();}
-  const series=[["soil","#1ef0c8",0,100],["light","#ffb02e",0,100],["temp","#3b9bff",10,40]];
+  const series=[["soil",color("--glow"),0,100],["light",color("--amber"),0,100],["temp",color("--blue"),10,40]];
   series.forEach(([k,col,mn,mx])=>{
     const arr=hist[k];cx.strokeStyle=col;cx.lineWidth=2*devicePixelRatio;
-    cx.shadowColor=col;cx.shadowBlur=8;cx.beginPath();
+    cx.shadowColor=col;cx.shadowBlur=(document.documentElement.dataset.theme==="eco"?2:8);cx.beginPath();
     arr.forEach((v,i)=>{const x=i/(arr.length-1)*w;const y=h-(v-mn)/(mx-mn)*h*0.9-h*0.05;
       i?cx.lineTo(x,y):cx.moveTo(x,y);});
     cx.stroke();cx.shadowBlur=0;
