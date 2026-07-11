@@ -5,6 +5,7 @@ import json
 import pathlib
 import re
 import config
+from state import SystemState
 
 
 def _load_plant_db():
@@ -133,6 +134,24 @@ class TestGrowthStage:
 class TestPlantList:
     """植物列表（PLANT_LIST）编码测试"""
 
+    def test_competition_plant_menu(self):
+        assert config.PLANT_LIST == [
+            "白掌", "绿萝", "吊兰", "虎尾兰",
+            "月季", "长寿花", "多肉", "薄荷",
+        ]
+
+    def test_runtime_default_uses_first_competition_plant(self):
+        assert SystemState().plant_type == "白掌"
+
+    def test_water_threshold_profiles_match_care_types(self):
+        """耐旱植物的触发阈值应低于喜湿植物，避免统一阈值造成过浇。"""
+        peace_lily = config.get_plant_info("白掌")["soil_threshold"]
+        mint = config.get_plant_info("薄荷")["soil_threshold"]
+        snake = config.get_plant_info("虎尾兰")["soil_threshold"]
+        succulent = config.get_plant_info("多肉")["soil_threshold"]
+        assert snake < peace_lily
+        assert succulent < mint
+
     def test_valid_range(self):
         """0-7 都应返回有效植物名，且植物存在于 plants.json"""
         for i in range(8):
@@ -141,14 +160,14 @@ class TestPlantList:
             assert name in _PLANT_DB
 
     def test_out_of_range_default(self):
-        """超出范围应返回默认值（生菜）"""
-        assert config.get_plant_name(99) == "生菜"
-        assert config.get_plant_name(-1) == "生菜"
+        """超出范围应返回默认值（白掌）"""
+        assert config.get_plant_name(99) == "白掌"
+        assert config.get_plant_name(-1) == "白掌"
 
     def test_unknown_plant_default(self):
-        """未知植物名应返回生菜参数"""
+        """未知植物名应返回白掌参数"""
         info = config.get_plant_info("不存在的植物")
-        default_info = config.get_plant_info("生菜")
+        default_info = config.get_plant_info("白掌")
         assert info["soil_threshold"] == default_info["soil_threshold"]
 
 

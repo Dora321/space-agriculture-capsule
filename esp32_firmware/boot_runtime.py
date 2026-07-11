@@ -1,4 +1,4 @@
-"""System boot sequence orchestration (dual-layer: ESP32 flight controller).
+"""System boot sequence orchestration (dual-layer: ESP32 care controller).
 
 ESP32 does not connect WiFi — the Raspberry Pi handles networking. Boot brings up
 sensors, actuators, status LEDs, OLED and the first sensor read.
@@ -21,7 +21,7 @@ def init_system(
     print("=" * 50)
     if demo_enabled:
         print("[Demo] DEMO_MODE enabled: using simulated contest data")
-    print("  Space Agriculture Growth Chamber System v2.0")
+    print("  AI Open Smart Planter System v2.1")
     print("=" * 50)
 
     state.start_time = time.time()

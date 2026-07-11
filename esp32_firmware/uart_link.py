@@ -1,5 +1,5 @@
-"""UART link layer between ESP32 (flight controller) and Raspberry Pi (payload
-computer).
+"""UART link layer between ESP32 (care controller) and Raspberry Pi (AI
+hub).
 
 Protocol: JSON-over-Line. One JSON object per line, terminated by '\n'.
 Direction vocabulary:

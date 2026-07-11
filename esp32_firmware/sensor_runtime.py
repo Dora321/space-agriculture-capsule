@@ -45,7 +45,7 @@ def read_all_sensors(state, demo_enabled=False, show_error=None):
         light = sensors.read_light_level()
         temp, hum = sensors.read_dht22()
         # 植物类型由菜单系统设定，不再从硬件编码读取
-        plant = state.plant_type if state.plant_type else "生菜"
+        plant = state.plant_type if state.plant_type else "白掌"
 
         sensor_failures = []
         if soil is None:
@@ -104,7 +104,7 @@ def read_all_sensors(state, demo_enabled=False, show_error=None):
 def read_demo_sensors(state):
     """Generate fast-changing contest demo data without physical sensor changes."""
     try:
-        plant = _demo_value("DEMO_PLANT_TYPE", "\u751f\u83dc")
+        plant = _demo_value("DEMO_PLANT_TYPE", "\u767d\u638c")
         if state.demo_soil_moisture is None:
             state.demo_soil_moisture = _demo_value("DEMO_START_SOIL", 42)
         else:

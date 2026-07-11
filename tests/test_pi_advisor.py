@@ -41,7 +41,7 @@ class TestBuildMessages:
     def test_includes_sensor_values_and_system_prompt(self):
         msgs = pa.build_messages(REPORT)
         assert msgs[0]["role"] == "system"
-        assert "space agriculture" in msgs[0]["content"].lower()
+        assert "smart planter" in msgs[0]["content"].lower()
         user = msgs[1]["content"]
         assert "生菜" in user
         assert "20%" in user          # soil value

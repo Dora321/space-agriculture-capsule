@@ -15,7 +15,7 @@ class SystemState:
         self.light_level = 0
         self.temperature = 0.0
         self.humidity = 0.0
-        self.plant_type = "生菜"
+        self.plant_type = "白掌"
         self.plant_info = None
         self.days_since_planting = 0
         self.growth_stage = None

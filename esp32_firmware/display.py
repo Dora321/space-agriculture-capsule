@@ -19,6 +19,14 @@ _oled = None
 _DISPLAY_ON = True
 
 _PLANT_NAMES = {
+    "白掌": "PeaceLily",
+    "绿萝": "Pothos",
+    "吊兰": "Spider",
+    "虎尾兰": "Snake",
+    "月季": "Rose",
+    "长寿花": "Kalanchoe",
+    "多肉": "Succulent",
+    "薄荷": "Mint",
     "生菜": "Lettuce",
     "小白菜": "BokChoy",
     "菠菜": "Spinach",
@@ -387,13 +395,13 @@ def show():
 
 
 def show_boot():
-    """欢迎界面：2x 大字 SPACE / FARM + 星空点缀。
+    """欢迎界面：2x 大字 SMART / PLANTER + 植物点缀。
 
     y= 0: 外框
-    y=10-25: "SPACE" 2x 居中
-    y=28-43: "FARM"  2x 居中
+    y=10-25: "SMART"   2x 居中
+    y=28-43: "PLANTER" 2x 居中
     y=47:   内部分隔线
-    y=51:   "TK-NYZ  v2.0" 小字
+    y=51:   "AI Care v2.1" 小字
     """
     if not _check_init():
         return
@@ -401,17 +409,17 @@ def show_boot():
 
     _oled.rect(0, 0, 128, 64, 1)  # 外框
 
-    # 星空装饰（稀疏像素点，避开 2x 文字区域 x=24..103 y=10..43）
+    # 叶片/水滴风格的稀疏像素装饰
     for px, py in [(6, 3), (22, 5), (55, 2), (88, 4), (110, 3), (123, 6),
                    (3, 22), (3, 42), (124, 19), (124, 45),
                    (12, 60), (48, 61), (80, 61), (115, 60)]:
         _oled.pixel(px, py, 1)
 
-    _draw_centered_2x("SPACE", 10)   # 16px 高，y=10..25
-    _draw_centered_2x("FARM",  28)   # 16px 高，y=28..43
+    _draw_centered_2x("SMART",   10)  # 16px 高，y=10..25
+    _draw_centered_2x("PLANTER", 28)  # 16px 高，y=28..43
 
     _oled.line(10, 47, 117, 47, 1)  # 内分隔线
-    _draw_centered("Seeds in Space", 51)
+    _draw_centered("AI Care v2.1", 51)
 
     _oled.show()
 
@@ -420,9 +428,9 @@ def show_boot_check(wifi_ok, ip=None):
     """系统自检结果界面（欢迎画面后显示约 2s）。
 
     y= 0- 9: [SYSTEM CHECK] 反色标题
-    y=13-33: Sensors / WiFi / Actuators 状态行（右对齐标签）
+    y=13-33: Sensors / Pi Link / Actuators 状态行（右对齐标签）
     y=43:    分隔线
-    y=46-56: IP 地址 + AI 状态
+    y=46-56: UART 链路 + AI 安全状态
     """
     if not _check_init():
         return
@@ -435,19 +443,18 @@ def show_boot_check(wifi_ok, ip=None):
 
     # 状态行：label 左对齐，状态右对齐，共 16 字符
     _draw_text("Sensors" + _rpad("OK", 9), 0, 13)
-    wifi_label = "WiFi" + _rpad("Online" if wifi_ok else "Offline", 12)
-    _draw_text(wifi_label, 0, 23)
+    pi_label = "Pi Link" + _rpad("Online" if wifi_ok else "Waiting", 9)
+    _draw_text(pi_label, 0, 23)
     _draw_text("Actuators" + _rpad("OK", 7), 0, 33)
 
     _draw_hline(43)
 
     if wifi_ok:
-        ip_line = ("IP: " + _clip(ip, 12)) if ip else "IP: connected"
-        _draw_text(ip_line, 0, 46)
-        _draw_text("AI: DeepSeek ON", 0, 56)
+        _draw_text("UART: connected", 0, 46)
+        _draw_text("AI: Pi online", 0, 56)
     else:
-        _draw_text("AI: local rules", 0, 46)
-        _draw_text("No cloud service", 0, 56)
+        _draw_text("UART: waiting Pi", 0, 46)
+        _draw_text("AI: local safe", 0, 56)
 
     _oled.show()
 
@@ -850,7 +857,7 @@ def show_graphic():
     _oled.pixel(cx - r, cy, 1)
     _oled.line(cx - 4, cy - 4, cx + 4, cy + 4, 1)
     _oled.line(cx - 4, cy + 4, cx + 4, cy - 4, 1)
-    _draw_centered("SPACE FARM", 55)
+    _draw_centered("SMART PLANTER", 55)
     _oled.show()
 
 

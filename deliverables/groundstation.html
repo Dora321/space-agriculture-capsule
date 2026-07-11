@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>太空农业种植舱 · 地面原理样机</title>
+<title>AI免维护种花 · 第二代开放式智能花盆</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -184,7 +184,7 @@ body::after{
 .tag-real{background:rgba(30,240,200,0.12);color:var(--glow)}
 .tag-virt{background:rgba(95,125,130,0.15);color:var(--ink-dim)}
 
-/* 育种观察 */
+/* AI 养护摘要 */
 .breeding{border:1px solid var(--line);border-radius:8px;padding:10px 12px;
   background:linear-gradient(135deg,rgba(176,107,255,0.06),transparent)}
 .breeding .bt{font-family:'Orbitron';font-size:.7rem;color:var(--violet);letter-spacing:1px;margin-bottom:8px}
@@ -201,7 +201,7 @@ body::after{
 .st-idle{background:rgba(95,125,130,0.12);color:var(--ink-dim)}
 .st-virt{background:rgba(176,107,255,0.12);color:var(--violet)}
 
-/* 育种团队 */
+/* 项目团队 */
 .crew{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .member{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid rgba(59,155,255,.18);border-radius:9px;
   background:linear-gradient(145deg,rgba(9,25,37,.86),rgba(4,11,19,.8));min-width:0}
@@ -253,7 +253,7 @@ canvas{width:100%;height:116px;display:block}
 .logstream .t{color:var(--glow)}
 .logstream .w{color:var(--amber)}
 
-/* Camera Module 3 / AI 早期表型筛选（与执行器控制链隔离） */
+/* Camera Module 3 / AI 长势观察（与执行器控制链隔离） */
 .vision-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr);gap:10px;align-items:start}
 .vision-media,.vision-details{min-width:0}.vision-media{position:relative}
 .vision-media::before{content:"RECENT CAPTURE";position:absolute;z-index:2;left:7px;top:7px;padding:3px 7px;border-radius:999px;
@@ -310,7 +310,7 @@ canvas{width:100%;height:116px;display:block}
   .panel-decision .signal .sig-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .panel-decision .signal .sig-tag{display:none}
   .panel-health .crop-meta{line-height:1.8}
-  .panel-team .crew{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .panel-team .crew{grid-template-columns:repeat(3,minmax(0,1fr))}
   .panel-team .member{align-items:flex-start;gap:7px}
   .panel-team .member>div:last-child{min-width:0}
   .panel-team .m-name,.panel-team .m-role,.panel-team .m-task{overflow:hidden;text-overflow:ellipsis}
@@ -505,7 +505,7 @@ body::after{
 .logstream::-webkit-scrollbar-thumb{background:rgba(47,118,86,.23)}
 
 .vision-media::before{
-  content:"最新舱内影像";background:rgba(249,249,241,.88);border-color:rgba(47,118,86,.27);
+  content:"最新植物影像";background:rgba(249,249,241,.88);border-color:rgba(47,118,86,.27);
   color:#2f6f51;box-shadow:0 3px 12px rgba(26,52,37,.1);
   font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.25px;
 }
@@ -562,19 +562,19 @@ body::after{
   <div class="mission-bar">
     <div class="m-left">
       <div>
-        <div class="m-logo">SPACE FARM <b>LAB</b></div>
-        <div class="m-sub">太空农业种植舱 · 生态育种实验室</div>
+        <div class="m-logo">AI OPEN <b>PLANTER</b></div>
+        <div class="m-sub">AI免维护种花 · 第二代开放式智能花盆</div>
       </div>
       <div class="header-actions">
-        <button class="experiment-btn" id="openExperiment" type="button">实验设置</button>
+        <button class="experiment-btn" id="openExperiment" type="button">种植设置</button>
         <button class="experiment-btn theme-toggle" id="themeToggle" type="button" aria-label="切换显示主题">
           <span class="theme-icon" aria-hidden="true">◐</span><span id="themeToggleLabel">科技主题</span>
         </button>
       </div>
     </div>
     <div class="m-right">
-      <div class="m-stat"><div class="lbl">种植日</div><div class="val" id="mday">—</div></div>
-      <div class="m-stat"><div class="lbl">平台</div><div class="val">地面验证舱</div></div>
+      <div class="m-stat"><div class="lbl">养护日</div><div class="val" id="mday">—</div></div>
+      <div class="m-stat"><div class="lbl">设备形态</div><div class="val">第二代开放式</div></div>
       <div class="m-stat"><div class="lbl">上行延迟</div><div class="val" id="uplink"><span class="pulse-dot"></span>1.3s</div></div>
       <div class="m-stat"><div class="lbl">北京时间</div><div class="val" id="clock">--:--:--</div></div>
     </div>
@@ -584,17 +584,17 @@ body::after{
     <!-- 左列 -->
     <div class="col">
       <div class="panel panel-sample d1">
-        <div class="panel-t"><span>◢</span> 当前样本</div>
+        <div class="panel-t"><span>◢</span> 当前植物</div>
         <div class="crop-head">
           <div class="crop-name" id="cropName">番茄</div>
-          <div class="crop-gen" id="cropGen">第 4 代</div>
+          <div class="crop-gen" id="cropGen">AI 托管</div>
         </div>
         <div class="crop-en" id="cropEn">Tomato</div>
         <div class="crop-meta">
-          品种编号 <b id="cropCode">EGG-L5-017</b><br>
-          培养目标 <b id="cropGoal">低重力适应性筛选</b><br>
+          设备档案 <b id="cropCode">POT-01</b><br>
+          养护目标 <b id="cropGoal">新手免维护养花</b><br>
           生长阶段 <b id="cropStage">营养生长期</b> · 当前 <b id="cropPhase">叶面积扩展期</b><br>
-          第 <b id="cropDay">15</b> 天 · 预计采收 <b id="cropHarvest">第 42 天</b>
+          第 <b id="cropDay">15</b> 天 · 养护状态 <b id="cropHarvest">持续监测中</b>
         </div>
         <div class="stage-bar"><div class="stage-fill" id="stageFill" style="width:36%"></div></div>
       </div>
@@ -618,7 +618,7 @@ body::after{
     <!-- 中列 -->
     <div class="col">
       <div class="panel panel-chart d2">
-        <div class="panel-t"><span>◢</span> 生长指标曲线</div>
+        <div class="panel-t"><span>◢</span> 养护环境趋势</div>
         <div class="chart-wrap"><canvas id="chart"></canvas></div>
         <div class="chart-legend">
           <span><i style="background:var(--glow)"></i>土壤湿度</span>
@@ -628,7 +628,7 @@ body::after{
       </div>
 
       <div class="panel panel-decision d3">
-        <div class="panel-t"><span>◢</span> 环境控制决策链（传感器） <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
+        <div class="panel-t"><span>◢</span> AI 全链路养护决策 <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
         <div class="chain">
           <div class="chain-step">
             <div class="cs-h">输入 · 环境感知</div>
@@ -636,20 +636,20 @@ body::after{
           </div>
           <div class="chain-arrow">▼  ▼  ▼</div>
           <div class="chain-step">
-            <div class="cs-h">判断 · AI 诊断</div>
+            <div class="cs-h">判断 · AI 分析</div>
             <div class="cs-b" id="chainJudge">营养生长期 · 环境稳定 · 无需主动干预</div>
             <div class="cs-reason" id="aiReason">决策依据：湿度充足，温度适宜，光照达标。</div>
           </div>
           <div class="chain-arrow">▼  ▼  ▼</div>
           <div class="chain-step out">
-            <div class="cs-h">输出 · 执行决策</div>
+            <div class="cs-h">输出 · 自动养护</div>
             <div class="cs-b" id="chainOut">水泵待机 · 补光灯待机 · 继续监控</div>
           </div>
         </div>
         <div id="signals"></div>
         <div class="breeding">
-          <div class="bt">环境状态摘要</div>
-          <div class="bx" id="breedObs">等待传感器控制链数据；图像表型结论请查看 Camera Module 3 面板。</div>
+          <div class="bt">新手养护摘要</div>
+          <div class="bx" id="breedObs">等待传感器与 AI 数据；系统会自动判断浇水和补光需求。</div>
         </div>
       </div>
     </div>
@@ -657,10 +657,10 @@ body::after{
     <!-- 右列 -->
     <div class="col">
       <div class="panel panel-actuator d3">
-        <div class="panel-t"><span>◢</span> 执行器状态</div>
+        <div class="panel-t"><span>◢</span> 自动养护执行器</div>
         <div class="actx">
           <div class="actx-card">
-            <div class="actx-h"><span class="ai">💧</span>水泵<span class="ast st-idle" id="pumpState">待机</span></div>
+            <div class="actx-h"><span class="ai">💧</span>循环浇水<span class="ast st-idle" id="pumpState">待机</span></div>
             <div class="actx-rows">
               <div><span>上次启动</span><b id="pumpLast">—</b></div>
               <div><span>累计运行</span><b id="pumpTotal">0 min</b></div>
@@ -675,46 +675,44 @@ body::after{
               <div><span>上次启动</span><b id="lightLast">—</b></div>
             </div>
           </div>
-          <div class="actx-foot">虚拟预留 · 通风风扇 · NPK 施肥泵（待接入硬件）</div>
+          <div class="actx-foot">开放式结构 · 储水循环 · 灌溉水回收再利用</div>
         </div>
       </div>
 
       <div class="panel panel-health d4">
         <div class="panel-t"><span>◢</span> 系统健康</div>
         <div class="crop-meta">
-          ESP32 飞控 <b id="sysEsp32" style="color:var(--amber)">● 演示</b><br>
-          树莓派载荷 <b id="sysPi" style="color:var(--amber)">● 演示模式</b><br>
-          决策来源 <b id="sysSrc">树莓派 AI</b>
+          ESP32 控制器 <b id="sysEsp32" style="color:var(--amber)">● 演示</b><br>
+          AI 养护中枢 <b id="sysPi" style="color:var(--amber)">● 演示模式</b><br>
+          养护策略 <b id="sysSrc">树莓派 AI</b>
         </div>
       </div>
 
       <div class="panel panel-vision d4">
-        <div class="panel-t"><span>◢</span> Camera Module 3 · 表型筛选</div>
+        <div class="panel-t"><span>◢</span> Camera Module 3 · AI 长势观察</div>
         <div class="vision-layout">
           <div class="vision-media">
-            <img class="vision-shot" id="visionImage" alt="最近一次舱内固定视角照片" hidden>
+            <img class="vision-shot" id="visionImage" alt="最近一次开放式花盆固定视角照片" hidden>
             <div class="vision-capture-meta"><i></i><span id="visionCapturedAt">等待首张有效照片</span></div>
-            <div class="vision-note">完整固定视角 · 视觉结论仅用于候选材料筛选，不参与水泵与补光灯控制。</div>
+            <div class="vision-note">每两小时记录长势 · 多模态 AI 辅助观察，安全浇水补光仍由传感器链路执行。</div>
           </div>
           <div class="vision-details">
             <div class="vision-row"><span>采集状态</span><b id="visionStatus">等待视觉服务</b></div>
             <div class="vision-row"><span>拍照门槛</span><b id="visionGate">每 2 小时 · 光照达标</b></div>
             <div class="roi-list" id="roiList"></div>
-            <div class="vision-row"><span>独立种植周期 n</span><b id="screenCycles">0</b></div>
-            <div class="vision-row"><span>相对对照组</span><b id="screenDelta">数据不足</b></div>
-            <div class="vision-row"><span>证据等级</span><b id="screenGrade">—</b></div>
+            <div class="vision-row"><span>累计分析周期</span><b id="screenCycles">0</b></div>
+            <div class="vision-row"><span>长势变化趋势</span><b id="screenDelta">数据不足</b></div>
+            <div class="vision-row"><span>分析可信等级</span><b id="screenGrade">—</b></div>
           </div>
         </div>
       </div>
 
       <div class="panel panel-team d4">
-        <div class="panel-t"><span>◢</span> 育种团队实时任务板</div>
-        <!-- 机组：队长 + 三名成员，岗位与四人分工一致 -->
+        <div class="panel-t"><span>◢</span> 三人协作 · 实时任务</div>
         <div class="crew">
-          <div class="member"><div class="av">长</div><div><div class="m-name">尹泽康</div><div class="m-role">队长 · 太空育种站长</div><div class="m-task" id="taskLead">任务排程待同步</div></div></div>
-          <div class="member"><div class="av">工</div><div><div class="m-name">李宇鑫</div><div class="m-role">总工程师</div><div class="m-task" id="taskEng">设备巡检待同步</div></div></div>
-          <div class="member"><div class="av">脑</div><div><div class="m-name">邓宇成</div><div class="m-role">系统工程师</div><div class="m-task" id="taskSys">决策链待同步</div></div></div>
-          <div class="member"><div class="av">眼</div><div><div class="m-name">回昊宇</div><div class="m-role">育种科学家</div><div class="m-task" id="taskBreed">观察记录待同步</div></div></div>
+          <div class="member"><div class="av">设</div><div><div class="m-name">产品与用户体验</div><div class="m-role">开放式外观 · 新手友好设计</div><div class="m-task" id="taskLead">用户体验任务待同步</div></div></div>
+          <div class="member"><div class="av">智</div><div><div class="m-name">AI 养护系统</div><div class="m-role">环境监测 · 智能决策闭环</div><div class="m-task" id="taskSys">养护策略任务待同步</div></div></div>
+          <div class="member"><div class="av">机</div><div><div class="m-name">机械结构与水循环</div><div class="m-role">储水回收 · 循环浇水执行</div><div class="m-task" id="taskEng">设备巡检任务待同步</div></div></div>
         </div>
       </div>
 
@@ -724,19 +722,19 @@ body::after{
 
 <div class="modal-backdrop" id="experimentBackdrop" hidden>
   <section class="experiment-modal" role="dialog" aria-modal="true" aria-labelledby="experimentTitle">
-    <div class="modal-head"><span id="experimentTitle">初始化种植实验</span><button class="modal-close" id="closeExperiment" type="button" aria-label="关闭">×</button></div>
+    <div class="modal-head"><span id="experimentTitle">初始化养护计划</span><button class="modal-close" id="closeExperiment" type="button" aria-label="关闭">×</button></div>
     <form id="experimentForm">
       <div class="form-grid">
-        <label class="form-field"><span>实验编号</span><input id="experimentId" maxlength="48" pattern="[A-Za-z0-9._-]+" required></label>
-        <label class="form-field"><span>作物</span><input id="experimentPlant" maxlength="24" placeholder="例如：生菜"></label>
-        <label class="form-field"><span>播种日期</span><input id="plantingDate" type="date" required></label>
-        <label class="form-field"><span>日龄修正（天）</span><input id="dayOffset" type="number" min="-365" max="365" value="0" required></label>
+        <label class="form-field"><span>计划编号</span><input id="experimentId" maxlength="48" pattern="[A-Za-z0-9._-]+" required></label>
+        <label class="form-field"><span>植物名称</span><input id="experimentPlant" maxlength="24" placeholder="例如：白掌"></label>
+        <label class="form-field"><span>养护起始日期</span><input id="plantingDate" type="date" required></label>
+        <label class="form-field"><span>养护日修正（天）</span><input id="dayOffset" type="number" min="-365" max="365" value="0" required></label>
         <label class="form-field"><span>操作者</span><input id="experimentOperator" maxlength="32" placeholder="姓名或队员编号"></label>
         <label class="form-field"><span>修改口令（如服务器启用）</span><input id="experimentToken" type="password" autocomplete="current-password"></label>
       </div>
-      <p class="form-help">播种当天记为 D1。保存后由树莓派在约 30 秒内同步；视觉分析只读取该日龄，不会因此控制水泵或补光灯。</p>
+      <p class="form-help">开始养护当天记为 D1。保存后由树莓派在约 30 秒内同步；相机观察与传感器养护记录会按该日期归档。</p>
       <div class="form-status" id="experimentStatus"></div>
-      <div class="form-actions"><button class="btn-secondary" id="cancelExperiment" type="button">取消</button><button class="btn-primary" type="submit">保存实验</button></div>
+      <div class="form-actions"><button class="btn-secondary" id="cancelExperiment" type="button">取消</button><button class="btn-primary" type="submit">保存计划</button></div>
     </form>
   </section>
 </div>
@@ -767,10 +765,10 @@ function applyTheme(theme,persist=false){
   ecoTheme.sheet.disabled=!useEco;
   document.documentElement.dataset.theme=useEco?"eco":"cyber";
   themeToggleLabel.textContent=useEco?"科技主题":"生态主题";
-  themeToggle.title=useEco?"切换为深色科技控制台":"切换为现代生态实验室";
+  themeToggle.title=useEco?"切换为深色智能控制台":"切换为自然养护界面";
   themeToggle.setAttribute("aria-pressed",String(useEco));
-  document.querySelector(".m-logo b").textContent=useEco?"LAB":"TESTBED";
-  document.querySelector(".m-sub").textContent=useEco?"太空农业种植舱 · 生态育种实验室":"太空农业种植舱 · 地面原理样机";
+  document.querySelector(".m-logo b").textContent="PLANTER";
+  document.querySelector(".m-sub").textContent="AI免维护种花 · 第二代开放式智能花盆";
   if(persist){
     try{localStorage.setItem("spacefarmTheme",useEco?"eco":"cyber");}catch(_error){}
     drawChart();
@@ -779,7 +777,7 @@ function applyTheme(theme,persist=false){
 applyTheme(document.documentElement.dataset.theme||"eco");
 themeToggle.addEventListener("click",()=>applyTheme(document.documentElement.dataset.theme==="eco"?"cyber":"eco",true));
 function taipeiDate(){return new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Taipei"});}
-function suggestedExperimentId(){return "EXP-"+taipeiDate().replaceAll("-","")+"-A";}
+function suggestedExperimentId(){return "CARE-"+taipeiDate().replaceAll("-","")+"-A";}
 function showExperimentStatus(message,isError=false){
   experimentStatus.textContent=message;
   experimentStatus.style.color=isError?"var(--red)":"var(--glow)";
@@ -803,7 +801,7 @@ async function loadExperiment(fillForm=false){
     }
     return value;
   }catch(error){
-    if(fillForm) showExperimentStatus("实验配置读取失败："+error.message,true);
+    if(fillForm) showExperimentStatus("养护配置读取失败："+error.message,true);
     return null;
   }
 }
@@ -844,6 +842,11 @@ document.getElementById("experimentForm").addEventListener("submit",async event=
   }
 });
 document.getElementById("experimentToken").value=sessionStorage.getItem("spacefarmExperimentToken")||"";
+function careWording(value){
+  return String(value||"")
+    .replaceAll("候选材料","植物").replaceAll("候选组","观察区").replaceAll("对照组","参考区")
+    .replaceAll("育种","养护").replaceAll("表型","长势").replaceAll("低重力","开放式环境");
+}
 function renderVision(status,latest,screening){
   const stateText={WAITING_TELEMETRY:"等待新遥测",WAITING_INTERVAL:"等待两小时间隔",
     WAITING_LIGHT:"等待光照达标",READY:"可以拍摄",QUEUED_FOR_ANALYSIS:"已拍摄，等待 AI",
@@ -871,15 +874,16 @@ function renderVision(status,latest,screening){
   (latest.observations||[]).forEach(item=>{
     const card=document.createElement("div"); card.className="roi-card "+(item.is_control?"control":"candidate");
     const title=document.createElement("b");
-    title.textContent=`${item.pot_id} · ${item.is_control?"对照组":"候选组"}`;
+    title.textContent=`${item.pot_id} · 植物观察区`;
     const detail=document.createElement("span");
     const a=item.analysis||{};
-    detail.textContent=a.breeding_observation||a.vigor||"等待多模态分析";
+    detail.textContent=careWording(a.vigor||a.breeding_observation)||"等待多模态 AI 长势分析";
     card.append(title,detail); list.appendChild(card);
   });
   document.getElementById("screenCycles").textContent=screening.independent_cycles||0;
   document.getElementById("screenDelta").textContent=screening.delta_control_median==null
-    ?"数据不足":`${screening.delta_control_median>=0?"+":""}${screening.delta_control_median} 分`;
+    ?"数据不足":screening.delta_control_median>=0
+      ?`改善 +${screening.delta_control_median} 分`:`下降 ${Math.abs(screening.delta_control_median)} 分`;
   document.getElementById("screenGrade").textContent=screening.evidence_grade||"—";
 }
 async function updateVision(){
@@ -896,12 +900,12 @@ async function updateVision(){
 function mockState(reason="树莓派遥测离线，已切换演示模式"){
   const r=(a,b)=>+(a+Math.random()*(b-a)).toFixed(1);
   const now=Date.now()/1000;
-  const cropName="番茄", gen=GEN_BY_PLANT[cropName]||4;
+  const cropName="白掌", gen=1;
   const sn={soil:r(38,46),light:r(50,60),temp:r(23,26),hum:r(60,70)};
   return {
     mission_day:15, uplink:"模拟", uptime:"演示模式",
-    crop:{name:cropName,en:PLANT_EN[cropName]||"Tomato",gen,stage:"营养生长期",day:15,harvest:"第 42 天",progress:36,
-      code:"TOM-L"+gen+"-015",goal:"低重力坐果与品质筛选",phase:"叶面积扩展期"},
+    crop:{name:cropName,en:PLANT_EN[cropName]||"Peace Lily",gen,stage:"营养生长期",day:15,harvest:"持续监测中",progress:36,
+      code:"POT-01",goal:"新手免维护养花",phase:"叶面积扩展期"},
     sensors:sn,
     ai:{src:"demo", action:"演示 · 自动巡检", icon:"✓",
       input:`土壤 ${Math.round(sn.soil)}% · 光照 ${Math.round(sn.light)}% · 温度 ${sn.temp}℃ · 湿度 ${Math.round(sn.hum)}%`,
@@ -911,9 +915,9 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
       signals:[
         {sig:"LIGHT_LOW",icon:"💡",name:"光照不足",conf:0.78,real:true},
         {sig:"TEMP_HIGH",icon:"🌬️",name:"温度偏高",conf:0.61,real:false},
-        {sig:"NEED_P",icon:"🧪",name:"花期需补磷",conf:0.82,real:false}
+        {sig:"NEED_P",icon:"🧪",name:"花期营养提醒",conf:0.82,real:false}
       ],
-      breeding:`第 ${gen} 代${cropName}处于营养生长期，土壤水分维持在 38-46%，光照稳定；建议今天记录叶色、节间长度，并为进入花期前的磷钾管理建立对照。`
+      breeding:`${cropName}处于营养生长期，土壤水分维持在 38-46%，光照稳定；系统将继续自动判断浇水与补光需求，新手无需频繁干预。`
     },
     actuators:{pumpRunning:false,lightRunning:false,trig:"土壤湿度 < 30%",target:"50%"},
     health:{mode:"demo",esp32:"● 演示",esp32Ok:false,pi:"● 演示模式",piOk:false,source:"演示模式"},
@@ -927,28 +931,35 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
 }
 
 // ---- 真实 /api/state（扁平）→ 本页结构 的映射 ----
-const PLANT_EN={"生菜":"Lettuce","小白菜":"BokChoy","菠菜":"Spinach","韭菜":"Chives",
+const PLANT_EN={"白掌":"Peace Lily","绿萝":"Pothos","吊兰":"Spider Plant","虎尾兰":"Snake Plant",
+  "月季":"Rose","长寿花":"Kalanchoe","多肉":"Succulent","薄荷":"Mint",
+  "生菜":"Lettuce","小白菜":"BokChoy","菠菜":"Spinach","韭菜":"Chives",
   "番茄":"Tomato","辣椒":"Pepper","黄瓜":"Cucumber","茄子":"Eggplant"};
-const GEN_BY_PLANT={"生菜":3,"小白菜":5,"菠菜":2,"韭菜":6,"番茄":4,"辣椒":7,"黄瓜":2,"茄子":5};
-const PLANT_CODE={"生菜":"LET","小白菜":"PAK","菠菜":"SPI","韭菜":"CHI","番茄":"TOM","辣椒":"PEP","黄瓜":"CUC","茄子":"EGG"};
-const PHASE_CN={seedling:"子叶展开期",vegetative:"叶面积扩展期",veg:"叶面积扩展期",flower:"花芽分化期",bloom:"花芽分化期",fruit:"果实膨大期",harvest:"采收成熟期",mature:"采收成熟期"};
+const GEN_BY_PLANT={"白掌":1,"绿萝":1,"吊兰":1,"虎尾兰":1,"月季":1,"长寿花":1,"多肉":1,"薄荷":1,
+  "生菜":3,"小白菜":5,"菠菜":2,"韭菜":6,"番茄":4,"辣椒":7,"黄瓜":2,"茄子":5};
+const PLANT_CODE={"白掌":"LILY","绿萝":"POTH","吊兰":"SPDR","虎尾兰":"SNKE","月季":"ROSE","长寿花":"KALA","多肉":"SUCC","薄荷":"MINT",
+  "生菜":"LET","小白菜":"PAK","菠菜":"SPI","韭菜":"CHI","番茄":"TOM","辣椒":"PEP","黄瓜":"CUC","茄子":"EGG"};
+const PHASE_CN={seedling:"缓苗生根期",vegetative:"叶片生长期",veg:"叶片生长期",flower:"花芽分化期",flowering:"开花养护期",bloom:"开花养护期",fruit:"结果养护期",fruiting:"结果养护期",harvest:"修剪采收期",harvesting:"修剪采收期",mature:"成熟养护期"};
 const LEAFY=["生菜","小白菜","菠菜","韭菜"];
-const STAGE_CN={seedling:"苗期",vegetative:"营养生长期",veg:"营养生长期",flower:"花期",bloom:"花期",fruit:"果期",harvest:"采收期",mature:"采收期"};
-const STAGE_PCT={seedling:18,vegetative:45,veg:45,flower:65,bloom:65,fruit:85,harvest:100,mature:100};
+const STAGE_CN={seedling:"缓苗期",vegetative:"生长期",veg:"生长期",flower:"花期",flowering:"花期",bloom:"花期",fruit:"结果期",fruiting:"结果期",harvest:"修剪采收期",harvesting:"修剪采收期",mature:"成熟期"};
+const STAGE_PCT={seedling:18,vegetative:45,veg:45,flower:65,flowering:65,bloom:65,fruit:85,fruiting:85,harvest:100,harvesting:100,mature:100};
 const STAGE_ADVICE={
-  seedling:"苗期优先控水促根，观察子叶展开、株形紧凑度和徒长风险。",
-  vegetative:"营养生长期重点跟踪叶面积、节间长度和根区水分，保持氮素供应但避免过湿。",
-  veg:"营养生长期重点跟踪叶面积、节间长度和根区水分，保持氮素供应但避免过湿。",
-  flower:"花期建议降低水分波动，重点记录开花数、落花率并补充磷钾策略。",
-  bloom:"花期建议降低水分波动，重点记录开花数、落花率并补充磷钾策略。",
-  fruit:"果期关注水分连续性和钾素供给，记录果形、膨大速度与裂果风险。",
-  harvest:"采收期以品质稳定和分批采收为主，记录单株产量和再生能力。",
-  mature:"采收期以品质稳定和分批采收为主，记录单株产量和再生能力。"
+  seedling:"苗期保持基质微湿并避免强光，系统会优先保护幼苗根系。",
+  vegetative:"叶片生长期保持水分和光照稳定，避免新手因频繁浇水造成烂根。",
+  veg:"叶片生长期保持水分和光照稳定，避免新手因频繁浇水造成烂根。",
+  flower:"花期减少水分大幅波动，保持稳定补光并观察花苞状态。",
+  flowering:"花期减少水分大幅波动，保持稳定补光并观察花苞状态。",
+  bloom:"花期减少水分大幅波动，保持稳定补光并观察花苞状态。",
+  fruit:"结果期保持连续供水，避免忽干忽湿影响植株健康。",
+  fruiting:"结果期保持连续供水，避免忽干忽湿影响植株健康。",
+  harvest:"成熟期继续维持稳定环境，并根据植物状态安排修剪或采收。",
+  harvesting:"成熟期继续维持稳定环境，并根据植物状态安排修剪或采收。",
+  mature:"成熟期继续维持稳定环境，并根据植物状态安排修剪或采收。"
 };
 const SIGMETA={WATER:["💧","浇水",true],LIGHT_LOW:["💡","光照不足",true],LIGHT_HIGH:["☀️","光照过强",false],
   TEMP_HIGH:["🌡️","温度偏高",false],TEMP_LOW:["❄️","温度偏低",false],HUMID_LOW:["🌫️","湿度偏低",false],
-  NEED_N:["🧪","缺氮 N",false],NEED_P:["🧪","缺磷 P",false],NEED_K:["🧪","缺钾 K",false],
-  SENSOR_FAIL:["⚠️","传感器故障",false],OFFLINE_MODE:["📡","离线模式",false],BREEDING_GEN_UP:["🌱","代际跃迁",true]};
+  NEED_N:["🧪","营养提醒 N",false],NEED_P:["🧪","营养提醒 P",false],NEED_K:["🧪","营养提醒 K",false],
+  SENSOR_FAIL:["⚠️","传感器故障",false],OFFLINE_MODE:["📡","离线模式",false],BREEDING_GEN_UP:["🌱","生长里程碑",true]};
 
 function fmtTime(ts){
   const dt=ts?new Date(ts*1000):new Date();
@@ -971,25 +982,25 @@ function seedFrom(raw){
   return String((raw.plant||"")+(raw.stage||"")+(raw.days||0)).split("").reduce((n,ch)=>n+ch.charCodeAt(0),0);
 }
 function buildTeamTasks(raw, src){
-  const plant=raw.plant||"样本";
+  const plant=raw.plant||"植物";
   const day=Math.max(1,+raw.days||1);
   const seed=seedFrom(raw);
   const lead=[
-    `同步 ${plant} D${day} 采样窗口`,
-    `复核 ${plant} 光照/水分阈值`,
-    `安排下一轮对照组拍照`
-  ];
-  const breed=[
-    `记录 ${plant} 叶色与节间变化`,
-    `标注 ${plant} 第 ${day} 天表型评分`,
-    `核对生长阶段与营养建议`
+    `复核 ${plant} D${day} AI 养护摘要`,
+    `记录新手使用反馈与植物状态`,
+    `检查 ${plant} 光照和水分阈值`
   ];
   const eng=[
-    src==="local"?"检查本地规则接管记录":"检查树莓派 AI 上行链路",
-    `校验水泵与补光灯反馈`,
-    `巡检传感器读数漂移`
+    `校验循环水泵与回流结构`,
+    `检查储水余量与管路连接`,
+    `巡检水泵、补光灯执行反馈`
   ];
-  return {lead:pick(lead,seed),breed:pick(breed,seed+1),eng:pick(eng,seed+2)};
+  const sys=[
+    src==="local"?"检查本地安全规则接管记录":"检查树莓派 AI 决策链路",
+    `核对 ${plant} 传感器读数与阈值`,
+    `复核相机长势观察与养护摘要`
+  ];
+  return {lead:pick(lead,seed),sys:pick(sys,seed+1),eng:pick(eng,seed+2)};
 }
 function buildDiagnostics(raw, actionState, sigs){
   const soil=Math.round(+raw.soil||0), light=Math.round(+raw.light||0);
@@ -1010,7 +1021,7 @@ function buildDiagnostics(raw, actionState, sigs){
     conf:(temp>=18&&temp<=32&&hum>=35&&hum<=80)?0.72:0.84,real:true
   });
   rows.push({
-    icon:"🌱",name:`阶段诊断：${STAGE_CN[stage]||stage} · ${STAGE_ADVICE[stage]||"持续记录表型变化"}`,
+    icon:"🌱",name:`养护阶段：${STAGE_CN[stage]||stage} · ${STAGE_ADVICE[stage]||"持续观察植物状态"}`,
     conf:0.68,real:false
   });
   if(actionState.running){
@@ -1018,8 +1029,8 @@ function buildDiagnostics(raw, actionState, sigs){
   }
   return rows.slice(0,6);
 }
-function buildBreedingObservation(raw, actionState, sigs, gen){
-  const plant=raw.plant||"当前样本";
+function buildCareSummary(raw, actionState, sigs){
+  const plant=raw.plant||"当前植物";
   const stage=(raw.stage||"seedling").toLowerCase();
   const stageName=STAGE_CN[stage]||stage;
   const day=Math.max(1,+raw.days||1);
@@ -1029,16 +1040,16 @@ function buildBreedingObservation(raw, actionState, sigs, gen){
   const alerts=[];
   if(soil<thr) alerts.push(`基质偏干，建议缩短下次水分复核间隔`);
   else if(soil>thr+35) alerts.push(`基质偏湿，建议观察根系通气与叶缘状态`);
-  else alerts.push(`根区水分稳定，可继续观察叶面积扩展`);
-  if(light<lightMin) alerts.push(`光照低于阶段下限，补光后记录叶片角度恢复`);
-  else alerts.push(`光照满足当前阶段，适合做表型拍照对比`);
-  const remoteNote=raw.breeding_observation?`AI 观察：${raw.breeding_observation}。`:"";
-  const actionNote=actionState.running?(actionState.act==="water"?"水泵执行中，记录浇水后 10 分钟土壤回升曲线":"补光执行中，记录补光后叶面响应"):"当前无主动执行，适合作为稳定环境样本";
-  return `第 ${gen} 代${plant}（${stageName} D${day}）：土壤 ${soil}%、光照 ${light}%、温度 ${temp}°C、湿度 ${hum}%RH。${alerts.slice(0,2).join("；")}。${remoteNote}${STAGE_ADVICE[stage]||"继续追踪生长指标"} ${actionNote}。`;
+  else alerts.push(`根区水分稳定，暂时无需人工浇水`);
+  if(light<lightMin) alerts.push(`光照低于阶段下限，系统将按安全策略补光`);
+  else alerts.push(`光照满足当前阶段，无需移动花盆位置`);
+  const remoteNote=raw.breeding_observation?`AI 观察：${careWording(raw.breeding_observation)}。`:"";
+  const actionNote=actionState.running?(actionState.act==="water"?"循环浇水正在执行，无需手动加水":"补光正在执行，无需人工开灯"):"当前无需主动操作，系统继续自动巡检";
+  return `${plant}（${stageName} D${day}）：土壤 ${soil}%、光照 ${light}%、温度 ${temp}°C、湿度 ${hum}%RH。${alerts.slice(0,2).join("；")}。${remoteNote}${STAGE_ADVICE[stage]||"继续保持当前养护环境"} ${actionNote}。`;
 }
 function buildEventLog(raw, actionState, sigs){
   const act=actionState.act;
-  const plant=raw.plant||"当前样本";
+  const plant=raw.plant||"当前植物";
   const day=Math.max(1,+raw.days||1);
   const soil=Math.round(+raw.soil||0), light=Math.round(+raw.light||0);
   const temp=+(+raw.temperature||0).toFixed(1), hum=Math.round(+raw.humidity||0);
@@ -1053,8 +1064,8 @@ function buildEventLog(raw, actionState, sigs){
   if(act==="water") rows.push([t,`AI 决策：浇水 ${actionState.duration||0} 秒 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,2]);
   else if(act==="light") rows.push([t,`AI 决策：补光 ${actionState.duration||0} 秒 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,2]);
   else rows.push([t,"AI 决策：待机 · 无主动指令",2]);
-  if(raw.reason) rows.push([t,`决策依据：${raw.reason}`,2]);
-  sigs.forEach(s=>rows.push([t,`${s.name} · 可信度 ${(s.conf*100).toFixed(0)}% · ${s.real?"已连接":"虚拟"}`,!s.real]));
+  if(raw.reason) rows.push([t,`决策依据：${careWording(raw.reason)}`,2]);
+  sigs.forEach(s=>rows.push([t,`${s.name} · 可信度 ${(s.conf*100).toFixed(0)}% · ${s.real?"已连接":"养护建议"}`,!s.real]));
   return rows.slice(0,8);
 }
 function buildHealth(d, src){
@@ -1064,7 +1075,7 @@ function buildHealth(d, src){
     esp32Ok:!!d.wifi,
     pi:"● 在线",
     piOk:true,
-    source:src==="local"?"本地规则（自治）":"树莓派 AI"
+    source:src==="local"?"本地安全养护":"树莓派 AI 养护"
   };
 }
 
@@ -1072,7 +1083,7 @@ function mapState(d){
   const stage=(d.stage||"seedling").toLowerCase(), act=(d.action||"idle").toLowerCase();
   const actionState=resolveAction(d,act);
   const src=(d.decision_source==="local")?"local":"pi";
-  const actMap={water:["💧","浇水 · 精量滴灌"],light:["💡","补光 · 补光灯"],idle:["✓","待机 · 各项正常"]};
+  const actMap={water:["💧","循环浇水 · 精量供水"],light:["💡","自动补光 · 生长灯"],idle:["✓","自动巡检 · 各项正常"]};
   const [aicon,aname]=actMap[actionState.act]||actMap.idle;
   const sigs=(d.signals||[]).map(c=>{const m=SIGMETA[c]||["•",c,false];return{sig:c,icon:m[0],name:m[1],conf:1.0,real:m[2]};});
   const diagnostics=buildDiagnostics(d,actionState,sigs);
@@ -1088,17 +1099,17 @@ function mapState(d){
     mission_day:day, uplink:"1.3s",
     uptime:(+d.uptime_sec>0)?(Math.floor(d.uptime_sec/86400)+" 天 "+Math.floor((d.uptime_sec%86400)/3600)+" 时"):"实时在线",
     crop:{name:d.plant||"——",en:PLANT_EN[d.plant]||"—",gen,stage:STAGE_CN[stage]||stage,
-      day,daySource:d.day_source||"device",harvest:"约第 "+Math.max(30,day+25)+" 天",progress:STAGE_PCT[stage]||30,
-      code:(PLANT_CODE[d.plant]||"GEN")+"-L"+gen+"-"+String(day).padStart(3,"0"),
-      goal:LEAFY.includes(d.plant)?"低重力密植产量筛选":"低重力坐果与品质筛选",
+      day,daySource:d.day_source||"device",harvest:"持续监测中",progress:STAGE_PCT[stage]||30,
+      code:"POT-01 · "+(PLANT_CODE[d.plant]||"PLANT"),
+      goal:"AI 免维护 · 新手友好养花",
       phase:PHASE_CN[stage]||(STAGE_CN[stage]||stage)},
     sensors:{soil:sR,light:lR,temp:tR,hum:hR},
     ai:{src,action:aname,icon:aicon,
       input:`土壤 ${sR}% · 光照 ${lR}% · 温度 ${tR}℃ · 湿度 ${hR}%`,
       judge:`${STAGE_CN[stage]||stage} · ${judgeMap[actionState.act]||judgeMap.idle}`,
       output:outMap[actionState.act]||outMap.idle,
-      reason:"决策依据："+(d.reason||"湿度充足，温度适宜，光照达标。"),
-      signals:diagnostics,breeding:buildBreedingObservation(d,actionState,sigs,gen)},
+      reason:"决策依据："+careWording(d.reason||"湿度充足，温度适宜，光照达标。"),
+      signals:diagnostics,breeding:buildCareSummary(d,actionState,sigs)},
     actuators:{pumpRunning:actionState.act==="water",lightRunning:actionState.act==="light",
       trig:`土壤湿度 < ${thr}%`,target:lightOpt+"%"},
     health:buildHealth(d,src),
@@ -1147,7 +1158,7 @@ function renderSignals(signals){
     el.innerHTML=`<span class="sig-ic">${s.icon}</span>
       <span class="sig-name">${s.name}</span>
       <span class="sig-conf">可信度 ${(s.conf*100).toFixed(0)}%</span>
-      <span class="sig-tag ${s.real?'tag-real':'tag-virt'}">${s.real?'已连接':'虚拟'}</span>`;
+      <span class="sig-tag ${s.real?'tag-real':'tag-virt'}">${s.real?'已连接':'建议'}</span>`;
     box.appendChild(el);
   });
 }
@@ -1190,7 +1201,6 @@ function renderTeam(team){
   set("taskLead",team.lead);
   set("taskEng",team.eng);
   set("taskSys",team.sys);
-  set("taskBreed",team.breed);
 }
 async function update(){
   const d=await fetchTelemetry();
@@ -1198,7 +1208,7 @@ async function update(){
   document.getElementById("mday").title=d.crop.daySource==="adjusted"?"树莓派自动计算 + 人工修正":(d.crop.daySource==="auto"?"树莓派按播种日期自动计算":"设备上报");
   document.getElementById("cropName").textContent=d.crop.name;
   document.getElementById("cropEn").textContent=d.crop.en;
-  document.getElementById("cropGen").textContent="第 "+d.crop.gen+" 代";
+  document.getElementById("cropGen").textContent="AI 托管";
   document.getElementById("cropCode").textContent=d.crop.code;
   document.getElementById("cropGoal").textContent=d.crop.goal;
   document.getElementById("cropPhase").textContent=d.crop.phase;

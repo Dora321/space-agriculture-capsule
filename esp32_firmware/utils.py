@@ -59,16 +59,18 @@ def _collect_signals(soil, plant_info, temperature, light, sun_minutes):
         if temperature <= temp_low:
             signals.append("TEMP_LOW")
 
-    # 缺肥信号（根据当前生长阶段 fert 字段）
-    stages = plant_info.get("growth_stages", [])
-    current_stage = stages[-1] if stages else {}
-    fert = current_stage.get("fert", "")
-    if "N" in fert and "P" not in fert and "K" not in fert:
-        signals.append("NEED_N")
-    elif "PK" in fert or ("P" in fert and "K" in fert):
-        signals.append("NEED_P")
-    elif "K" in fert and "N" not in fert:
-        signals.append("NEED_K")
+    # 设备没有施肥泵，默认不自动广播营养信号，避免把数据库阶段提示误当成实时诊断。
+    # 如以后增加营养传感器/施肥执行器，可显式打开该兼容开关。
+    if getattr(config, "NUTRIENT_ADVISORY_ENABLED", False):
+        stages = plant_info.get("growth_stages", [])
+        current_stage = stages[-1] if stages else {}
+        fert = current_stage.get("fert", "")
+        if "N" in fert and "P" not in fert and "K" not in fert:
+            signals.append("NEED_N")
+        elif "PK" in fert or ("P" in fert and "K" in fert):
+            signals.append("NEED_P")
+        elif "K" in fert and "N" not in fert:
+            signals.append("NEED_K")
 
     # 光照信号
     if light is not None:
@@ -95,7 +97,7 @@ def local_fallback_decision(
         light: 当前光照百分比
         sun_minutes: 今日累计达标光照分钟数
         uptime_sec: 系统运行秒数
-        temperature: 当前舱内温度（℃），None 表示传感器离线
+        temperature: 当前花盆环境温度（℃），None 表示传感器离线
 
     返回:
         dict: {"action": str, "duration_sec": int, "reason": str,

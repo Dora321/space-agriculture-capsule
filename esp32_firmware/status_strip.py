@@ -20,7 +20,7 @@ Decision Plane / Action Plane 分离架构：
   NEED_K          橙色呼吸       🟡 建议补钾肥（虚拟）
   SENSOR_FAIL     红色快闪       ⚠️ 切安全模式
   OFFLINE_MODE    缓慢黄色呼吸   🛡️ 本地规则接管
-  BREEDING_GEN_UP 彩虹流光       🌱 育种代际进阶
+  BREEDING_GEN_UP 彩虹流光       🌱 生长养护里程碑（协议兼容名）
 
 向后兼容：`utils.set_led(color)` 通过该模块实现，无需修改调用点。
 """
@@ -395,7 +395,7 @@ _DEMO_SIGNALS = [
 def demo_show(on_signal=None):
     """现场演示用编排灯效秀：彩虹开场 → 逐个信号动画 → 升代彩虹高潮 → 收束。
 
-    供 OLED 菜单「LED Demo」一键触发，让评委看到舱体能广播的全部状态信号。
+    供 OLED 菜单「LED Demo」一键触发，让评委看到智能花盆能广播的全部状态信号。
     on_signal(name): 可选回调，每段开始前以当前段名调用一次（供 OLED 同步显示字幕）。
     """
     if _np is None:
@@ -415,7 +415,7 @@ def demo_show(on_signal=None):
     if not _aborted():
         if on_signal:
             on_signal("GEN UP")
-        play_signal(SIGNAL_BREEDING_GEN_UP, duration_sec=4)  # 升代彩虹高潮
+        play_signal(SIGNAL_BREEDING_GEN_UP, duration_sec=4)  # 生长里程碑彩虹高潮
     show_moisture(60)                                     # 回到湿度显示收束
     time.sleep_ms(600)
     print("[Strip] Demo show done")

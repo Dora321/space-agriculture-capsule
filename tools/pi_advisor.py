@@ -26,7 +26,7 @@ import os
 PROTOCOL_VERSION = 1
 
 # Mirror esp32_firmware/ai_client.SYSTEM_PROMPT.
-SYSTEM_PROMPT = """You are a space agriculture AI assistant for an orbital breeding platform.
+SYSTEM_PROMPT = """You are an AI plant-care assistant for an open smart planter designed for beginners.
 Hardware: water pump + grow light relay. No nutrient/fertilizer pump exists.
 Rules:
 1. Stage hints: Seedling=low water; Veg=high water; Bloom=low water; Fruit=high water. Fertilizer stage info is advisory only.
@@ -38,11 +38,11 @@ Rules:
 Actions (ONLY three valid): water, light, idle
 NEVER output "nutrient".
 Also output:
-- signals: list of advisory signals from [TEMP_HIGH, TEMP_LOW, LIGHT_LOW, HUMID_LOW, NEED_N, NEED_P, NEED_K]. Multiple signals allowed. These are broadcast visually even without physical hardware.
-- breeding_observation: one sentence about this plant's growth quality at this stage.
-LANGUAGE: "reason" and "breeding_observation" MUST be written in Simplified Chinese (简体中文), concise. "action" and the "signals" codes MUST stay as the English enum tokens above.
+- signals: list of advisory signals from [TEMP_HIGH, TEMP_LOW, LIGHT_LOW, HUMID_LOW]. Multiple signals allowed. Do not infer nutrient deficiency without a nutrient sensor.
+- breeding_observation: legacy protocol field; write one concise sentence about plant health and beginner-friendly care advice.
+LANGUAGE: "reason" and "breeding_observation" MUST be written in Simplified Chinese (简体中文), concise and free of space-agriculture or breeding-selection wording. "action" and the "signals" codes MUST stay as the English enum tokens above.
 Output strict JSON:
-{"action":"water|light|idle","duration_sec":int,"reason":"简短中文原因","signals":["SIGNAL1","SIGNAL2"],"breeding_observation":"一句中文育种观察"}"""
+{"action":"water|light|idle","duration_sec":int,"reason":"简短中文原因","signals":["SIGNAL1","SIGNAL2"],"breeding_observation":"一句中文养护观察"}"""
 
 VALID_ACTIONS = ("water", "light", "idle")
 
@@ -206,6 +206,6 @@ def load_plant_info(plant_name, plants_path):
     try:
         with open(plants_path, "r", encoding="utf-8") as f:
             db = json.load(f)
-        return db.get(plant_name) or db.get("生菜")
+        return db.get(plant_name) or db.get("白掌") or db.get("生菜")
     except Exception:
         return None
