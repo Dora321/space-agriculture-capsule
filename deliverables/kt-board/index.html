@@ -2,19 +2,20 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>太空农业智能育种舱 · KT 展板 1200×600mm（浅色版）</title>
+<title>第二代开放式智能花盆 · KT 展板 1200×600mm</title>
 <!-- HyperFrames 兼容：纯 HTML/CSS。浏览器 Ctrl+P → 另存为 PDF（@page 已设 1200×600mm）即印刷尺寸 -->
+<!-- 2026-07-11 主题重做：太空育种 → AI 免维护种花 · 第二代开放式智能花盆（旧版见 git 历史） -->
 <style>
   :root{
-    --h1:40mm; --h2:14mm; --eyebrow:6mm;
+    --h1:40mm; --h2:14mm;
     --secTitle:8.5mm; --body:5.2mm;
     --font:"Source Han Sans SC","Noto Sans SC","Microsoft YaHei",sans-serif;
     --mono:"Cascadia Code","Consolas",monospace;
-    /* 浅色高清主题 */
-    --bg:#f5f8fd; --panel:#ffffff; --panelBorder:#e0e8f4;
-    --fg:#10203f; --muted:#5b6c8a; --line:#d6e0f0;
-    --accent:#1769d6; --accent2:#2e9e5b; --warm:#e07b00;
-    --chipBg:#eaf2fd; --soft:#f1f6fc;
+    /* 浅色高清主题 · 植物绿为主色 */
+    --bg:#f4f9f6; --panel:#ffffff; --panelBorder:#dfeae2;
+    --fg:#14291d; --muted:#587266; --line:#d8e6dc;
+    --accent:#1f9d57; --accent2:#1769d6; --warm:#e07b00;
+    --chipBg:#e9f7ee; --soft:#f2faf4;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{font-family:var(--font); -webkit-print-color-adjust:exact; print-color-adjust:exact;}
@@ -26,29 +27,28 @@
     background:radial-gradient(130% 100% at 85% -10%, #ffffff, var(--bg) 70%);
     padding:22mm; display:grid; grid-template-rows:80mm 1fr 62mm 138mm 6mm; row-gap:10mm;
   }
-  /* 蓝图点阵 */
+  /* 点阵底纹 */
   .board::before{content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
-    background-image:radial-gradient(circle, rgba(23,105,214,.06) .6mm, transparent .7mm);
+    background-image:radial-gradient(circle, rgba(31,157,87,.06) .6mm, transparent .7mm);
     background-size:15mm 15mm;}
-  /* 轨道环装饰 */
+  /* 同心环装饰（水波纹） */
   .deco{position:absolute; pointer-events:none; z-index:0; border-radius:50%;
-    background:repeating-radial-gradient(circle at center, transparent 0 30mm, rgba(23,105,214,.05) 30mm 30.7mm);}
+    background:repeating-radial-gradient(circle at center, transparent 0 30mm, rgba(31,157,87,.05) 30mm 30.7mm);}
   .deco.tr{right:-150mm; top:-180mm; width:520mm; height:520mm;}
   .deco.bl{left:-160mm; bottom:-190mm; width:480mm; height:480mm;
-    background:repeating-radial-gradient(circle at center, transparent 0 28mm, rgba(46,158,91,.05) 28mm 28.7mm);}
+    background:repeating-radial-gradient(circle at center, transparent 0 28mm, rgba(23,105,214,.05) 28mm 28.7mm);}
 
-  /* ===== 标题带（深色锚点）===== */
+  /* ===== 标题带（深绿锚点）===== */
   .title{position:relative; z-index:1; border-radius:8mm; padding:0 24mm; color:#fff; overflow:hidden;
     display:grid; grid-template-columns:1fr 360mm; gap:20mm; align-items:center;
-    background:linear-gradient(115deg,#0c1c3e 0%,#16407a 54%,#0f5a50 100%);
-    box-shadow:0 3mm 12mm rgba(16,40,80,.22);}
+    background:linear-gradient(115deg,#0b2417 0%,#155c3a 54%,#0f5a50 100%);
+    box-shadow:0 3mm 12mm rgba(16,64,40,.22);}
   .title::before{content:""; position:absolute; right:-60mm; top:-90mm; width:260mm; height:260mm; border-radius:50%;
     background:repeating-radial-gradient(circle at center, transparent 0 16mm, rgba(255,255,255,.06) 16mm 16.6mm);}
-  .eyebrow{font-family:var(--mono); font-size:var(--eyebrow); letter-spacing:.4mm; color:#86d3ff; margin-bottom:4mm;}
   h1{font-size:var(--h1); line-height:1.0; font-weight:800; letter-spacing:.6mm;}
   .sub{font-size:var(--h2); font-weight:700; color:#ffce85; margin-top:5mm; letter-spacing:1.2mm;}
   .accentbar{height:2.2mm; width:130mm; margin-top:7mm; border-radius:2mm;
-    background:linear-gradient(90deg,#46b3ff,#2e9e5b);}
+    background:linear-gradient(90deg,#52d98a,#46b3ff);}
   .idblock{position:relative; z-index:1; justify-self:end; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:3mm;}
   .school{font-size:11mm; font-weight:800;}
   .meta{font-size:5.6mm; color:rgba(255,255,255,.78);}
@@ -59,60 +59,52 @@
   /* ===== 主体三栏 ===== */
   .body{position:relative; z-index:1; display:grid; grid-template-columns:270mm 1fr 478mm; gap:16mm; min-height:0;}
   .panel{position:relative; overflow:hidden; background:var(--panel); border:.4mm solid var(--panelBorder);
-    border-radius:7mm; padding:10mm 10mm 9mm; box-shadow:0 2mm 7mm rgba(20,40,80,.07);
+    border-radius:7mm; padding:10mm 10mm 9mm; box-shadow:0 2mm 7mm rgba(20,60,40,.07);
     display:flex; flex-direction:column; gap:6mm;}
   .panel .wm{position:absolute; right:-14mm; bottom:-16mm; width:92mm; height:92mm; opacity:.05; pointer-events:none; color:var(--accent);}
   .sech{display:flex; align-items:center; gap:5mm;}
-  .badge{flex:0 0 auto; width:13mm; height:13mm; border-radius:50%; background:var(--accent); color:#fff;
-    font-weight:800; font-size:6.6mm; display:flex; align-items:center; justify-content:center; box-shadow:0 1mm 3mm rgba(23,105,214,.3);}
   .sech .hic{width:7.5mm; height:7.5mm; color:var(--accent); flex:0 0 auto;}
   .secTitle{font-size:var(--secTitle); font-weight:800; line-height:1.12;}
   .p{font-size:var(--body); line-height:1.45;}
   .muted{color:var(--muted);}
 
-  /* 时间轴 */
-  .tl{position:relative; display:flex; flex-direction:column; gap:6mm; padding-left:2mm;}
-  .tl::before{content:""; position:absolute; left:4.5mm; top:4mm; bottom:6mm; width:.6mm; background:var(--line);}
-  .tl .row{position:relative; display:grid; grid-template-columns:9mm 1fr; gap:4mm; align-items:start;}
-  .tl .dot{width:5mm; height:5mm; border-radius:50%; background:var(--accent); margin-top:2mm; margin-left:2mm;
-    box-shadow:0 0 0 2mm var(--chipBg);}
-  .tl .row:nth-child(2) .dot{background:var(--accent2); box-shadow:0 0 0 2mm #e9f7ee;}
-  .tl .row:nth-child(3) .dot{background:var(--warm); box-shadow:0 0 0 2mm #fdf0e0;}
-  .tl .when{font-weight:800; font-size:5.6mm;}
-  .tl .what{font-size:4.8mm; color:var(--muted); line-height:1.35;}
+  /* ① 痛点 → 进化 */
   .quote{margin-top:auto; border-left:2.6mm solid var(--warm); padding:5mm 6mm; background:#fff7ee;
     border-radius:0 4mm 4mm 0; font-size:6mm; font-weight:800; line-height:1.4;}
-  .tag{align-self:flex-start; font-family:var(--mono); font-size:4.4mm; color:var(--accent2);
-    background:#e9f7ee; border-radius:20mm; padding:2.5mm 6mm;}
-
-  /* ① 育种演进插画 + 横向时间轴 */
-  .illus{border:.4mm solid var(--panelBorder); border-radius:5mm; overflow:hidden; background:#fff; margin-top:1mm;}
-  .illus img{width:100%; display:block;}
+  .tag{align-self:flex-start; font-family:var(--mono); font-size:4.4mm; color:var(--accent);
+    background:var(--chipBg); border-radius:20mm; padding:2.5mm 6mm;}
   .htl{position:relative; display:flex; justify-content:space-between; margin-top:1.5mm; padding:0 1mm;}
   .htl::before{content:""; position:absolute; left:10mm; right:10mm; top:3.4mm; height:.9mm; border-radius:1mm;
-    background:linear-gradient(90deg,var(--accent2),var(--accent),var(--warm));}
+    background:linear-gradient(90deg,#9db1a5,var(--accent2),var(--accent));}
   .hstep{position:relative; flex:1; text-align:center;}
-  .hdot{width:5mm; height:5mm; border-radius:50%; background:var(--accent2); margin:1mm auto 2mm; box-shadow:0 0 0 2mm #e9f7ee;}
-  .hstep:nth-child(2) .hdot{background:var(--accent); box-shadow:0 0 0 2mm var(--chipBg);}
-  .hstep.last .hdot{background:var(--warm); box-shadow:0 0 0 2mm #fdf0e0;}
+  .hdot{width:5mm; height:5mm; border-radius:50%; background:#9db1a5; margin:1mm auto 2mm; box-shadow:0 0 0 2mm #eef2ef;}
+  .hstep:nth-child(2) .hdot{background:var(--accent2); box-shadow:0 0 0 2mm #eaf2fd;}
+  .hstep.last .hdot{background:var(--accent); box-shadow:0 0 0 2mm var(--chipBg);}
   .hwhen{font-size:4.8mm; font-weight:800;}
   .hwhat{font-size:3.9mm; color:var(--muted); margin-top:.5mm;}
+  .htime{font-size:3.5mm; color:var(--muted); margin-top:2.5mm; line-height:1.25;}
+  .htime b{display:block; font-size:5mm; font-weight:800; color:var(--muted);}
+  .hstep:nth-child(2) .htime b{color:var(--accent2);}
+  .hstep.last .htime b{color:var(--accent);}
 
-  /* ② 实物图 + 大屏截图 */
-  .shots{flex:1; display:flex; gap:4mm; min-height:0; margin-top:1mm;}
-  .shot{flex:1; display:flex; flex-direction:column; gap:1.5mm; min-width:0;}
-  .shot img{flex:1; width:100%; min-height:0; object-fit:contain; border:.4mm solid var(--panelBorder);
-    border-radius:4mm; background:#fff; padding:1.5mm;}
-  .shot figcaption{font-size:3.9mm; color:var(--muted); text-align:center;}
+  /* 统一特性卡（痛点 / 三大设计 / 下一步）*/
+  .featlist{flex:1; display:flex; flex-direction:column; gap:4mm; justify-content:space-between;}
+  .feat{display:flex; gap:4mm; align-items:flex-start; padding:4.5mm 5mm; border-radius:5mm;
+    background:var(--fc-bg,var(--soft)); border:.4mm solid var(--panelBorder); border-left:2.6mm solid var(--fc,var(--accent));}
+  .feat .fic{width:8.5mm; height:8.5mm; flex:0 0 auto; color:var(--fc,var(--accent)); margin-top:.5mm;}
+  .feat .ft{font-size:5mm; font-weight:800; line-height:1.15;}
+  .feat .ft b{color:var(--fc,var(--accent));}
+  .feat .fb{font-size:4mm; color:var(--muted); line-height:1.35; margin-top:1.5mm;}
 
-  /* 架构图 */
-  .arch{display:flex; flex-direction:column; align-items:center; gap:5mm; margin-top:1mm;}
+  /* ② 架构图 */
+  .arch{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-evenly; gap:5mm; margin-top:1mm;}
   .node{width:100%; border:.5mm solid var(--line); border-radius:4mm; background:var(--soft);
     padding:5.5mm 7mm; display:flex; align-items:center; gap:5mm;}
   .node .nic{width:10mm; height:10mm; flex:0 0 auto; color:var(--accent);}
   .node .nt{font-size:5.6mm; font-weight:700; line-height:1.15;}
   .node .nt small{display:block; font-weight:500; color:var(--muted); font-size:4mm; margin-top:1mm;}
   .node.cloud{border-style:dashed; background:#eef5ff;}
+  .node.cloud .nic{color:var(--accent2);}
   .conn{font-family:var(--mono); font-size:4.4mm; color:var(--muted);}
   .duo{display:flex; gap:4mm; width:100%; align-items:stretch;}
   .duo .node{flex:1;}
@@ -122,34 +114,24 @@
   .triple{display:flex; gap:4mm; width:100%;}
   .triple .node{flex:1; flex-direction:column; align-items:flex-start; gap:2mm; padding:3.5mm 4mm;}
   .triple .node .nt{font-size:4.4mm;}
-  .photo{flex:1; border:.4mm solid var(--panelBorder); border-radius:5mm; overflow:hidden;
-    background:#fff; display:flex; align-items:center; justify-content:center; min-height:92mm; margin-top:1mm;}
-  .photo img{width:100%; height:100%; object-fit:contain;}
   .archcap{font-size:4.5mm; color:var(--muted); text-align:center;}
+  .archdetail{display:flex; flex-direction:column; gap:2.5mm; margin-top:2mm;}
+  .adrow{font-size:4mm; color:var(--muted); line-height:1.3; border-left:2mm solid var(--accent); padding-left:4mm;}
+  .adrow b{color:var(--fg); font-weight:800; margin-right:2mm;}
+  .archspecs{display:flex; flex-wrap:wrap; gap:3mm; margin-top:3mm;}
+  .achip{font-family:var(--mono); font-size:3.7mm; color:var(--accent); background:var(--chipBg);
+    border:.4mm solid var(--panelBorder); border-radius:20mm; padding:2mm 4mm;}
 
-  /* 三大创新 */
-  .pillars{display:flex; flex-direction:column; gap:5mm; flex:1;}
-  .pill{flex:1; position:relative; display:grid; grid-template-columns:16mm 1fr; gap:6mm; align-items:center;
-    padding:6mm 7mm; border-radius:6mm; background:var(--pc-bg); border:.4mm solid var(--pc-bd); border-left:2.6mm solid var(--pc);}
-  .pill .disc{width:16mm; height:16mm; border-radius:50%; background:var(--pc); color:#fff;
-    display:flex; align-items:center; justify-content:center; box-shadow:0 1mm 3mm rgba(20,40,80,.18);}
-  .pill .disc .i{width:9mm; height:9mm; stroke-width:2;}
-  .pill .pt{font-size:7.4mm; font-weight:800;}
-  .pill .pt b{color:var(--pc);}
-  .pill .pb{font-size:4.7mm; color:#41506b; line-height:1.42; margin-top:2.5mm;}
-
-  /* 统一特性列表（三大设计 / 下一步优化）*/
-  .featlist{flex:1; display:flex; flex-direction:column; gap:4mm; justify-content:space-between;}
-  .feat{display:flex; gap:4mm; align-items:flex-start; padding:4.5mm 5mm; border-radius:5mm;
-    background:var(--fc-bg,var(--soft)); border:.4mm solid var(--panelBorder); border-left:2.6mm solid var(--fc,var(--accent));}
-  .feat .fic{width:8.5mm; height:8.5mm; flex:0 0 auto; color:var(--fc,var(--accent)); margin-top:.5mm;}
-  .feat .ft{font-size:5mm; font-weight:800; line-height:1.15;}
-  .feat .ft b{color:var(--fc,var(--accent));}
-  .feat .fb{font-size:4mm; color:var(--muted); line-height:1.35; margin-top:1.5mm;}
+  /* ③ 实物 + 大屏 */
+  .shotrow{flex:1; display:flex; gap:5mm; min-height:0; margin-top:1mm;}
+  .bigshot{flex:1; min-width:0; display:flex; flex-direction:column; gap:1.5mm; min-height:0;}
+  .bigshot img{flex:1; min-height:0; width:100%; object-fit:contain; border:.4mm solid var(--panelBorder);
+    border-radius:4mm; background:#fff; padding:1.5mm;}
+  .bigshot figcaption{font-size:4.2mm; color:var(--muted); text-align:center;}
 
   /* ===== 主数字带 ===== */
   .metrics{position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,1fr); gap:12mm;}
-  .metric{background:var(--panel); border:.4mm solid var(--panelBorder); border-radius:6mm; box-shadow:0 2mm 7mm rgba(20,40,80,.07);
+  .metric{background:var(--panel); border:.4mm solid var(--panelBorder); border-radius:6mm; box-shadow:0 2mm 7mm rgba(20,60,40,.07);
     padding:5mm 6mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
   .metric .num{font-size:27mm; font-weight:800; line-height:.92; color:var(--fg); letter-spacing:.3mm;}
   .metric .num .u{font-size:.42em; font-weight:700; margin-left:1mm;}
@@ -160,87 +142,36 @@
   .metric.cost .lab{color:#a86a1c; font-weight:700;}
   .metric.cost .note{font-size:3.5mm; color:#9a7340; margin-top:2.5mm; line-height:1.3;}
 
-  /* ===== 底部三栏 ===== */
+  /* ===== 底部四栏 ===== */
   .bottom{position:relative; z-index:1; display:grid; grid-template-columns:1fr 220mm 320mm 300mm; gap:12mm; min-height:0;}
   .flow{display:flex; align-items:stretch; gap:3mm; margin-top:1mm;}
   .step{flex:1; border:.5mm solid var(--line); border-radius:5mm; background:var(--soft); padding:4mm 3mm; text-align:center;}
   .step .sic{width:8.5mm; height:8.5mm; margin-bottom:2mm;}
   .step .st{font-size:5.6mm; font-weight:800; color:var(--fg);}
   .step .sd{font-size:3.9mm; color:var(--muted); margin-top:1.5mm; line-height:1.3;}
-  .step.s1 .sic{color:var(--accent);} .step.s2 .sic{color:#6b4ef0;} .step.s3 .sic{color:var(--accent2);} .step.s4 .sic{color:var(--warm);}
+  .step.s1 .sic{color:var(--accent2);} .step.s2 .sic{color:#6b4ef0;} .step.s3 .sic{color:var(--accent);} .step.s4 .sic{color:var(--warm);}
   .arrow{display:flex; align-items:center; color:var(--accent); font-size:7mm; font-weight:700;}
+  .example{font-size:4mm; color:var(--muted); line-height:1.35; border-left:2mm solid var(--accent); padding-left:4mm; margin-top:3mm;}
+  .example b{color:var(--fg); font-family:var(--mono); margin-right:2mm;}
   .looprow{display:flex; gap:4mm; margin-top:4mm; flex-wrap:wrap;}
   .loopbar{display:inline-flex; align-items:center; gap:3mm; font-family:var(--mono); font-size:4.6mm; color:var(--warm); background:#fff7ee; border-radius:20mm; padding:2.5mm 5mm;}
   .loopbar .i{width:5.5mm; height:5.5mm;}
-  .specbar{display:inline-flex; align-items:center; font-family:var(--mono); font-size:4.6mm; color:var(--accent); background:var(--chipBg); border-radius:20mm; padding:2.5mm 5mm;}
-
-  /* 育种档案 · 多代追踪 */
-  .genhint{font-family:var(--mono); font-size:4mm; color:var(--accent2);}
-  .genchart{height:46mm; display:flex; align-items:flex-end; gap:3mm; padding-top:2mm;}
-  .genbar{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:2mm;}
-  .genbar .bar{width:66%; border-radius:2mm 2mm 0 0; background:linear-gradient(180deg,#bfe6cd,#2e9e5b);}
-  .genbar.last .bar{background:linear-gradient(180deg,#ffd591,#e07b00);}
-  .genbar .g{font-size:3.7mm; color:var(--muted); white-space:nowrap;}
-  .genbar.last .g{color:var(--warm); font-weight:800;}
-  .gencap{font-size:4.2mm; color:var(--muted);}
-
-  /* 团队（竖排）*/
-  .tm{display:flex; align-items:center; gap:4mm; padding:2.5mm 0;}
-  .tm + .tm{border-top:.4mm solid var(--line);}
-  .tm .av{flex:0 0 auto; width:16mm; height:16mm; border-radius:50%; border:.5mm dashed var(--panelBorder); overflow:hidden;
-    background:var(--soft); display:flex; align-items:center; justify-content:center; color:#b6c5dd;}
-  .tm .av .i{width:9mm; height:9mm;}
-  .tm .av img{width:100%; height:100%; object-fit:cover; object-position:50% 22%;}
-  .tm .av.photo-av{border-style:solid; border-color:var(--accent2);}
-  .tm{align-items:flex-start;}
-  .tminfo{min-width:0;}
-  .tm .nm{font-size:5.2mm; font-weight:800;}
-  .tm .ro{font-size:4.1mm; color:var(--accent); font-weight:600; margin-left:2mm;}
-  .duty{font-size:3.8mm; color:var(--muted); line-height:1.3; margin-top:1mm;}
-  .duty b{font-family:var(--mono); color:var(--accent2); margin-right:1.5mm;}
-  .duty.f b{color:var(--warm);}
-  .shotrow{flex:1; display:flex; gap:5mm; min-height:0; margin-top:1mm;}
-  .bigshot{flex:1; min-width:0; display:flex; flex-direction:column; gap:1.5mm; min-height:0;}
-  .bigshot img{flex:1; min-height:0; width:100%; object-fit:contain; border:.4mm solid var(--panelBorder);
-    border-radius:4mm; background:#fff; padding:1.5mm;}
-  .bigshot figcaption{font-size:4.2mm; color:var(--muted); text-align:center;}
-  /* ② 架构细节 */
-  .archdetail{display:flex; flex-direction:column; gap:2.5mm; margin-top:2mm;}
-  .adrow{font-size:4mm; color:var(--muted); line-height:1.3; border-left:2mm solid var(--accent); padding-left:4mm;}
-  .adrow b{color:var(--fg); font-weight:800; margin-right:2mm;}
-  .archspecs{display:flex; flex-wrap:wrap; gap:3mm; margin-top:3mm;}
-  .achip{font-family:var(--mono); font-size:3.7mm; color:var(--accent); background:var(--chipBg);
-    border:.4mm solid var(--panelBorder); border-radius:20mm; padding:2mm 4mm;}
-  /* ① 育种周期时间 */
-  .htime{font-size:3.5mm; color:var(--muted); margin-top:2.5mm; line-height:1.25;}
-  .htime b{display:block; font-size:5mm; font-weight:800; color:var(--accent);}
-  .hstep.last .htime b{color:var(--warm);}
-  /* ⑤ 下一步 */
-  .next{display:flex; flex-direction:column; gap:4mm; margin-top:2mm;}
-  .nextitem{display:flex; gap:4mm; align-items:flex-start; background:var(--soft);
-    border:.4mm solid var(--panelBorder); border-radius:5mm; padding:4mm 4.5mm;}
-  .nextitem .nic{width:8.5mm; height:8.5mm; flex:0 0 auto; color:var(--accent); margin-top:.5mm;}
-  .nextitem .nt2{font-size:3.9mm; color:var(--muted); line-height:1.3;}
-  .nextitem .nt2 b{display:block; font-size:4.8mm; color:var(--fg); margin-bottom:1mm;}
-  /* ④ 安全护栏 */
+  .specbar{display:inline-flex; align-items:center; font-family:var(--mono); font-size:4.6mm; color:var(--accent2); background:#eaf2fd; border-radius:20mm; padding:2.5mm 5mm;}
   .safety{display:flex; flex-wrap:wrap; align-items:center; gap:3mm; margin-top:4mm;}
   .safety>b{font-size:4.2mm; color:var(--warm); font-weight:800;}
   .schip{font-family:var(--mono); font-size:4mm; color:#b06a00; background:#fff7ee;
     border:.4mm solid #f0d6b0; border-radius:20mm; padding:2mm 4mm;}
-  /* ④ 工作闭环实例 */
-  .example{font-size:4mm; color:var(--muted); line-height:1.35; border-left:2mm solid var(--accent2); padding-left:4mm; margin-top:3mm;}
-  .example b{color:var(--fg); font-family:var(--mono); margin-right:2mm;}
-  /* 团队横排 */
+
+  /* 团队（横排 3 人）*/
   .team-row{flex:1; display:flex; gap:5mm; margin-top:1mm; min-height:0;}
   .tmc{flex:1; min-width:0; background:var(--soft); border:.4mm solid var(--panelBorder); border-radius:6mm;
     padding:6mm 4mm; display:flex; flex-direction:column; align-items:center; text-align:center;}
-  .tmc .av{width:38mm; height:38mm; border-radius:50%; overflow:hidden; border:.6mm solid var(--accent2); margin-bottom:3mm;}
+  .tmc .av{width:34mm; height:34mm; border-radius:50%; overflow:hidden; border:.6mm solid var(--accent); margin-bottom:3mm;
+    display:flex; align-items:center; justify-content:center; font-size:15mm; font-weight:800; color:var(--accent); background:#fff;}
   .tmc .av img{width:100%; height:100%; object-fit:cover; object-position:50% 20%;}
   .tmc .nm{font-size:5.8mm; font-weight:800;}
-  .tmc .ro{font-size:4.3mm; color:var(--accent); margin-bottom:3mm;}
-  .tmc .duty{font-size:3.8mm; color:var(--muted); line-height:1.3; margin-top:1.5mm; text-align:left; align-self:stretch;}
-  .tmc .duty b{font-family:var(--mono); color:var(--accent2); margin-right:1.5mm;}
-  .tmc .duty.f b{color:var(--warm);}
+  .tmc .ro{font-size:4.3mm; color:var(--accent2); margin-bottom:2mm; line-height:1.25;}
+  .tmc .duty{font-size:3.8mm; color:var(--muted); line-height:1.35; margin-top:1.5mm;}
 
   /* ===== 页脚条 ===== */
   .footer{position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between;
@@ -264,7 +195,7 @@
 </style>
 </head>
 <body>
-<div class="bar">浅色高清版 · KT 展板 1200×600mm　|　导出印刷文件：<b>Ctrl+P → 另存为 PDF → 边距“无” → 勾选“背景图形”</b></div>
+<div class="bar">第二代开放式智能花盆 · KT 展板 1200×600mm　|　导出印刷文件：<b>Ctrl+P → 另存为 PDF → 边距“无” → 勾选“背景图形”</b></div>
 
 <!-- 图标库 -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -284,6 +215,8 @@
   <symbol id="ic-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="12" rx="2"/><circle cx="12" cy="13" r="3.2"/><path d="M8 7l1.6-2h4.8L16 7"/></symbol>
   <symbol id="ic-person" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
   <symbol id="ic-up" viewBox="0 0 24 24"><path d="M5 19L19 5"/><path d="M9 5h10v10"/></symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2L19 19M19 5l-1.8 1.8M6.8 17.2L5 19"/></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3.5L22 20H2z"/><path d="M12 10v5"/><path d="M12 17.8h.01"/></symbol>
 </svg>
 
 <div class="board">
@@ -292,15 +225,15 @@
   <!-- 标题带 -->
   <section class="title">
     <div>
-      <h1>太空农业智能育种舱</h1>
-      <div class="sub">2035 · 我是太空育种师</div>
+      <h1>第二代开放式智能花盆</h1>
+      <div class="sub">AI 免维护种花 · 新手也能把花养好</div>
       <div class="accentbar"></div>
     </div>
     <div class="idblock">
-      <div class="school">东莞松山湖实验小学</div>
-      <div class="meta">松湖星农战队</div>
+      <div class="school">沐新青少年科创活动中心</div>
+      <div class="meta">开放式智能花盆研发团队</div>
       <div class="qrwrap">
-        <div class="qrcap">扫码进入<br>遥控大屏（实时数据）</div>
+        <div class="qrcap">扫码围观：<br>它此刻正在照顾植物</div>
         <div class="qr" data-qr></div>
       </div>
     </div>
@@ -308,31 +241,44 @@
 
   <!-- 主体三栏 -->
   <section class="body">
-    <!-- ① -->
+    <!-- ① 痛点与进化 -->
     <div class="panel">
       <svg class="i wm"><use href="#ic-leaf"/></svg>
-      <div class="sech"><svg class="i hic"><use href="#ic-clock"/></svg><div class="secTitle">育种方式，一直在进步</div></div>
-      <div class="illus"><img src="evolution.png" alt="育种方式的演进"></div>
-      <div class="htl">
-        <div class="hstep"><div class="hdot"></div><div class="hwhen">一万年前</div><div class="hwhat">自然驯化</div><div class="htime">育种周期<b>数千年</b></div></div>
-        <div class="hstep"><div class="hdot"></div><div class="hwhen">近现代</div><div class="hwhat">杂交 · 航天诱变</div><div class="htime">育种周期<b>8–10 年</b></div></div>
-        <div class="hstep last"><div class="hdot"></div><div class="hwhen">2035</div><div class="hwhat">在轨智能育种</div><div class="htime">育种周期<b>数月</b></div></div>
+      <div class="sech"><svg class="i hic"><use href="#ic-alert"/></svg><div class="secTitle">花，为什么总被养死？</div></div>
+      <div class="featlist">
+        <div class="feat" style="--fc:#c2483a;--fc-bg:#fdf0ee">
+          <svg class="i fic"><use href="#ic-drop"/></svg>
+          <div><div class="ft">忘浇水 / 浇太多</div><div class="fb">凭感觉浇——旱死或烂根，新手养花头号死因</div></div>
+        </div>
+        <div class="feat" style="--fc:#e07b00;--fc-bg:#fff7ee">
+          <svg class="i fic"><use href="#ic-sun"/></svg>
+          <div><div class="ft">光照不对</div><div class="fb">徒长、黄叶、不开花，问题出在哪看不出来</div></div>
+        </div>
+        <div class="feat" style="--fc:#6b4ef0;--fc-bg:#f0ecfe">
+          <svg class="i fic"><use href="#ic-clock"/></svg>
+          <div><div class="ft">出差 / 假期没人管</div><div class="fb">一趟长假回来，花已经救不活了</div></div>
+        </div>
       </div>
-      <div class="quote">让育种与验证，第一次在同一个太空舱里闭环</div>
-      <div class="tag">在轨育种验证平台 · 地面原型</div>
+      <div class="htl">
+        <div class="hstep"><div class="hdot"></div><div class="hwhen">传统花盆</div><div class="hwhat">全靠记性和经验</div><div class="htime">浇水依据<b>感觉</b></div></div>
+        <div class="hstep"><div class="hdot"></div><div class="hwhen">定时浇水盆</div><div class="hwhat">到点就浇 · 不看天不看土</div><div class="htime">浇水依据<b>闹钟</b></div></div>
+        <div class="hstep last"><div class="hdot"></div><div class="hwhen">第二代开放式</div><div class="hwhat">先感知、再思考、后动手</div><div class="htime">浇水依据<b>数据＋AI</b></div></div>
+      </div>
+      <div class="quote">把养花老手的经验，装进一只花盆</div>
+      <div class="tag">开放式结构 · 储水循环 · 灌溉水回收</div>
     </div>
 
-    <!-- ② -->
+    <!-- ② 双层架构 -->
     <div class="panel">
       <svg class="i wm"><use href="#ic-layers"/></svg>
       <div class="sech"><svg class="i hic"><use href="#ic-layers"/></svg><div class="secTitle">双层架构：聪明 ＋ 可靠</div></div>
       <div class="arch">
-        <div class="node cloud"><svg class="i nic"><use href="#ic-cloud"/></svg><div class="nt">联网 · DeepSeek 育种顾问 · 遥控大屏</div></div>
+        <div class="node cloud"><svg class="i nic"><use href="#ic-cloud"/></svg><div class="nt">云端 · DeepSeek 养护顾问 · 远程大屏</div></div>
         <div class="conn">↕ WiFi</div>
         <div class="duo">
-          <div class="node"><svg class="i nic"><use href="#ic-chip"/></svg><div class="nt">树莓派<small>载荷计算机 · 思考与联网</small></div></div>
+          <div class="node"><svg class="i nic"><use href="#ic-chip"/></svg><div class="nt">树莓派<small>联网 · AI · 摄像头视觉</small></div></div>
           <div class="uart"><span>◀</span><b>UART</b><span>▶</span></div>
-          <div class="node"><svg class="i nic"><use href="#ic-ai"/></svg><div class="nt">ESP32<small>舱内飞控 · 有电即运行</small></div></div>
+          <div class="node"><svg class="i nic"><use href="#ic-ai"/></svg><div class="nt">ESP32<small>养护控制器 · 有电即运行</small></div></div>
         </div>
         <div class="conn">↓</div>
         <div class="triple">
@@ -341,23 +287,24 @@
           <div class="node"><svg class="i nic"><use href="#ic-monitor"/></svg><div class="nt">显示<small>OLED·WS2812</small></div></div>
         </div>
       </div>
-      <div class="archcap">ESP32 有电即独立运行；树莓派负责思考、联网与地面站大屏。</div>
+      <div class="archcap">ESP32 有电即独立养护；树莓派负责思考、联网与远程大屏。</div>
       <div class="archdetail">
-        <div class="adrow"><b>降级链</b>在线 DeepSeek → 离线本地规则 → 安全护栏（限频·温度·掉线降级）</div>
-        <div class="adrow"><b>自治边界</b>ESP32 断网/断上位机仍种活作物；树莓派·AI 挂了只是变笨、看不到</div>
-        <div class="adrow"><b>大屏只读</b>地面站不向 ESP32 下发控制，杜绝误操作</div>
+        <div class="adrow"><b>降级链</b>在线 DeepSeek → 离线本地规则 → 安全护栏（限频·限时·温度）</div>
+        <div class="adrow"><b>断网自治</b>WiFi 断了、AI 掉线，ESP32 照样把花养好——免维护不打折</div>
+        <div class="adrow"><b>AI 之眼</b>摄像头定点拍照，千问多模态 AI 评估长势，人工可复核留痕</div>
+        <div class="adrow"><b>大屏只读</b>远程只看不遥控，杜绝误操作</div>
       </div>
       <div class="archspecs">
-        <span class="achip">UART 串口</span><span class="achip">本地规则引擎</span><span class="achip">plants.json · 8 作物参数</span><span class="achip">199 用例护航</span>
+        <span class="achip">UART 串口</span><span class="achip">本地规则引擎</span><span class="achip">8 套植物养护模型</span><span class="achip">199 用例护航</span>
       </div>
     </div>
 
     <!-- ③ 实物 + 大屏 -->
     <div class="panel">
-      <div class="sech"><svg class="i hic"><use href="#ic-monitor"/></svg><div class="secTitle">实物 + 遥控大屏</div></div>
+      <div class="sech"><svg class="i hic"><use href="#ic-monitor"/></svg><div class="secTitle">实物 + 远程大屏</div></div>
       <div class="shotrow">
-        <figure class="bigshot"><img src="cabin.png" alt="育种舱实物"><figcaption>育种舱实物</figcaption></figure>
-        <figure class="bigshot"><img src="dashboard.png" alt="遥控大屏"><figcaption>遥控大屏 · 实时数据</figcaption></figure>
+        <figure class="bigshot"><img src="cabin.png" alt="智能花盆实物"><figcaption>第二代开放式智能花盆 · 实物</figcaption></figure>
+        <figure class="bigshot"><img src="dashboard.png" alt="远程大屏"><figcaption>远程大屏 · 实时数据与 AI 决策记录</figcaption></figure>
       </div>
     </div>
   </section>
@@ -365,12 +312,12 @@
   <!-- 主数字带 -->
   <section class="metrics">
     <div class="metric"><div class="num">199</div><div class="lab">测试用例全通过</div><div class="note">覆盖断联降级 · 限频保护 · 传感器异常 · 视觉队列</div></div>
-    <div class="metric"><div class="num">8<span class="u">天</span></div><div class="lab">连续运行不断档</div><div class="note">断网 / 断上位机 / AI 掉线均不停机</div></div>
-    <div class="metric"><div class="num">8<span class="u">种</span></div><div class="lab">作物模型可切换</div><div class="note">叶菜：生菜·小白菜·菠菜·韭菜　果菜：番茄·辣椒·黄瓜·茄子</div></div>
-    <div class="metric cost"><div class="num">¥135</div><div class="lab">单舱核心成本</div><div class="note">¥135＝单个育种舱核心（ESP32＋传感器＋执行器）；树莓派地面站由多舱共享分摊 · 一拖 N</div></div>
+    <div class="metric"><div class="num">18<span class="u">天+</span></div><div class="lab">连续运行不断档</div><div class="note">断网 / 断上位机 / AI 掉线均不停机</div></div>
+    <div class="metric"><div class="num">8<span class="u">套</span></div><div class="lab">植物养护模型</div><div class="note">一键切换 · 每种植物分生长阶段定制水光策略</div></div>
+    <div class="metric cost"><div class="num">¥135</div><div class="lab">单盆核心成本</div><div class="note">¥135＝单盆核心（ESP32＋传感器＋执行器）；树莓派与云端由多盆共享分摊 · 一拖 N</div></div>
   </section>
 
-  <!-- 底部三栏：工作闭环 / 育种档案 / 团队 -->
+  <!-- 底部四栏：工作闭环 / 下一步 / 三大设计 / 团队 -->
   <section class="bottom">
     <div class="panel">
       <svg class="i wm"><use href="#ic-refresh"/></svg>
@@ -382,73 +329,64 @@
         <div class="arrow">→</div>
         <div class="step s3"><svg class="i sic"><use href="#ic-drop"/></svg><div class="st">执行</div><div class="sd">水泵 · 补光灯</div></div>
         <div class="arrow">→</div>
-        <div class="step s4"><svg class="i sic"><use href="#ic-doc"/></svg><div class="st">记录</div><div class="sd">OLED · 遥控大屏日志</div></div>
+        <div class="step s4"><svg class="i sic"><use href="#ic-doc"/></svg><div class="st">记录</div><div class="sd">OLED · 远程大屏日志</div></div>
       </div>
       <div class="example"><b>实例</b>光照 29% ＜ 阈值 → AI 判断「需补光」→ 补光灯开 → 大屏记录（置信 100%）</div>
       <div class="looprow">
-        <div class="loopbar"><svg class="i"><use href="#ic-refresh"/></svg>断联时，仍在舱内自治闭环</div>
-        <div class="specbar">响应 &lt; 3 秒</div>
-        <div class="specbar">AI ＋ 本地规则双层</div>
+        <div class="loopbar"><svg class="i"><use href="#ic-refresh"/></svg>断网时，花盆自己照顾植物</div>
+        <div class="specbar">60 秒巡检一次</div>
+        <div class="specbar">AI 响应 &lt; 3 秒</div>
       </div>
-      <div class="safety"><b>安全护栏</b><span class="schip">动作时长上限</span><span class="schip">每小时限频</span><span class="schip">每次动作间隔</span></div>
+      <div class="safety"><b>安全护栏</b><span class="schip">动作时长上限</span><span class="schip">每小时限频</span><span class="schip">温度保护</span></div>
     </div>
 
     <div class="panel">
       <svg class="i wm"><use href="#ic-up"/></svg>
       <div class="sech"><svg class="i hic"><use href="#ic-up"/></svg><div class="secTitle" style="font-size:6.6mm">下一步优化方向</div></div>
       <div class="featlist">
-        <div class="feat"><svg class="i fic"><use href="#ic-camera"/></svg><div><div class="ft">补充摄像头</div><div class="fb">叶面积 / 病害的视觉监测</div></div></div>
-        <div class="feat"><svg class="i fic"><use href="#ic-ai"/></svg><div><div class="ft">多模态 AI 模型</div><div class="fb">看图诊断长势、识别异常</div></div></div>
-        <div class="feat"><svg class="i fic"><use href="#ic-up"/></svg><div><div class="ft">AI 育种评分系统</div><div class="fb">多代表型打分，自动优选品系</div></div></div>
+        <div class="feat"><svg class="i fic"><use href="#ic-camera"/></svg><div><div class="ft">长势时间线</div><div class="fb">每天定点照片对比，长势变化一眼可见</div></div></div>
+        <div class="feat"><svg class="i fic"><use href="#ic-doc"/></svg><div><div class="ft">一键人工复核</div><div class="fb">网页表单纠正 AI 判断，越用越准</div></div></div>
+        <div class="feat"><svg class="i fic"><use href="#ic-up"/></svg><div><div class="ft">对照组实验</div><div class="fb">AI 养 vs 常规养，多周期用数据说话</div></div></div>
       </div>
     </div>
 
     <div class="panel">
       <svg class="i wm"><use href="#ic-spark"/></svg>
-      <div class="sech"><svg class="i hic" style="color:#6b4ef0"><use href="#ic-spark"/></svg><div class="secTitle" style="font-size:6.6mm">太空环境逼出的三大设计</div></div>
+      <div class="sech"><svg class="i hic" style="color:#6b4ef0"><use href="#ic-spark"/></svg><div class="secTitle" style="font-size:6.6mm">三大核心设计</div></div>
       <div class="featlist">
         <div class="feat" style="--fc:#1f9d57;--fc-bg:#eef9f2">
-          <svg class="i fic"><use href="#ic-leaf"/></svg>
-          <div><div class="ft">在轨育种<b>验证</b></div><div class="fb">8 种作物模型 · 四合一按键切换品种 · 为每棵作物建生长档案。</div></div>
+          <svg class="i fic"><use href="#ic-refresh"/></svg>
+          <div><div class="ft">开放式 ＋ <b>储水循环</b></div><div class="fb">普通花盆的样子，智能系统的心——灌溉水回收再利用，浇下去的水不浪费。</div></div>
         </div>
         <div class="feat" style="--fc:#1769d6;--fc-bg:#eaf2fd">
           <svg class="i fic"><use href="#ic-signal"/></svg>
-          <div><div class="ft">断联<b>自治</b></div><div class="fb">地月通信会延迟、会中断；断网 / 断上位机 / AI 掉线，ESP32 仍照顾作物。</div></div>
+          <div><div class="ft">断网<b>自治</b></div><div class="fb">WiFi 断了、云挂了，ESP32 照样按本地规则养护，长假出门也放心。</div></div>
         </div>
         <div class="feat" style="--fc:#6b4ef0;--fc-bg:#f0ecfe">
           <svg class="i fic"><use href="#ic-ai"/></svg>
-          <div><div class="ft">AI ＋ 本地规则 <b>双层决策</b></div><div class="fb">在线调用 DeepSeek 精细判断，离线切回本地规则——聪明时聪明，困难时可靠。</div></div>
+          <div><div class="ft">AI <b>双决策</b> ＋ 视觉</div><div class="fb">DeepSeek 读传感数据，千问多模态 AI 看照片长势——两双"眼睛"共同判断，更像老花农。</div></div>
         </div>
       </div>
     </div>
 
     <div class="panel">
-      <div class="sech"><svg class="i hic"><use href="#ic-person"/></svg><div class="secTitle" style="font-size:6.6mm">育种团队 · 现在 / 2035</div></div>
-      <!-- 4 人团队：把 av 里的单字换成 <img src="照片.png" alt="姓名"> 即可放真照片；nm 填姓名 -->
+      <div class="sech"><svg class="i hic"><use href="#ic-person"/></svg><div class="secTitle" style="font-size:6.6mm">研发团队</div></div>
+      <!-- 把 av 里的单字换成 <img src="照片.png" alt="姓名"> 即可放真照片；nm 填姓名 -->
       <div class="team-row">
         <div class="tmc">
-          <div class="av" style="display:flex;align-items:center;justify-content:center;font-size:18mm;font-weight:800;color:var(--accent2)">工</div>
-          <div class="nm">（姓名）</div><div class="ro">总工程师</div>
-          <div class="duty"><b>现</b>硬件 · 舱体 · 离线自治</div>
-          <div class="duty f"><b>2035</b>保障育种舱永不宕机</div>
+          <div class="av">设</div>
+          <div class="nm">李宇鑫</div><div class="ro">产品与用户体验</div>
+          <div class="duty">开放式外观 · 新手友好设计</div>
         </div>
         <div class="tmc">
-          <div class="av" style="display:flex;align-items:center;justify-content:center;font-size:18mm;font-weight:800;color:var(--accent2)">脑</div>
-          <div class="nm">（姓名）</div><div class="ro">系统工程师</div>
-          <div class="duty"><b>现</b>两层决策 · AI · 地面站</div>
-          <div class="duty f"><b>2035</b>统管舱内智能中枢</div>
+          <div class="av">智</div>
+          <div class="nm">尹泽康</div><div class="ro">AI 养护系统</div>
+          <div class="duty">环境监测 · 智能决策闭环</div>
         </div>
         <div class="tmc">
-          <div class="av" style="display:flex;align-items:center;justify-content:center;font-size:18mm;font-weight:800;color:var(--accent2)">眼</div>
-          <div class="nm">（姓名）</div><div class="ro">育种科学家</div>
-          <div class="duty"><b>现</b>摄像头视觉 · 表型初筛</div>
-          <div class="duty f"><b>2035</b>主导在轨品种筛选</div>
-        </div>
-        <div class="tmc">
-          <div class="av" style="display:flex;align-items:center;justify-content:center;font-size:18mm;font-weight:800;color:var(--accent2)">长</div>
-          <div class="nm">（姓名）</div><div class="ro">站长</div>
-          <div class="duty"><b>现</b>统筹 · 立意 · 演示</div>
-          <div class="duty f"><b>2035</b>统管在轨育种任务</div>
+          <div class="av">机</div>
+          <div class="nm">邓宇成</div><div class="ro">机械结构与水循环</div>
+          <div class="duty">储水回收 · 循环浇水执行</div>
         </div>
       </div>
     </div>
@@ -456,8 +394,8 @@
 
   <!-- 页脚 -->
   <div class="footer">
-    <div>太空农业智能育种舱　·　<b>让育种与验证，第一次在同一个太空舱里闭环</b></div>
-    <div>扫码体验遥控大屏 → 43.156.68.157:8790</div>
+    <div>第二代开放式智能花盆 · AI 免维护种花　·　<b>把养花老手的经验，装进一只花盆</b></div>
+    <div>扫码体验远程大屏 → 43.156.68.157:8790</div>
   </div>
 </div>
 

@@ -11,6 +11,7 @@ from tools.vision.quality import evaluate_metrics
 from tools.vision.scheduler import (
     CaptureScheduler, READY, WAITING_INTERVAL, WAITING_LIGHT, WAITING_TELEMETRY,
 )
+from tools.vision.schemas import validate_analysis
 from tools.vision.store import VisionStore
 
 
@@ -52,8 +53,8 @@ def _capture(tmp_path):
         "overview_path": str(tmp_path / "overview.jpg"), "current_light": 60,
         "required_light": 50,
     }, [{
-        "pot_id": "P1", "material_id": "control", "is_control": True,
-        "roi_id": "roi-1", "image_path": str(image), "quality": {"accepted": True},
+        "pot_id": "PLANT", "material_id": "current-plant", "is_control": False,
+        "roi_id": "plant-overview", "image_path": str(image), "quality": {"accepted": True},
     }]
 
 
@@ -68,7 +69,7 @@ def test_store_queues_leases_retries_and_persists_analysis(tmp_path):
     assert store.mark_retry("cap-1", "network", now=101, available_at=102) == "retry"
     job = store.lease_next("worker", now=102)
     result = {
-        "capture_id": "cap-1", "observations": [{"pot_id": "P1", "analysis": {"vigor": "normal"}}]
+        "capture_id": "cap-1", "observations": [{"pot_id": "PLANT", "analysis": {"vigor": "normal"}}]
     }
     store.mark_succeeded("cap-1", result, now=103)
     saved = store.get_capture("cap-1")
@@ -88,8 +89,8 @@ def test_multimodal_client_sends_image_and_does_not_trust_model_metadata(tmp_pat
         answer = {
             "capture_id": "model-invented",
             "observations": [{
-                "pot_id": "P1", "material_id": "wrong", "is_control": False,
-                "roi_id": "wrong", "analysis": {"plant": "生菜", "vigor": "strong"},
+                "pot_id": "PLANT", "material_id": "wrong", "is_control": True,
+                "roi_id": "wrong", "analysis": {"plant": "白掌", "vigor": "strong"},
             }],
         }
         return json.dumps({"choices": [{"message": {"content": json.dumps(answer, ensure_ascii=False)}}]}).encode()
@@ -101,11 +102,22 @@ def test_multimodal_client_sends_image_and_does_not_trust_model_metadata(tmp_pat
     result, image_bytes = client.analyze(capture)
     assert image_bytes == 4
     assert result["capture_id"] == "cap-1"
-    assert result["observations"][0]["material_id"] == "control"
-    assert result["observations"][0]["is_control"] is True
+    assert result["observations"][0]["material_id"] == "current-plant"
+    assert result["observations"][0]["is_control"] is False
     serialized = json.dumps(seen["payload"])
     assert "data:image/jpeg;base64," in serialized
     assert "secret" not in serialized
+
+
+def test_single_plant_schema_keeps_comprehensive_care_analysis():
+    result = validate_analysis({
+        "plant": "白掌", "certainty": "high", "visible_stage": "vegetative",
+        "care_suggestions": ["保持通风", "继续观察新叶"],
+        "comprehensive_observation": "叶片舒展，整体长势正常。",
+    })
+    assert result["plant"] == "白掌"
+    assert result["care_suggestions"] == ["保持通风", "继续观察新叶"]
+    assert result["comprehensive_observation"] == "叶片舒展，整体长势正常。"
 
 
 def test_multimodal_client_accepts_a_compatible_api_base_url():
@@ -175,8 +187,9 @@ def test_capture_service_persists_context_after_quality_gate(tmp_path):
         store=store, scheduler=CaptureScheduler(), camera=Camera(),
         experiment={
             "cycle_id": "cycle-1", "plant_info": {"plant": "生菜", "light_opt": 50},
-            "rois": [{"pot_id": "P1", "roi_id": "r1", "material_id": "control",
-                      "is_control": True, "x": 0, "y": 0, "width": 1, "height": 1}],
+            "rois": [{"pot_id": "PLANT", "roi_id": "plant-overview",
+                      "material_id": "current-plant", "is_control": False,
+                      "x": 0, "y": 0, "width": 1, "height": 1}],
         },
         data_dir=tmp_path, prepare=prepare,
         inspect=lambda _path: evaluate_metrics(blur_score=100, brightness=.5),
@@ -188,6 +201,41 @@ def test_capture_service_persists_context_after_quality_gate(tmp_path):
     assert capture["context"]["plant_info"]["plant"] == "生菜"
     assert capture["context"]["day"] == 8
     assert store.get_value("health_capture")["alive"] is True
+    store.close()
+
+
+def test_capture_service_uses_live_esp_plant_over_stale_experiment_crop(tmp_path):
+    store = VisionStore(tmp_path / "vision.sqlite3")
+    store.save_telemetry({
+        "light": 70, "plant": "白掌", "light_opt": 45,
+        "day": 3, "stage": "seedling",
+    }, received_at=100)
+
+    class Camera:
+        def capture(self, path):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"overview")
+
+    def prepare(_source, output_dir, rois):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        path = output_dir / "plant.jpg"
+        path.write_bytes(b"roi")
+        return [{**rois[0], "image_path": str(path)}]
+
+    service = CaptureService(
+        store=store, scheduler=CaptureScheduler(), camera=Camera(),
+        experiment={
+            "plant_info": {"plant": "韭菜", "light_opt": 50},
+            "rois": [{"pot_id": "PLANT", "roi_id": "plant-overview", "is_control": False}],
+        },
+        data_dir=tmp_path, prepare=prepare,
+        inspect=lambda _path: evaluate_metrics(blur_score=100, brightness=.5),
+        clock=lambda: 100,
+    )
+    assert service.tick()["state"] == "QUEUED_FOR_ANALYSIS"
+    assert store.latest_capture()["context"]["plant_info"] == {
+        "plant": "白掌", "light_opt": 45,
+    }
     store.close()
 
 
@@ -205,7 +253,7 @@ def test_capture_service_does_not_queue_rejected_images(tmp_path):
 
     service = CaptureService(
         store=store, scheduler=CaptureScheduler(), camera=Camera(),
-        experiment={"rois": [{"pot_id": "P1", "roi_id": "r1"}]},
+        experiment={"rois": [{"pot_id": "PLANT", "roi_id": "plant-overview"}]},
         data_dir=tmp_path, prepare=prepare,
         inspect=lambda _path: evaluate_metrics(blur_score=1, brightness=.5),
         clock=lambda: 100,
@@ -232,7 +280,7 @@ def test_capture_service_rate_limits_automatic_quality_retries(tmp_path):
     now = [100]
     service = CaptureService(
         store=store, scheduler=CaptureScheduler(), camera=Camera(),
-        experiment={"rois": [{"pot_id": "P1", "roi_id": "r1"}]},
+        experiment={"rois": [{"pot_id": "PLANT", "roi_id": "plant-overview"}]},
         data_dir=tmp_path, prepare=prepare,
         inspect=lambda _path: evaluate_metrics(blur_score=1, brightness=.5),
         quality_retry_sec=600, clock=lambda: now[0],
@@ -257,12 +305,12 @@ def test_cloud_sync_worker_uploads_one_event_and_marks_outbox(tmp_path):
     store.mark_succeeded("cap-1", {
         "capture_id": "cap-1", "model": {"name": "vision-test"},
         "observations": [{
-            "pot_id": "P1", "analysis": {"plant": "生菜", "vigor": "normal"},
+            "pot_id": "PLANT", "analysis": {"plant": "白掌", "vigor": "normal"},
         }],
     }, now=101)
     store.add_human_label(
-        "cap-1", "P1", operator="reviewer",
-        label={"plant": "生菜", "vigor": "normal"}, note="confirmed", now=102)
+        "cap-1", "PLANT", operator="reviewer",
+        label={"plant": "白掌", "vigor": "normal"}, note="confirmed", now=102)
     calls = []
 
     class Response:
@@ -301,7 +349,7 @@ def test_cloud_outbox_retry_survives_reopen_and_uses_backoff(tmp_path):
     capture, observations = _capture(tmp_path)
     store.create_capture(capture, observations)
     store.mark_succeeded("cap-1", {
-        "capture_id": "cap-1", "observations": [{"pot_id": "P1", "analysis": {}}],
+        "capture_id": "cap-1", "observations": [{"pot_id": "PLANT", "analysis": {}}],
     }, now=100)
     assert store.lease_cloud_sync("worker", now=100)["capture_id"] == "cap-1"
     assert store.mark_cloud_retry("cap-1", "offline", now=100) == 130
@@ -322,7 +370,7 @@ def test_cloud_sync_uses_bounded_preview_bytes(tmp_path):
     store.create_capture(capture, observations)
     store.mark_succeeded("cap-1", {
         "capture_id": "cap-1",
-        "observations": [{"pot_id": "P1", "analysis": {}}],
+        "observations": [{"pot_id": "PLANT", "analysis": {}}],
     }, now=100)
     preview = b"\xff\xd8\xffsmall-preview\xff\xd9"
     uploaded = []
@@ -361,13 +409,13 @@ def test_manual_capture_bypasses_interval_but_keeps_light_gate(tmp_path):
 
     def prepare(_source, output_dir, rois):
         output_dir.mkdir(parents=True, exist_ok=True)
-        path = output_dir / "P1.jpg"
+        path = output_dir / "plant.jpg"
         path.write_bytes(b"roi")
         return [{**rois[0], "image_path": str(path)}]
 
     service = CaptureService(
         store=store, scheduler=CaptureScheduler(interval_sec=7200), camera=Camera(),
-        experiment={"rois": [{"pot_id": "P1", "roi_id": "r1", "is_control": True}]},
+        experiment={"rois": [{"pot_id": "PLANT", "roi_id": "plant-overview", "is_control": False}]},
         data_dir=tmp_path, prepare=prepare,
         inspect=lambda _path: evaluate_metrics(blur_score=100, brightness=.5),
         clock=lambda: 200,
@@ -386,7 +434,7 @@ def test_manual_capture_bypasses_interval_but_keeps_light_gate(tmp_path):
     store.request_manual_capture(operator="tester", now=300)
     waiting = CaptureService(
         store=store, scheduler=CaptureScheduler(interval_sec=7200), camera=Camera(),
-        experiment={"rois": [{"pot_id": "P1", "roi_id": "r1", "is_control": True}]},
+        experiment={"rois": [{"pot_id": "PLANT", "roi_id": "plant-overview", "is_control": False}]},
         data_dir=tmp_path, prepare=prepare,
         inspect=lambda _path: evaluate_metrics(blur_score=100, brightness=.5),
         clock=lambda: 300,
@@ -402,14 +450,14 @@ def test_human_labels_are_append_only_and_operator_attributed(tmp_path):
     store.create_capture(capture, observations)
     store.mark_succeeded("cap-1", {
         "capture_id": "cap-1",
-        "observations": [{"pot_id": "P1", "analysis": {"plant": "生菜"}}],
+        "observations": [{"pot_id": "PLANT", "analysis": {"plant": "白掌"}}],
     }, now=100)
     label = store.add_human_label(
-        "cap-1", "P1", operator="reviewer",
-        label={"plant": "生菜", "vigor": "normal"}, note="目视确认", now=101)
+        "cap-1", "PLANT", operator="reviewer",
+        label={"plant": "白掌", "vigor": "normal"}, note="目视确认", now=101)
     assert label["operator"] == "reviewer"
     saved = store.labels_for_capture("cap-1")
-    assert saved[0]["label"]["plant"] == "生菜"
+    assert saved[0]["label"]["plant"] == "白掌"
     assert saved[0]["created_at"] == 101
     sync = store.db.execute(
         "SELECT status FROM cloud_sync WHERE capture_id='cap-1'"

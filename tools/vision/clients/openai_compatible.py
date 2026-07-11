@@ -11,10 +11,12 @@ from urllib.request import Request, urlopen
 from ..schemas import validate_capture_analysis
 
 
-SYSTEM_PROMPT = """你是植物早期表型观察助手。图像结论只用于育种候选筛选，绝不能给出水泵、灯光或其他执行器控制指令。
-仅描述图片中可见信息；不确定时使用 unknown 并要求人工复核。每个固定 ROI 必须返回一条观察。
-返回 JSON，根对象字段为 capture_id、observations；observations 每项包含 pot_id、material_id、is_control、roi_id、analysis。
-analysis 包含 plant、plant_match、certainty、visible_stage、vigor、leaf_color、visible_findings、possible_issues、breeding_observation、needs_human_review。"""
+SYSTEM_PROMPT = """你是 AI 开放式智能花盆的单株植物视觉分析助手。输入只有一张当前植物的全景图，请始终围绕这一株植物进行分析。
+请围绕这一株植物进行综合观察：植物身份匹配、生长阶段、整体长势、叶片颜色、可见特征、可能问题和温和的养护建议。只能描述图片可见证据，不得把不确定情况写成事实。
+图像结论只用于辅助养护展示，绝不能直接给出水泵、灯光或其他执行器控制指令；执行器仍由传感器安全规则决定。
+当植物身份或状态不确定时使用 unknown、降低 certainty，并设置 needs_human_review=true。
+只返回 JSON。根对象字段为 capture_id、observations，observations 必须且只能有一项；该项包含 pot_id 和 analysis。
+analysis 包含 plant、plant_match、certainty、visible_stage、vigor、leaf_color、visible_findings、possible_issues、care_suggestions、comprehensive_observation、needs_human_review。"""
 
 
 def _default_post(url: str, headers: Mapping[str, str], body: bytes, timeout: int) -> bytes:
@@ -49,8 +51,7 @@ class OpenAICompatibleVisionClient:
                 "plant": plant_info.get("plant"),
                 "day": context.get("day"),
                 "stage": context.get("stage"),
-                "rois": [{k: item.get(k) for k in ("pot_id", "material_id", "is_control", "roi_id")}
-                         for item in capture["observations"]],
+                "target": {"pot_id": capture["observations"][0].get("pot_id", "PLANT")},
             }, ensure_ascii=False),
         }]
         total_bytes = 0
@@ -60,9 +61,7 @@ class OpenAICompatibleVisionClient:
             if len(raw) > self.max_image_bytes:
                 raise ValueError(f"image exceeds API size limit: {path.name}")
             total_bytes += len(raw)
-            content.append({
-                "type": "text", "text": f'ROI {item["roi_id"]} / pot {item["pot_id"]}'
-            })
+            content.append({"type": "text", "text": "单株植物全景图"})
             content.append({
                 "type": "image_url",
                 "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(raw).decode("ascii")},

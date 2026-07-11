@@ -22,13 +22,13 @@ from vision.store import VisionStore
 def _load_experiment(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as handle:
         value = json.load(handle)
-    if not isinstance(value.get("rois"), list) or not value["rois"]:
-        raise ValueError("experiment config requires at least one ROI")
+    if not isinstance(value.get("rois"), list) or len(value["rois"]) != 1:
+        raise ValueError("single-plant mode requires exactly one overview ROI")
     pot_ids = [item.get("pot_id") for item in value["rois"]]
     if any(not pot for pot in pot_ids) or len(pot_ids) != len(set(pot_ids)):
         raise ValueError("ROI pot_id values must be present and unique")
-    if sum(bool(item.get("is_control")) for item in value["rois"]) != 1:
-        raise ValueError("exactly one fixed control ROI is required")
+    if any(bool(item.get("is_control")) for item in value["rois"]):
+        raise ValueError("single-plant mode does not use control observations")
     return value
 
 

@@ -8,7 +8,11 @@ import time
 from typing import Any, Mapping
 
 
-PLANTS = {"生菜", "小白菜", "菠菜", "韭菜", "番茄", "辣椒", "黄瓜", "茄子", "unknown"}
+PLANTS = {
+    "白掌", "绿萝", "吊兰", "虎尾兰", "月季", "长寿花", "多肉", "薄荷",
+    "生菜", "小白菜", "菠菜", "韭菜", "番茄", "辣椒", "黄瓜", "茄子",
+    "unknown",
+}
 MATCH_VALUES = {"match", "mismatch", "unknown"}
 CERTAINTY_VALUES = {"high", "medium", "low", "unknown"}
 VIGOR_VALUES = {"strong", "normal", "weak", "unknown"}
@@ -53,6 +57,10 @@ def validate_analysis(data: Mapping[str, Any]) -> dict[str, Any]:
         "leaf_color": _enum(data.get("leaf_color"), LEAF_COLOR_VALUES),
         "visible_findings": _text_list(data.get("visible_findings")),
         "possible_issues": _text_list(data.get("possible_issues")),
+        "care_suggestions": _text_list(data.get("care_suggestions"), limit=6),
+        "comprehensive_observation": _short_text(
+            data.get("comprehensive_observation", data.get("breeding_observation")), 320),
+        # Kept only so previously stored events remain readable.
         "breeding_observation": _short_text(data.get("breeding_observation"), 240),
         "needs_human_review": bool(data.get("needs_human_review", False)),
     }
@@ -62,8 +70,8 @@ def validate_capture_analysis(data: Mapping[str, Any], expected_pots: set[str] |
     if not isinstance(data, Mapping):
         raise SchemaError("response must be an object")
     observations = data.get("observations")
-    if not isinstance(observations, list) or not observations:
-        raise SchemaError("observations must be a non-empty list")
+    if not isinstance(observations, list) or len(observations) != 1:
+        raise SchemaError("single-plant analysis requires exactly one observation")
     normalized = []
     seen = set()
     for raw in observations[:8]:
@@ -152,8 +160,8 @@ def validate_cloud_event(data: Mapping[str, Any]) -> dict[str, Any]:
         name="image bytes"))
 
     raw_observations = data.get("observations")
-    if not isinstance(raw_observations, list) or not 1 <= len(raw_observations) <= 8:
-        raise SchemaError("observations must contain 1-8 items")
+    if not isinstance(raw_observations, list) or len(raw_observations) != 1:
+        raise SchemaError("single-plant event requires exactly one observation")
     observations = []
     seen = set()
     for raw in raw_observations:
@@ -181,8 +189,8 @@ def validate_cloud_event(data: Mapping[str, Any]) -> dict[str, Any]:
             },
             "analysis": validate_analysis(raw.get("analysis", {})),
         })
-    if sum(item["is_control"] for item in observations) != 1:
-        raise SchemaError("exactly one control observation is required")
+    if any(item["is_control"] for item in observations):
+        raise SchemaError("single-plant event cannot contain a control observation")
 
     raw_labels = data.get("human_labels", [])
     if not isinstance(raw_labels, list) or len(raw_labels) > 20:

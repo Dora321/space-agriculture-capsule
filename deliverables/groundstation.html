@@ -202,14 +202,35 @@ body::after{
 .st-virt{background:rgba(176,107,255,0.12);color:var(--violet)}
 
 /* 项目团队 */
-.crew{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.member{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid rgba(59,155,255,.18);border-radius:9px;
-  background:linear-gradient(145deg,rgba(9,25,37,.86),rgba(4,11,19,.8));min-width:0}
-.member .av{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,rgba(30,240,200,0.18),rgba(176,107,255,0.18));border:1px solid var(--line);
-  font-family:'Chakra Petch';font-size:.95rem;color:var(--glow);font-weight:600}
-.member .m-name{font-family:'Chakra Petch';font-size:.95rem;color:var(--ink);font-weight:600}
-.member .m-role{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);margin-top:1px}
+.team-badge{margin-left:auto!important;flex:none!important;padding:3px 7px;border:1px solid rgba(59,155,255,.2);
+  border-radius:999px;color:var(--blue)!important;background:rgba(59,155,255,.06);
+  font:600 .5rem 'JetBrains Mono'!important;letter-spacing:.8px!important}
+.crew{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.member{--member-accent:var(--glow);position:relative;display:grid;grid-template-columns:38px minmax(0,1fr);
+  align-items:start;gap:9px;padding:9px 10px;border:1px solid color-mix(in srgb,var(--member-accent) 22%,transparent);
+  border-radius:11px;background:linear-gradient(145deg,color-mix(in srgb,var(--member-accent) 8%,rgba(9,25,37,.92)),rgba(4,11,19,.82));
+  min-width:0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.member:nth-child(2){--member-accent:var(--blue)}.member:nth-child(3){--member-accent:var(--amber)}
+.member::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;
+  background:var(--member-accent);box-shadow:0 0 10px color-mix(in srgb,var(--member-accent) 38%,transparent)}
+.member::after{content:attr(data-index);position:absolute;right:7px;bottom:-9px;color:color-mix(in srgb,var(--member-accent) 8%,transparent);
+  font:800 2.8rem 'Orbitron';line-height:1;pointer-events:none}
+.member .av{position:relative;width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--member-accent) 13%,transparent);border:1px solid color-mix(in srgb,var(--member-accent) 25%,transparent);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;font-size:.9rem;color:var(--member-accent);font-weight:700}
+.member-body{position:relative;z-index:1;min-width:0}.member-top{display:flex;align-items:center;gap:6px;min-width:0}
+.member .m-name{font-family:'Microsoft YaHei','PingFang SC',sans-serif;font-size:.82rem;color:var(--ink);font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-status{margin-left:auto;flex:none;padding:1px 5px;border-radius:999px;color:var(--member-accent);
+  background:color-mix(in srgb,var(--member-accent) 10%,transparent);font:500 .49rem 'JetBrains Mono'}
+.member .m-role{font-family:'JetBrains Mono';font-size:.55rem;color:var(--ink-dim);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member .m-task{position:relative;padding-left:9px;font-family:'JetBrains Mono';font-size:.56rem;color:var(--member-accent);
+  margin-top:5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member .m-task::before{content:"";position:absolute;left:0;top:.42em;width:4px;height:4px;border-radius:50%;background:var(--member-accent)}
+.member-tags{display:flex;gap:4px;margin-top:6px;position:relative;z-index:1}
+.member-tags span{padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.055);
+  color:var(--ink-dim);font-size:.49rem;line-height:1.2;white-space:nowrap}
 
 /* AI 决策链 */
 .chain{display:grid;grid-template-columns:1fr 22px 1.18fr 22px 1fr;gap:0;margin-bottom:9px;align-items:stretch}
@@ -238,7 +259,6 @@ body::after{
 .actx-rows span{color:var(--ink-dim)} .actx-rows b{color:var(--glow);font-weight:500}
 .actx-foot{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
 .logstream .ai{color:var(--glow)} .logstream .hl{color:var(--ink)}
-.member .m-task{font-family:'JetBrains Mono';font-size:.62rem;color:var(--glow);margin-top:3px;line-height:1.35}
 
 /* 趋势图 */
 .chart-wrap{position:relative}
@@ -269,12 +289,19 @@ canvas{width:100%;height:116px;display:block}
 .vision-state.ok{color:var(--glow);border-color:rgba(30,240,200,.36);background:rgba(30,240,200,.08)}
 .vision-state.wait{color:var(--amber);border-color:rgba(255,176,46,.34);background:rgba(255,176,46,.07)}
 .vision-state.error{color:var(--red);border-color:rgba(255,59,78,.34);background:rgba(255,59,78,.07)}
-.roi-list{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
-.roi-card{border:1px solid rgba(76,181,181,.2);border-radius:7px;padding:6px;font-size:.61rem;line-height:1.35;
-  color:var(--ink-dim);min-width:0;background:rgba(4,13,21,.72)}
-.roi-card.control{border-color:rgba(30,240,200,.42);background:rgba(30,240,200,.055)}
-.roi-card.candidate{border-color:rgba(176,107,255,.24)}
-.roi-card b{display:block;color:var(--glow);margin-bottom:2px}
+.plant-analysis{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
+.analysis-item{border:1px solid rgba(76,181,181,.2);border-radius:7px;padding:5px 6px;
+  color:var(--ink-dim);min-width:0;background:rgba(4,13,21,.72);font-size:.59rem;line-height:1.35}
+.analysis-item.wide{grid-column:1/-1}.analysis-item span{display:block;margin-bottom:2px}
+.analysis-item b{display:block;color:var(--ink);font-size:.62rem;font-weight:600;overflow-wrap:anywhere}
+.analysis-item.summary{border-color:rgba(30,240,200,.32);background:rgba(30,240,200,.045)}
+.vision-details{scrollbar-width:thin;scrollbar-color:rgba(30,240,200,.42) transparent}
+.vision-details::-webkit-scrollbar{width:6px}
+.vision-details::-webkit-scrollbar-track{background:rgba(255,255,255,.025);border-radius:6px}
+.vision-details::-webkit-scrollbar-thumb{background:rgba(30,240,200,.38);border-radius:6px}
+.vision-scroll-hint{position:sticky;top:0;z-index:3;margin:1px 0 4px;padding:3px 6px;border-radius:5px;
+  color:var(--glow);background:linear-gradient(90deg,var(--bg-panel),rgba(30,240,200,.08));
+  font-size:.54rem;text-align:center;letter-spacing:.3px;border:1px solid rgba(30,240,200,.18)}
 .vision-note{margin-top:7px;padding:6px 7px;border-left:2px solid var(--violet);
   color:var(--ink-dim);font-size:.68rem;background:rgba(176,107,255,.05)}
 .vision-capture-meta{display:flex;align-items:center;gap:6px;margin-top:6px;color:var(--ink-dim);font:500 .58rem 'JetBrains Mono'}
@@ -310,10 +337,15 @@ canvas{width:100%;height:116px;display:block}
   .panel-decision .signal .sig-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .panel-decision .signal .sig-tag{display:none}
   .panel-health .crop-meta{line-height:1.8}
-  .panel-team .crew{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .panel-team .member{align-items:flex-start;gap:7px}
+  .panel-team .crew{grid-template-columns:repeat(3,minmax(0,1fr));height:calc(100% - 25px);align-items:stretch}
+  .panel-team .member{align-items:start;gap:8px;height:100%}
   .panel-team .member>div:last-child{min-width:0}
   .panel-team .m-name,.panel-team .m-role,.panel-team .m-task{overflow:hidden;text-overflow:ellipsis}
+  .panel-vision{display:flex;flex-direction:column}
+  .panel-vision>.panel-t{flex:none}
+  .panel-vision>.vision-layout{flex:1;min-height:0}
+  .panel-vision .vision-details{height:100%;min-height:0;overflow-y:auto;overflow-x:hidden;
+    padding-right:6px;scrollbar-gutter:stable}
 }
 @media(max-width:1100px){
   html,body{overflow:auto}
@@ -343,8 +375,10 @@ canvas{width:100%;height:116px;display:block}
   .panel-decision .signal{padding:3px 6px;font-size:.59rem}.breeding{padding:6px 8px}.breeding .bt{margin-bottom:3px}.breeding .bx{font-size:.67rem}
   .actx-card{padding:6px 8px}.actx-h{margin-bottom:5px}.actx-rows{gap:3px;font-size:.63rem}.actx-foot{margin-top:6px;padding-top:5px}
   .vision-layout{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr);gap:7px}
-  .vision-row{font-size:.58rem;line-height:1.35;padding-bottom:2px}.vision-shot{height:auto;margin:0;aspect-ratio:16/9}.roi-list{margin:4px 0;gap:3px}.roi-card{padding:3px;font-size:.51rem;line-height:1.25}.vision-note{font-size:.54rem;line-height:1.3;margin-top:4px;padding:4px 5px}
-  .member{padding:5px 7px}.member .av{width:28px;height:28px}.member .m-name{font-size:.82rem}.member .m-task{font-size:.56rem}
+  .vision-row{font-size:.58rem;line-height:1.35;padding-bottom:2px}.vision-shot{height:auto;margin:0;aspect-ratio:16/9}.plant-analysis{margin:4px 0;gap:3px}.analysis-item{padding:3px 4px;font-size:.51rem;line-height:1.25}.analysis-item b{font-size:.53rem}.vision-note{font-size:.54rem;line-height:1.3;margin-top:4px;padding:4px 5px}
+  .member{grid-template-columns:31px minmax(0,1fr);padding:6px 8px}.member .av{width:29px;height:29px;font-size:.75rem}
+  .member .m-name{font-size:.72rem}.member .m-role{font-size:.49rem}.member .m-task{font-size:.5rem;margin-top:3px}
+  .member-tags{margin-top:4px}.member-tags span{font-size:.43rem;padding:1px 4px}.role-status{font-size:.42rem}
   .logstream{max-height:82px;font-size:.58rem;line-height:1.55}
 }
 
@@ -494,14 +528,17 @@ body::after{
 .st-virt{background:rgba(121,105,135,.1)}
 
 .member{
-  border-color:rgba(67,108,82,.13);
-  background:linear-gradient(145deg,rgba(249,250,245,.96),rgba(239,244,235,.88));
+  border-color:color-mix(in srgb,var(--member-accent) 22%,rgba(67,108,82,.1));
+  background:linear-gradient(145deg,color-mix(in srgb,var(--member-accent) 7%,rgba(252,252,247,.98)),rgba(239,244,235,.9));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 5px 14px rgba(54,70,56,.045);
 }
 .member .av{
-  background:linear-gradient(135deg,rgba(93,137,101,.16),rgba(185,157,101,.13));
-  border-color:rgba(76,114,87,.18);color:#3c7356;
+  background:color-mix(in srgb,var(--member-accent) 10%,#f5f7f0);
+  border-color:color-mix(in srgb,var(--member-accent) 24%,transparent);color:var(--member-accent);
 }
 .member .m-name,.actx-h{color:#27463a}
+.member-tags span{background:rgba(255,255,255,.6);border-color:rgba(47,92,68,.09)}
+.team-badge{border-color:rgba(79,127,140,.18);background:rgba(79,127,140,.055);color:#507b86!important}
 .logstream::-webkit-scrollbar-thumb{background:rgba(47,118,86,.23)}
 
 .vision-media::before{
@@ -517,9 +554,10 @@ body::after{
 .vision-state.ok{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.08)}
 .vision-state.wait{border-color:rgba(173,116,47,.28);background:rgba(173,116,47,.07)}
 .vision-state.error{border-color:rgba(184,86,76,.28);background:rgba(184,86,76,.07)}
-.roi-card{border-color:rgba(58,99,73,.15);background:rgba(244,247,239,.82)}
-.roi-card.control{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.06)}
-.roi-card.candidate{border-color:rgba(121,105,135,.2);background:rgba(121,105,135,.045)}
+.analysis-item{border-color:rgba(58,99,73,.15);background:rgba(244,247,239,.82)}
+.analysis-item.summary{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.06)}
+.vision-scroll-hint{background:linear-gradient(90deg,#fbfbf5,rgba(47,118,86,.09));
+  border-color:rgba(47,118,86,.18);color:#2f6f51}
 .vision-note{background:rgba(121,105,135,.055);border-left-color:#8b7893}
 .vision-capture-meta i{box-shadow:none}
 
@@ -699,20 +737,28 @@ body::after{
           <div class="vision-details">
             <div class="vision-row"><span>采集状态</span><b id="visionStatus">等待视觉服务</b></div>
             <div class="vision-row"><span>拍照门槛</span><b id="visionGate">每 2 小时 · 光照达标</b></div>
-            <div class="roi-list" id="roiList"></div>
-            <div class="vision-row"><span>累计分析周期</span><b id="screenCycles">0</b></div>
-            <div class="vision-row"><span>长势变化趋势</span><b id="screenDelta">数据不足</b></div>
-            <div class="vision-row"><span>分析可信等级</span><b id="screenGrade">—</b></div>
+            <div class="vision-scroll-hint">↕ 可在此区域滚动查看完整分析</div>
+            <div class="plant-analysis">
+              <div class="analysis-item"><span>识别植物</span><b id="visionPlant">等待分析</b></div>
+              <div class="analysis-item"><span>生长阶段</span><b id="visionStage">—</b></div>
+              <div class="analysis-item"><span>整体长势</span><b id="visionVigor">—</b></div>
+              <div class="analysis-item"><span>叶片状态</span><b id="visionLeaf">—</b></div>
+              <div class="analysis-item wide summary"><span>综合结论</span><b id="visionSummary">每次只分析当前这一株植物</b></div>
+              <div class="analysis-item wide"><span>可见特征</span><b id="visionFindings">等待单株全景分析</b></div>
+              <div class="analysis-item wide"><span>可能问题</span><b id="visionIssues">暂未发现</b></div>
+              <div class="analysis-item wide"><span>AI 养护建议</span><b id="visionAdvice">等待分析</b></div>
+            </div>
+            <div class="vision-row"><span>分析可信度</span><b id="visionConfidence">—</b></div>
           </div>
         </div>
       </div>
 
       <div class="panel panel-team d4">
-        <div class="panel-t"><span>◢</span> 三人协作 · 实时任务</div>
+        <div class="panel-t"><span>◢</span> 三人协作 · 实时任务 <span class="team-badge">3 ROLES · ONE SYSTEM</span></div>
         <div class="crew">
-          <div class="member"><div class="av">设</div><div><div class="m-name">产品与用户体验</div><div class="m-role">开放式外观 · 新手友好设计</div><div class="m-task" id="taskLead">用户体验任务待同步</div></div></div>
-          <div class="member"><div class="av">智</div><div><div class="m-name">AI 养护系统</div><div class="m-role">环境监测 · 智能决策闭环</div><div class="m-task" id="taskSys">养护策略任务待同步</div></div></div>
-          <div class="member"><div class="av">机</div><div><div class="m-name">机械结构与水循环</div><div class="m-role">储水回收 · 循环浇水执行</div><div class="m-task" id="taskEng">设备巡检任务待同步</div></div></div>
+          <div class="member" data-index="01"><div class="av">设</div><div class="member-body"><div class="member-top"><div class="m-name">产品与用户体验</div><span class="role-status">进行中</span></div><div class="m-role">开放式外观 · 新手友好设计</div><div class="m-task" id="taskLead">用户体验任务待同步</div><div class="member-tags"><span>场景设计</span><span>交互体验</span></div></div></div>
+          <div class="member" data-index="02"><div class="av">智</div><div class="member-body"><div class="member-top"><div class="m-name">AI 养护系统</div><span class="role-status">在线</span></div><div class="m-role">环境监测 · 智能决策闭环</div><div class="m-task" id="taskSys">养护策略任务待同步</div><div class="member-tags"><span>视觉分析</span><span>决策闭环</span></div></div></div>
+          <div class="member" data-index="03"><div class="av">机</div><div class="member-body"><div class="member-top"><div class="m-name">机械结构与水循环</div><span class="role-status">巡检中</span></div><div class="m-role">储水回收 · 循环浇水执行</div><div class="m-task" id="taskEng">设备巡检任务待同步</div><div class="member-tags"><span>水循环</span><span>执行反馈</span></div></div></div>
         </div>
       </div>
 
@@ -843,11 +889,16 @@ document.getElementById("experimentForm").addEventListener("submit",async event=
 });
 document.getElementById("experimentToken").value=sessionStorage.getItem("spacefarmExperimentToken")||"";
 function careWording(value){
-  return String(value||"")
-    .replaceAll("候选材料","植物").replaceAll("候选组","观察区").replaceAll("对照组","参考区")
-    .replaceAll("育种","养护").replaceAll("表型","长势").replaceAll("低重力","开放式环境");
+  return String(value||"").replaceAll("育种","养护").replaceAll("表型","长势");
 }
-function renderVision(status,latest,screening){
+const VISION_LABELS={
+  seedling:"幼苗期",vegetative:"营养生长期",flowering:"开花期",fruiting:"结果期",harvesting:"成熟期",
+  strong:"旺盛",normal:"正常",weak:"偏弱",green:"绿色正常",yellowing:"发黄",pale:"偏淡",mixed:"颜色不均",
+  high:"高",medium:"中",low:"低",match:"匹配",mismatch:"不匹配",unknown:"暂不确定"
+};
+function visionLabel(value){return VISION_LABELS[value]||value||"—";}
+function visionList(value,fallback){return Array.isArray(value)&&value.length?value.map(careWording).join("；"):fallback;}
+function renderVision(status,latest){
   const stateText={WAITING_TELEMETRY:"等待新遥测",WAITING_INTERVAL:"等待两小时间隔",
     WAITING_LIGHT:"等待光照达标",READY:"可以拍摄",QUEUED_FOR_ANALYSIS:"已拍摄，等待 AI",
     CAPTURE_ERROR:"相机采集异常",QUALITY_REJECTED:"图像质量未通过，等待重拍"};
@@ -870,27 +921,26 @@ function renderVision(status,latest,screening){
       timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
     capturedAt.textContent=`${stamp} · ${latest.cycle_id||"当前周期"}`;
   }else capturedAt.textContent="等待首张有效照片";
-  const list=document.getElementById("roiList"); list.replaceChildren();
-  (latest.observations||[]).forEach(item=>{
-    const card=document.createElement("div"); card.className="roi-card "+(item.is_control?"control":"candidate");
-    const title=document.createElement("b");
-    title.textContent=`${item.pot_id} · 植物观察区`;
-    const detail=document.createElement("span");
-    const a=item.analysis||{};
-    detail.textContent=careWording(a.vigor||a.breeding_observation)||"等待多模态 AI 长势分析";
-    card.append(title,detail); list.appendChild(card);
-  });
-  document.getElementById("screenCycles").textContent=screening.independent_cycles||0;
-  document.getElementById("screenDelta").textContent=screening.delta_control_median==null
-    ?"数据不足":screening.delta_control_median>=0
-      ?`改善 +${screening.delta_control_median} 分`:`下降 ${Math.abs(screening.delta_control_median)} 分`;
-  document.getElementById("screenGrade").textContent=screening.evidence_grade||"—";
+  const observation=(latest.observations||[])[0]||{};
+  const a=observation.analysis||{};
+  document.getElementById("visionPlant").textContent=a.plant&&a.plant!=="unknown"
+    ?`${a.plant} · ${visionLabel(a.plant_match)}`:"待识别";
+  document.getElementById("visionStage").textContent=visionLabel(a.visible_stage);
+  document.getElementById("visionVigor").textContent=visionLabel(a.vigor);
+  document.getElementById("visionLeaf").textContent=visionLabel(a.leaf_color);
+  document.getElementById("visionFindings").textContent=visionList(a.visible_findings,"暂无明确可见特征");
+  document.getElementById("visionIssues").textContent=visionList(a.possible_issues,"暂未发现明显问题");
+  document.getElementById("visionAdvice").textContent=visionList(a.care_suggestions,"继续结合传感器数据观察");
+  document.getElementById("visionSummary").textContent=careWording(
+    a.comprehensive_observation||a.breeding_observation)||"等待单株全景分析";
+  document.getElementById("visionConfidence").textContent=
+    `${visionLabel(a.certainty)}${a.needs_human_review?" · 建议人工确认":""}`;
 }
 async function updateVision(){
   try{
-    const [status,latest,screening]=await Promise.all([
-      fetchJson("/api/vision/status"),fetchJson("/api/vision/latest"),fetchJson("/api/screening/latest")]);
-    renderVision(status,latest,screening);
+    const [status,latest]=await Promise.all([
+      fetchJson("/api/vision/status"),fetchJson("/api/vision/latest")]);
+    renderVision(status,latest);
   }catch(e){
     document.getElementById("visionStatus").textContent="视觉服务离线";
   }

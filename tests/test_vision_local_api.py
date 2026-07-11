@@ -38,12 +38,12 @@ def test_local_api_health_manual_capture_label_and_preview(tmp_path):
         "capture_id": "cap-1", "captured_at": now - 10, "cycle_id": "c1",
         "overview_path": str(overview), "current_light": 60, "required_light": 50,
     }, [{
-        "pot_id": "P1", "material_id": "control", "is_control": True,
-        "roi_id": "r1", "image_path": str(overview), "quality": {"accepted": True},
+        "pot_id": "PLANT", "material_id": "current-plant", "is_control": False,
+        "roi_id": "plant-overview", "image_path": str(overview), "quality": {"accepted": True},
     }])
     store.mark_succeeded("cap-1", {
         "capture_id": "cap-1",
-        "observations": [{"pot_id": "P1", "analysis": {"plant": "生菜"}}],
+        "observations": [{"pot_id": "PLANT", "analysis": {"plant": "白掌"}}],
     }, now=now - 5)
     for key, state in (
         ("health_capture", "WAITING_INTERVAL"),
@@ -79,8 +79,8 @@ def test_local_api_health_manual_capture_label_and_preview(tmp_path):
         status, _, raw = _request(
             server, "POST", "/v1/events/cap-1/label",
             body={
-                "operator": "reviewer", "pot_id": "P1", "note": "目视复核",
-                "label": {"plant": "生菜", "vigor": "normal", "certainty": "high"},
+                "operator": "reviewer", "pot_id": "PLANT", "note": "目视复核",
+                "label": {"plant": "白掌", "vigor": "normal", "certainty": "high"},
             })
         label = json.loads(raw)
         assert status == 201 and label["operator"] == "reviewer"

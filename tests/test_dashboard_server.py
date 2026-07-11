@@ -230,9 +230,9 @@ def test_cloud_vision_upload_is_authenticated_idempotent_and_persistent(tmp_path
         "current_light": 70, "required_light": 50,
         "context": {"day": 8, "stage": "vegetative"},
         "observations": [{
-            "pot_id": "P1", "material_id": "control", "is_control": True,
-            "roi_id": "r1", "quality": {"accepted": True, "brightness": .5},
-            "analysis": {"plant": "生菜", "vigor": "normal"},
+            "pot_id": "PLANT", "material_id": "current-plant", "is_control": False,
+            "roi_id": "plant-overview", "quality": {"accepted": True, "brightness": .5},
+            "analysis": {"plant": "白掌", "vigor": "normal"},
         }],
         "model": {"name": "test-model", "ignored": "drop-me"},
         "image": {"sha256": digest, "bytes": len(image)},

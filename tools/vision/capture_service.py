@@ -41,10 +41,18 @@ class CaptureService:
         now = self.clock()
         telemetry = self.store.latest_telemetry()
         manual_request = self.store.pending_manual_capture()
+        # The ESP32 menu is authoritative for the plant currently installed.
+        # Keep the experiment file only as a cold-start fallback.
+        plant_info = dict(self.experiment.get("plant_info") or {})
+        if telemetry:
+            if telemetry.get("plant"):
+                plant_info["plant"] = str(telemetry["plant"])
+            if telemetry.get("light_opt") is not None:
+                plant_info["light_opt"] = telemetry["light_opt"]
         decision = self.scheduler.evaluate(
             now=now,
             telemetry=telemetry,
-            plant_info=self.experiment.get("plant_info"),
+            plant_info=plant_info,
             last_accepted_capture_at=self.store.last_accepted_capture_at(),
             ignore_interval=manual_request is not None,
         )
@@ -111,7 +119,7 @@ class CaptureService:
                 "current_light": decision.current_light,
                 "required_light": decision.required_light,
                 "context": {
-                    "plant_info": self.experiment.get("plant_info", {}),
+                    "plant_info": plant_info,
                     "day": (telemetry or {}).get("day", (telemetry or {}).get("days")),
                     "stage": (telemetry or {}).get("stage"),
                     "experiment_id": (telemetry or {}).get("experiment_id", ""),
