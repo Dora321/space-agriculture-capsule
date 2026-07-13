@@ -299,6 +299,13 @@ canvas{width:100%;height:116px;display:block}
 .vision-details::-webkit-scrollbar{width:6px}
 .vision-details::-webkit-scrollbar-track{background:rgba(255,255,255,.025);border-radius:6px}
 .vision-details::-webkit-scrollbar-thumb{background:rgba(30,240,200,.38);border-radius:6px}
+.panel-vision .panel-t::after{order:1}.manual-capture-btn{order:2;flex:none;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid rgba(30,240,200,.4);border-radius:999px;padding:4px 8px;background:rgba(30,240,200,.075);
+  color:var(--glow);font:600 .53rem 'Microsoft YaHei','PingFang SC',sans-serif;cursor:pointer;white-space:nowrap}
+.manual-capture-btn:hover{background:rgba(30,240,200,.14);box-shadow:0 0 12px rgba(30,240,200,.1)}
+.manual-capture-btn:disabled{cursor:wait;opacity:.72}.manual-capture-btn.busy .capture-icon{animation:capturePulse 1.1s infinite}
+.manual-capture-btn.done{border-color:rgba(30,240,200,.25);background:rgba(30,240,200,.05)}
+.capture-icon{font-size:.66rem}.capture-label{font-weight:600}
 .vision-scroll-hint{position:sticky;top:0;z-index:3;margin:1px 0 4px;padding:3px 6px;border-radius:5px;
   color:var(--glow);background:linear-gradient(90deg,var(--bg-panel),rgba(30,240,200,.08));
   font-size:.54rem;text-align:center;letter-spacing:.3px;border:1px solid rgba(30,240,200,.18)}
@@ -558,6 +565,8 @@ body::after{
 .analysis-item.summary{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.06)}
 .vision-scroll-hint{background:linear-gradient(90deg,#fbfbf5,rgba(47,118,86,.09));
   border-color:rgba(47,118,86,.18);color:#2f6f51}
+.manual-capture-btn{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.07);color:#2f6f51}
+.manual-capture-btn:hover{background:rgba(47,118,86,.12);box-shadow:none}
 .vision-note{background:rgba(121,105,135,.055);border-left-color:#8b7893}
 .vision-capture-meta i{box-shadow:none}
 
@@ -588,6 +597,7 @@ body::after{
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes capturePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.45}}
 .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}
 .d4{animation-delay:.26s}.d5{animation-delay:.33s}.d6{animation-delay:.4s}
 </style>
@@ -727,7 +737,11 @@ body::after{
       </div>
 
       <div class="panel panel-vision d4">
-        <div class="panel-t"><span>◢</span> Camera Module 3 · AI 长势观察</div>
+        <div class="panel-t"><span>◢</span> Camera Module 3 · AI 长势观察
+          <button class="manual-capture-btn" id="manualCaptureBtn" type="button" title="立即拍照并提交多模态 AI 分析">
+            <span class="capture-icon">◉</span><span class="capture-label" id="manualCaptureLabel">立即拍照</span>
+          </button>
+        </div>
         <div class="vision-layout">
           <div class="vision-media">
             <img class="vision-shot" id="visionImage" alt="最近一次开放式花盆固定视角照片" hidden>
@@ -898,6 +912,54 @@ const VISION_LABELS={
 };
 function visionLabel(value){return VISION_LABELS[value]||value||"—";}
 function visionList(value,fallback){return Array.isArray(value)&&value.length?value.map(careWording).join("；"):fallback;}
+let latestVisionCaptureId="";
+let manualCapturePending=null;
+let manualVisionTimer=null;
+function setManualCaptureButton(label,busy=false,done=false){
+  const button=document.getElementById("manualCaptureBtn");
+  document.getElementById("manualCaptureLabel").textContent=label;
+  button.disabled=busy;
+  button.classList.toggle("busy",busy);
+  button.classList.toggle("done",done);
+}
+function stopManualVisionPolling(){
+  if(manualVisionTimer){clearInterval(manualVisionTimer);manualVisionTimer=null;}
+}
+function updateManualCaptureProgress(status,latest,statusEl){
+  if(!manualCapturePending)return;
+  const isNewCapture=latest.available&&latest.capture_id&&
+    latest.capture_id!==manualCapturePending.previousCaptureId&&
+    Number(latest.captured_at||0)>=manualCapturePending.requestedAt-5;
+  if(isNewCapture&&latest.status==="succeeded"){
+    statusEl.textContent="手动拍照与 AI 分析已更新";
+    statusEl.className="vision-state ok";
+    setManualCaptureButton("更新完成",false,true);
+    manualCapturePending=null;stopManualVisionPolling();
+    setTimeout(()=>setManualCaptureButton("立即拍照"),3500);
+    return;
+  }
+  const elapsed=Date.now()/1000-manualCapturePending.requestedAt;
+  if(status.state==="QUEUED_FOR_ANALYSIS"){
+    statusEl.textContent="手动照片已拍摄 · AI 分析中";
+    setManualCaptureButton("AI 分析中",true);
+  }else if(["CAPTURE_ERROR","QUALITY_REJECTED"].includes(status.state)){
+    statusEl.textContent=status.state==="QUALITY_REJECTED"?"手动照片质量未通过":"手动拍照失败";
+    statusEl.className="vision-state error";
+    setManualCaptureButton("重新拍照",false);manualCapturePending=null;stopManualVisionPolling();
+  }else if(elapsed>360){
+    statusEl.textContent="手动拍照等待超时，请重试";
+    statusEl.className="vision-state error";
+    setManualCaptureButton("重新拍照",false);manualCapturePending=null;stopManualVisionPolling();
+  }else if(elapsed>20){
+    statusEl.textContent=`手动照片处理中 · AI 分析约需 1 分钟（${Math.floor(elapsed)} 秒）`;
+    statusEl.className="vision-state ok";
+    setManualCaptureButton(`分析中 ${Math.floor(elapsed)}s`,true);
+  }else{
+    statusEl.textContent="手动拍照请求已提交 · 等待树莓派";
+    statusEl.className="vision-state wait";
+    setManualCaptureButton("等待拍摄",true);
+  }
+}
 function renderVision(status,latest){
   const stateText={WAITING_TELEMETRY:"等待新遥测",WAITING_INTERVAL:"等待两小时间隔",
     WAITING_LIGHT:"等待光照达标",READY:"可以拍摄",QUEUED_FOR_ANALYSIS:"已拍摄，等待 AI",
@@ -921,6 +983,7 @@ function renderVision(status,latest){
       timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
     capturedAt.textContent=`${stamp} · ${latest.cycle_id||"当前周期"}`;
   }else capturedAt.textContent="等待首张有效照片";
+  if(latest.capture_id)latestVisionCaptureId=latest.capture_id;
   const observation=(latest.observations||[])[0]||{};
   const a=observation.analysis||{};
   document.getElementById("visionPlant").textContent=a.plant&&a.plant!=="unknown"
@@ -935,6 +998,7 @@ function renderVision(status,latest){
     a.comprehensive_observation||a.breeding_observation)||"等待单株全景分析";
   document.getElementById("visionConfidence").textContent=
     `${visionLabel(a.certainty)}${a.needs_human_review?" · 建议人工确认":""}`;
+  updateManualCaptureProgress(status,latest,statusEl);
 }
 async function updateVision(){
   try{
@@ -945,6 +1009,41 @@ async function updateVision(){
     document.getElementById("visionStatus").textContent="视觉服务离线";
   }
 }
+async function requestManualCapture(){
+  if(manualCapturePending)return;
+  let token=sessionStorage.getItem("spacefarmManualCaptureToken")||
+    sessionStorage.getItem("spacefarmExperimentToken")||"";
+  if(!token){
+    token=window.prompt("请输入网页管理口令以触发手动拍照：")||"";
+    if(!token)return;
+  }
+  setManualCaptureButton("正在提交",true);
+  const statusEl=document.getElementById("visionStatus");
+  statusEl.textContent="正在提交手动拍照请求";statusEl.className="vision-state wait";
+  try{
+    const response=await fetch(API_BASE+"/api/vision/capture",{
+      method:"POST",headers:{"Content-Type":"application/json","X-Dashboard-Token":token},
+      body:JSON.stringify({operator:"dashboard",reason:"manual capture from ground station"})
+    });
+    const value=await response.json();
+    if(!response.ok)throw new Error(value.error||("HTTP "+response.status));
+    sessionStorage.setItem("spacefarmManualCaptureToken",token);
+    manualCapturePending={
+      requestId:value.request_id,requestedAt:Number(value.requested_at||Date.now()/1000),
+      previousCaptureId:latestVisionCaptureId
+    };
+    setManualCaptureButton("等待拍摄",true);
+    statusEl.textContent="手动拍照请求已提交 · 等待树莓派";
+    stopManualVisionPolling();
+    manualVisionTimer=setInterval(updateVision,2000);
+    updateVision();
+  }catch(error){
+    if(String(error.message).includes("unauthorized"))sessionStorage.removeItem("spacefarmManualCaptureToken");
+    statusEl.textContent="提交失败："+error.message;statusEl.className="vision-state error";
+    setManualCaptureButton("重新拍照",false);
+  }
+}
+document.getElementById("manualCaptureBtn").addEventListener("click",requestManualCapture);
 
 // ---- 模拟数据（结构 = 树莓派应返回的 JSON）----
 function mockState(reason="树莓派遥测离线，已切换演示模式"){

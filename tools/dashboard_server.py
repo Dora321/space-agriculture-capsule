@@ -30,6 +30,7 @@ DASHBOARD_PATH = ROOT / "deliverables" / "groundstation.html"
 TOKEN = os.getenv("DASHBOARD_TOKEN", "")
 EXPERIMENT_EDIT_TOKEN = os.getenv("SPACEFARM_EXPERIMENT_TOKEN", TOKEN)
 VISION_UPLOAD_TOKEN = os.getenv("VISION_UPLOAD_TOKEN", TOKEN)
+MANUAL_CAPTURE_TOKEN = os.getenv("MANUAL_CAPTURE_TOKEN", EXPERIMENT_EDIT_TOKEN)
 ALLOWED_ORIGIN = os.getenv("DASHBOARD_ALLOWED_ORIGIN", "").rstrip("/")
 MAX_REQUEST_BYTES = int(os.getenv("DASHBOARD_MAX_REQUEST_BYTES", "4096"))
 MAX_VISION_JSON_BYTES = int(os.getenv("VISION_MAX_JSON_BYTES", "65536"))
@@ -172,6 +173,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/experiment":
             self._json_response(EXPERIMENT_STORE.status())
             return
+        if path == "/api/vision/capture/request":
+            if not self._authorize_write(VISION_UPLOAD_TOKEN):
+                return
+            store = _open_vision_store(create=True)
+            try:
+                request = store.pending_manual_capture()
+                self._json_response({
+                    "available": request is not None,
+                    "request": request,
+                })
+            finally:
+                store.close()
+            return
         if path.startswith("/api/vision/images/"):
             event_id = path.removeprefix("/api/vision/images/")
             if not _EVENT_ID_RE.fullmatch(event_id):
@@ -253,12 +267,15 @@ class Handler(BaseHTTPRequestHandler):
         allowed = {
             "/api/state", "/api/experiment", "/api/vision/status",
             "/api/vision/events", "/api/screening/latest", "/api/screening/results",
+            "/api/vision/capture", "/api/vision/capture/dispatch",
         }
         if path not in allowed:
             self.send_error(404)
             return
         if path == "/api/experiment":
             required_token = EXPERIMENT_EDIT_TOKEN
+        elif path == "/api/vision/capture":
+            required_token = MANUAL_CAPTURE_TOKEN
         elif path.startswith("/api/vision/") or path.startswith("/api/screening/"):
             required_token = VISION_UPLOAD_TOKEN
         else:
@@ -306,6 +323,34 @@ class Handler(BaseHTTPRequestHandler):
                 finally:
                     store.close()
                 response = {"ok": True, "event_id": event["event_id"]}
+            elif path == "/api/vision/capture":
+                store = _open_vision_store(create=True)
+                try:
+                    response = store.request_manual_capture(
+                        operator=str(payload.get("operator", "dashboard"))[:32],
+                        reason=str(payload.get("reason", "manual dashboard capture"))[:120],
+                    )
+                finally:
+                    store.close()
+            elif path == "/api/vision/capture/dispatch":
+                request_id = str(payload.get("request_id", ""))
+                accepted = payload.get("accepted")
+                if not _EVENT_ID_RE.fullmatch(request_id):
+                    raise ValueError("invalid manual capture request_id")
+                if not isinstance(accepted, bool):
+                    raise ValueError("accepted must be boolean")
+                store = _open_vision_store(create=True)
+                try:
+                    if store.manual_capture_request(request_id) is None:
+                        self._json_response({"error": "manual capture request not found"}, status=404)
+                        return
+                    changed = store.mark_manual_capture_dispatched(
+                        request_id, accepted=accepted,
+                        error=str(payload.get("error", "")),
+                    )
+                finally:
+                    store.close()
+                response = {"ok": True, "request_id": request_id, "updated": changed}
             elif path in {"/api/screening/latest", "/api/screening/results"}:
                 store = _open_vision_store(create=True)
                 try:

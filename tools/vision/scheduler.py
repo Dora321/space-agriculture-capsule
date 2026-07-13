@@ -42,12 +42,21 @@ class CaptureScheduler:
     def evaluate(self, *, now: float, telemetry: Optional[Mapping[str, Any]],
                  plant_info: Optional[Mapping[str, Any]] = None,
                  last_accepted_capture_at: Optional[float] = None,
-                 ignore_interval: bool = False) -> ScheduleDecision:
+                 ignore_interval: bool = False,
+                 force_capture: bool = False) -> ScheduleDecision:
         required = self._required_light(telemetry, plant_info)
         next_eligible = (
             float(last_accepted_capture_at) + self.interval_sec
             if last_accepted_capture_at is not None else float(now)
         )
+
+        # A deliberate operator request must work even when the ESP32 is
+        # offline. Image brightness/blur gates still reject unusable photos
+        # after capture, and no actuator is changed by this override.
+        if force_capture:
+            current = self._light(telemetry) if telemetry else None
+            return ScheduleDecision(True, READY, "manual capture requested",
+                                    current, required, float(now))
 
         if not telemetry:
             return ScheduleDecision(False, WAITING_TELEMETRY,

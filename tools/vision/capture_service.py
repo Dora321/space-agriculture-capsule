@@ -55,6 +55,7 @@ class CaptureService:
             plant_info=plant_info,
             last_accepted_capture_at=self.store.last_accepted_capture_at(),
             ignore_interval=manual_request is not None,
+            force_capture=manual_request is not None,
         )
         status = {
             "state": decision.state,

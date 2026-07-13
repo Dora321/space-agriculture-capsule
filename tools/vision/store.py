@@ -25,6 +25,7 @@ class VisionStore:
         )
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA busy_timeout=30000")
         self.db.execute("PRAGMA foreign_keys=ON")
         self._initialize()
 
@@ -392,6 +393,30 @@ class VisionStore:
             "ORDER BY requested_at LIMIT 1"
         ).fetchone()
         return None if row is None else dict(row)
+
+    def manual_capture_request(self, request_id: str) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT * FROM manual_capture_requests WHERE request_id=?", (request_id,)
+        ).fetchone()
+        return None if row is None else dict(row)
+
+    def mark_manual_capture_dispatched(
+        self, request_id: str, *, accepted: bool = True, error: str = "",
+        now: float | None = None,
+    ) -> bool:
+        """Acknowledge that a cloud command reached the Pi capture queue."""
+        timestamp = time.time() if now is None else float(now)
+        # Reuse the existing terminal state to stay compatible with databases
+        # created before cloud commands were introduced. Here "fulfilled"
+        # means the command was accepted by the Pi-local capture queue.
+        status = "fulfilled" if accepted else "rejected"
+        with self.db:
+            cursor = self.db.execute(
+                "UPDATE manual_capture_requests SET status=?,error=?,updated_at=? "
+                "WHERE request_id=? AND status='pending'",
+                (status, str(error)[:240], timestamp, request_id),
+            )
+        return cursor.rowcount > 0
 
     def finish_manual_capture(self, request_id: str, *, capture_id: str | None = None,
                               error: str = "", now: float | None = None) -> None:

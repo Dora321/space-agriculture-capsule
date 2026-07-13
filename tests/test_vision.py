@@ -343,6 +343,31 @@ def test_cloud_sync_worker_uploads_one_event_and_marks_outbox(tmp_path):
     store.close()
 
 
+def test_cloud_sync_pulls_manual_capture_command_into_local_queue(tmp_path):
+    store = VisionStore(tmp_path / "vision.sqlite3")
+    calls = []
+
+    def request_json(url, **kwargs):
+        calls.append((kwargs["method"], url, kwargs["body"]))
+        if url.endswith("/api/vision/capture/request"):
+            return {"available": True, "request": {
+                "request_id": "manual-cloud-1", "operator": "dashboard",
+                "reason": "take a fresh photo",
+            }}
+        return {"ok": True}
+
+    worker = VisionCloudSyncWorker(
+        store, base_url="https://cloud.example", token="secret",
+        request_json=request_json,
+    )
+    assert worker.run_once() == "manual_dispatched"
+    pending = store.pending_manual_capture()
+    assert pending is not None and pending["operator"] == "dashboard"
+    dispatch = next(item for item in calls if item[1].endswith("/capture/dispatch"))
+    assert json.loads(dispatch[2])["accepted"] is True
+    store.close()
+
+
 def test_cloud_outbox_retry_survives_reopen_and_uses_backoff(tmp_path):
     db_path = tmp_path / "vision.sqlite3"
     store = VisionStore(db_path)
@@ -395,7 +420,7 @@ def test_cloud_sync_uses_bounded_preview_bytes(tmp_path):
     store.close()
 
 
-def test_manual_capture_bypasses_interval_but_keeps_light_gate(tmp_path):
+def test_manual_capture_bypasses_interval_telemetry_and_light_schedule(tmp_path):
     store = VisionStore(tmp_path / "vision.sqlite3")
     old_capture, old_observations = _capture(tmp_path)
     store.create_capture(old_capture, old_observations)
@@ -430,17 +455,18 @@ def test_manual_capture_bypasses_interval_but_keeps_light_gate(tmp_path):
     ).fetchone()
     assert row["status"] == "fulfilled" and row["capture_id"]
 
-    store.save_telemetry({"light": 20}, received_at=300)
+    store.save_telemetry({"light": 20}, received_at=100)
     store.request_manual_capture(operator="tester", now=300)
-    waiting = CaptureService(
+    forced = CaptureService(
         store=store, scheduler=CaptureScheduler(interval_sec=7200), camera=Camera(),
         experiment={"rois": [{"pot_id": "PLANT", "roi_id": "plant-overview", "is_control": False}]},
         data_dir=tmp_path, prepare=prepare,
         inspect=lambda _path: evaluate_metrics(blur_score=100, brightness=.5),
         clock=lambda: 300,
     ).tick()
-    assert waiting["state"] == WAITING_LIGHT
-    assert store.pending_manual_capture() is not None
+    assert forced["state"] == "QUEUED_FOR_ANALYSIS"
+    assert forced["trigger"] == "manual"
+    assert store.pending_manual_capture() is None
     store.close()
 
 

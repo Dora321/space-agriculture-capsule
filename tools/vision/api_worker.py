@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import time
 from pathlib import Path
 from typing import Any
@@ -33,7 +34,14 @@ class VisionApiWorker:
         now = self.clock()
         if self.store.calls_today(now=now) >= self.daily_limit:
             return self._finish("daily_limit")
-        job = self.store.lease_next(self.worker_id, now=now)
+        try:
+            job = self.store.lease_next(self.worker_id, now=now)
+        except sqlite3.OperationalError as exc:
+            if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+                # Other vision services share the WAL database. A short write
+                # collision should delay one poll, not crash the systemd worker.
+                return "db_busy"
+            raise
         if job is None:
             return self._finish("idle")
         try:

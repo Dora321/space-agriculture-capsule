@@ -212,11 +212,47 @@ def _start_server(module, tmp_path):
     module.VISION_IMAGE_DIR = module.VISION_DATA_DIR / "images"
     module.TOKEN = "state-secret"
     module.VISION_UPLOAD_TOKEN = "vision-secret"
+    module.MANUAL_CAPTURE_TOKEN = "manual-secret"
     module.ALLOWED_ORIGIN = "http://dashboard.example"
     server = module.ThreadingHTTPServer(("127.0.0.1", 0), module.Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server
+
+
+def test_manual_capture_command_is_authenticated_and_dispatchable(tmp_path):
+    dashboard_server = _load_dashboard_server()
+    server = _start_server(dashboard_server, tmp_path)
+    try:
+        assert _http_request(
+            server, "POST", "/api/vision/capture",
+            body={"operator": "dashboard"})[0] == 401
+        status, _, raw = _http_request(
+            server, "POST", "/api/vision/capture",
+            body={"operator": "dashboard", "reason": "manual test"},
+            headers={"X-Dashboard-Token": "manual-secret"})
+        request = json.loads(raw)
+        assert status == 200 and request["status"] == "pending"
+
+        status, _, raw = _http_request(
+            server, "GET", "/api/vision/capture/request",
+            headers={"X-Dashboard-Token": "vision-secret"})
+        command = json.loads(raw)
+        assert status == 200 and command["available"] is True
+        assert command["request"]["request_id"] == request["request_id"]
+
+        status, _, raw = _http_request(
+            server, "POST", "/api/vision/capture/dispatch",
+            body={"request_id": request["request_id"], "accepted": True},
+            headers={"X-Dashboard-Token": "vision-secret"})
+        assert status == 200 and json.loads(raw)["updated"] is True
+        _, _, raw = _http_request(
+            server, "GET", "/api/vision/capture/request",
+            headers={"X-Dashboard-Token": "vision-secret"})
+        assert json.loads(raw)["available"] is False
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_cloud_vision_upload_is_authenticated_idempotent_and_persistent(tmp_path):

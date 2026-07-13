@@ -129,9 +129,54 @@ class VisionCloudSyncWorker:
             content_type="application/json", timeout=self.timeout_sec,
         )
 
+    def _poll_manual_capture(self) -> bool:
+        """Pull one authenticated cloud command into the Pi-local capture queue."""
+        response = self.request_json(
+            self.base_url + "/api/vision/capture/request",
+            method="GET", token=self.token, body=b"",
+            content_type="application/json", timeout=self.timeout_sec,
+        )
+        command = response.get("request") if isinstance(response, dict) else None
+        if not isinstance(command, dict) or not command.get("request_id"):
+            return False
+        # Do not merge a cloud command into a different local request.  Leaving
+        # it pending makes the next five-second poll retry after the camera is free.
+        if self.store.pending_manual_capture() is not None:
+            return False
+        accepted = True
+        error = ""
+        try:
+            self.store.request_manual_capture(
+                operator=str(command.get("operator", "dashboard"))[:32],
+                reason=("cloud " + str(command.get("request_id")) + ": "
+                        + str(command.get("reason", "manual dashboard capture")))[:120],
+                cooldown_sec=0,
+            )
+        except Exception as exc:
+            accepted = False
+            error = f"{type(exc).__name__}: {exc}"
+        self.request_json(
+            self.base_url + "/api/vision/capture/dispatch",
+            method="POST", token=self.token,
+            body=json.dumps({
+                "request_id": command["request_id"],
+                "accepted": accepted,
+                "error": error,
+            }, ensure_ascii=False).encode("utf-8"),
+            content_type="application/json", timeout=self.timeout_sec,
+        )
+        return accepted
+
     def run_once(self) -> str:
         if not self.configured():
             return self._finish("disabled", error="cloud sync is not configured")
+        command_dispatched = False
+        try:
+            command_dispatched = self._poll_manual_capture()
+        except Exception:
+            # Pull commands are best effort. Existing status/event outboxes must
+            # continue to sync during a transient command-channel outage.
+            command_dispatched = False
         status_error = None
         try:
             self._post_status()
@@ -144,7 +189,7 @@ class VisionCloudSyncWorker:
         if capture is None:
             if status_error is not None:
                 return self._finish("status_retry", error=f"{type(status_error).__name__}: {status_error}")
-            return self._finish("idle")
+            return self._finish("manual_dispatched" if command_dispatched else "idle")
         capture_id = capture["capture_id"]
         try:
             image_bytes = self.prepare_image(
