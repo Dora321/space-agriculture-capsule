@@ -1,0 +1,19 @@
+[Unit]
+Description=SpaceFarm loopback vision health and human review API
+After=spacefarm-vision-capture.service spacefarm-vision-api.service
+
+[Service]
+Type=simple
+User=mx
+Group=mx
+WorkingDirectory=/home/mx/spacefarm
+EnvironmentFile=/home/mx/spacefarm/.config/vision.env
+Environment=SPACEFARM_VISION_LOCAL_HOST=127.0.0.1
+Environment=SPACEFARM_VISION_LOCAL_PORT=8791
+ExecStart=/usr/bin/python3 -u /home/mx/spacefarm/tools/vision_local_api.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

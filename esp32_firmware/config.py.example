@@ -1,5 +1,5 @@
 """
-配置文件 - 太空农业种植舱
+配置文件 - AI 开放式智能花盆
 修改此文件以适配你的硬件和网络环境
 
 使用方法: 复制本文件为 config.py，并填入你的实际配置
@@ -39,7 +39,7 @@ UART_OFFLINE_TIMEOUT_MS = 30000
 READ_INTERVAL = 60        # 传感器读取间隔（秒），不低于 60 秒（正式运行建议 300 秒 = 5 分钟）
 DECISION_INTERVAL = 60    # 本地动作决策间隔（秒），默认每分钟随采样判断一次；云端 AI 另有请求门控
 PAGE_ROTATE_SEC = 0       # OLED 页面切换：0=手动（红/黄按键），>0=自动轮播秒数
-STARTUP_MENU_ON_BOOT = False  # False=开机直接运行；True=开机先选作物/天数
+STARTUP_MENU_ON_BOOT = False  # Pi 同步实验日龄；蓝键菜单保留离线临时设置
 MIN_ACTION_INTERVAL = 60  # 最小动作间隔（秒），防止频繁动作
 MAX_ACTIONS_PER_HOUR = 12  # 每小时最大动作次数
 MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
@@ -49,7 +49,7 @@ MAX_ERRORS = 10           # 最大连续错误次数，超过后重启
 # 正常 -> 土壤变干 -> 自动浇水 -> 湿度恢复。
 DEMO_MODE = False
 DEMO_READ_INTERVAL = 5
-DEMO_PLANT_TYPE = "生菜"
+DEMO_PLANT_TYPE = "白掌"
 
 # 展示模式（读真实传感器但快速响应）——由菜单「Demo Speed」运行时切换，无需改本文件。
 # 开启后读取/决策间隔缩到 FAST_READ_INTERVAL 秒，且跳过动作限频，
@@ -63,10 +63,9 @@ DEMO_LIGHT_LEVEL = 72
 DEMO_TEMPERATURE = 24.5
 DEMO_HUMIDITY = 62
 
-# ============ 种植日期 ============
-# 格式: (年, 月, 日)，系统据此计算种植天数和生长阶段
-# 每次重新种植时更新此值
-PLANTING_DATE = (2026, 5, 1)  # 例: 2026年5月1日播种
+# ============ 离线种植日期兜底 ============
+# 正常双层模式以树莓派实验档案为准；只有 Pi 长期离线时才使用此日期。
+PLANTING_DATE = (2026, 5, 1)
 
 # ============ GPIO 引脚定义 ============
 # 传感器
@@ -95,7 +94,7 @@ OLED_SCL_PIN = 22
 OLED_I2C_FREQ = 400000
 
 # WS2812 状态灯条（11 颗灯珠的可寻址 RGB 灯条）
-# 用作「育种舱生物指示灯」：
+# 用作「智能花盆状态指示灯」：
 #   - 平时：按土壤湿度点亮对应数量灯珠（每颗约 9%），颜色梯度暖红→绿→冷蓝
 #   - 浇水中：整条黄色脉冲呼吸
 #   - 错误/离线：整条红色闪烁
@@ -105,6 +104,7 @@ WS2812_ENABLED = True     # 2026-06-03 启用：电源实测通过，常亮展�
 WS2812_BRIGHTNESS = 0.6   # 0.0-1.0；0.6 实测可见度好。注意峰值电流随亮度上升
 WS2812_PLAY_IDLE_ADVISORY = True
 WS2812_PLAY_ACTION_ADVISORY = True
+NUTRIENT_ADVISORY_ENABLED = False  # 无营养传感器/施肥泵，不自动广播缺肥信号
 
 # ============ 传感器参数 ============
 # 土壤湿度参数
@@ -124,7 +124,7 @@ LIGHT_MAX_RUN_SEC = 20         # 补光灯单次最大运行时长（安全限�
 # ============ 温度安全护栏 ============
 # 超过 TEMP_HIGH_C 视为高温，跳过浇水避免叶面灼伤 + 闷根
 # 低于 TEMP_LOW_C 视为低温，跳过浇水避免冻根
-# 注：太空舱内温度异常通常表示热控失效，决策上保守为先
+# 注：室内温度异常时决策以保护植物和设备为先
 TEMP_HIGH_C = 35   # 高温警戒线（℃）
 TEMP_LOW_C = 8     # 低温警戒线（℃）
 
@@ -132,22 +132,22 @@ TEMP_LOW_C = 8     # 低温警戒线（℃）
 # PLANT_DB 已迁移至 plants.json（节省 RAM）
 # 如需添加新植物，请编辑 plants.json 文件
 
-# ============ 植物列表（有序，供独立按钮菜单使用，含 8 种植物） ============
+# ============ 常见花卉与家庭植物（有序，供按键菜单使用） ============
 PLANT_LIST = [
-    "生菜",      # 0: 叶菜
-    "小白菜",    # 1: 叶菜
-    "菠菜",      # 2: 叶菜
-    "韭菜",      # 3: 叶菜
-    "番茄",      # 4: 果菜
-    "辣椒",      # 5: 果菜
-    "黄瓜",      # 6: 果菜
-    "茄子",      # 7: 果菜
+    "白掌",      # 0: 常见观花植物
+    "绿萝",      # 1: 常见观叶植物
+    "吊兰",      # 2: 常见观叶植物
+    "虎尾兰",    # 3: 耐旱观叶植物
+    "月季",      # 4: 常见花卉
+    "长寿花",    # 5: 常见盆栽花卉
+    "多肉",      # 6: 耐旱盆栽植物
+    "薄荷",      # 7: 常见香草植物
 ]
 
 
 def get_plant_name(index):
     """根据索引获取植物名称（0-7，共 8 种）"""
-    return PLANT_LIST[index] if 0 <= index < len(PLANT_LIST) else "生菜"  # 默认返回生菜
+    return PLANT_LIST[index] if 0 <= index < len(PLANT_LIST) else "白掌"  # 默认返回白掌
 
 
 def get_plant_info(plant_name):
@@ -161,7 +161,7 @@ def get_plant_info(plant_name):
             db = ujson.load(f)
             plant_data = db.get(plant_name)
             if not plant_data:
-                plant_data = db.get("生菜")
+                plant_data = db.get("白掌")
     except Exception as e:
         print(f"Error loading plants.json: {e}")
         # Fallback minimal data if file missing or corrupt

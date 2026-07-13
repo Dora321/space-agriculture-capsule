@@ -276,42 +276,9 @@ py -m mpremote connect COM3 cp diagnostics/debug_dht.py :debug_dht.py
 py -m mpremote connect COM3 run debug_dht.py
 ```
 
-## API 配置
+## AI 与联网边界
 
-> **当前已配置：DeepSeek deepseek-v4-flash**（¥1/百万tokens，性价比极高）
-
-### DeepSeek（当前配置）
-
-1. 注册 https://platform.deepseek.com/
-2. 在「API Keys」页面创建密钥
-3. 修改 `config.py`（已预置，可直接填入密钥）：
-```python
-AI_API_URL = "https://api.deepseek.com/chat/completions"
-AI_API_KEY = "你的DeepSeek API密钥"
-AI_MODEL = "deepseek-v4-flash"
-AI_TIMEOUT = 20
-```
-
-> **注意**：推理模型（如 deepseek-reasoner）思考时间较长，`AI_TIMEOUT` 建议设为 20 秒以上。如果使用非推理模型（如 deepseek-chat），可适当缩短至 10 秒。
-
-### 火山方舟
-
-1. 注册 https://open.bigmodel.cn/
-2. 创建 API Key
-3. 修改 config.py：
-```python
-AI_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-AI_API_KEY = "你的密钥"
-AI_MODEL = "glm-4-flash"
-```
-
-### OpenAI
-
-```python
-AI_API_URL = "https://api.openai.com/v1/chat/completions"
-AI_API_KEY = "你的密钥"
-AI_MODEL = "gpt-3.5-turbo"
-```
+ESP32 不保存 API 密钥，也不直接连接 WiFi/云端。它只通过 UART 与树莓派交换 `report/advice/ping/pong`。文本 AI 配置位于树莓派 `tools/pi_advisor.py`，Camera Module 3 多模态配置位于树莓派 `.config/vision.env`。
 
 ## 调试
 
@@ -347,12 +314,11 @@ py -m mpremote connect COM3
 
 ### 日志输出
 
-系统启动后会输出：
+系统启动后会输出类似：
 ```
-[WiFi] Connected successfully! IP: 192.168.1.100
 [Sensor] Soil:45% | Light:65% | Temp:24C | Hum:65%
 [Growth] Day 15 | Stage: vegetative | Fert: N
-[AI Decision] action=water duration=10s reason=Soil moisture below threshold
+[UART] report seq=...
 ```
 
 ## 常见问题
@@ -365,22 +331,10 @@ py -m mpremote connect COM3
    - 确认是低电平触发模块
    - 检查共地连接
 
-3. **WiFi 连接失败**
-   - 检查 SSID 和密码
-   - 确认 WiFi 2.4GHz（ESP32 不支持 5GHz）
+3. **树莓派收不到 UART report**
+   - 检查 TX/RX 交叉、共地、115200 波特率和 `/dev/serial0` 是否已释放内核控制台
 
-4. **AI API 超时（-116 ETIMEDOUT）**
-   - 推理模型思考时间长，增大 `AI_TIMEOUT`（建议 20 秒）
-   - 非推理模型可缩短至 10 秒
-
-5. **AI 返回 `finish_reason: length`**
-   - 推理 token 消耗了 max_tokens 预算，增大 `max_tokens`（当前 1024）
-
-6. **AI 请求体截断 / JSON 解析失败**
-   - MicroPython `urequests` 对中文字符的 Content-Length 计算有 bug
-   - 代码已使用 `.encode('utf-8')` 修复，确保使用最新版 `ai_client.py`
-
-7. **传感器离线告警**
+4. **传感器离线告警**
    - 传感器读取失败时，系统返回 None 并触发 LED 红闪 + OLED 显示 "OFFLINE" 告警
    - 土壤传感器离线 → 降级为 0%（触发安全浇水）
    - 光敏模块离线 → 降级为 0%
@@ -388,14 +342,11 @@ py -m mpremote connect COM3
 
 ## 设计限制说明
 
-1. **执行器运行期间主循环阻塞**：12V 水泵运行时使用 `time.sleep(1)` 分段等待，期间无法响应新传感器数据或 WiFi 断连。这是 ESP32 单线程 MicroPython 的已知限制。最大阻塞时间 = 单次最大运行时长（默认 60 秒）。
+1. **执行器运行期间主循环阻塞**：水泵或补光运行时主循环同步等待。这是当前 MicroPython 实现的已知简化，动作仍受单次时长和频率安全限制。
 
 2. **OLED 英文模式**：系统使用 SH1106 framebuffer ASCII 5x8 字体显示，植物名称和状态以英文显示。如需中文显示，需自行添加 16x16 点阵字库文件。
 
-3. **API 密钥安全**：`config.py` 中 API 密钥为明文存储，这是嵌入式设备的常见做法。但请注意：
-   - **不要将 `config.py` 上传到公开 Git 仓库**（已在 `.gitignore` 中排除）
-   - 建议使用 `/secrets/` 目录存储密钥（`_load_secret()` 函数支持）
-   - DeepSeek API 密钥可在 https://platform.deepseek.com/ 随时重置
+3. **密钥安全**：ESP32 `config.py` 只保存设备参数；云端 API 密钥仅保存在树莓派权限为 `600` 的环境文件中，不进入固件或 Git。
 
 ## 扩展
 

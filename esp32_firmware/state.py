@@ -15,7 +15,7 @@ class SystemState:
         self.light_level = 0
         self.temperature = 0.0
         self.humidity = 0.0
-        self.plant_type = "生菜"
+        self.plant_type = "白掌"
         self.plant_info = None
         self.days_since_planting = 0
         self.growth_stage = None
@@ -38,4 +38,6 @@ class SystemState:
         self.start_time = 0
         self.demo_soil_moisture = None
         self.manual_day = None      # 手动设置的种植天数；None 则按 config.PLANTING_DATE 计算
+        self.day_source = "device"  # device/manual/pi；Pi 同步后以实验档案为准
+        self.experiment_id = ""
         self.fast_mode = False      # 展示模式：读真实传感器但快速响应（缩短读取/决策间隔）

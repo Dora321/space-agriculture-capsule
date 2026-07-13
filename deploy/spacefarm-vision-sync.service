@@ -1,0 +1,23 @@
+[Unit]
+Description=Space Farm Pi to cloud vision outbox sync
+After=network-online.target spacefarm-vision-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mx
+Group=mx
+WorkingDirectory=/home/mx/spacefarm
+EnvironmentFile=/home/mx/spacefarm/.config/vision.env
+EnvironmentFile=-/home/mx/spacefarm/.config/experiment.env
+Environment=SPACEFARM_VISION_DATA_DIR=/home/mx/spacefarm/data/vision
+Environment=SPACEFARM_CLOUD_BASE_URL=http://43.156.68.157:8790
+Environment=SPACEFARM_CLOUD_SYNC_INTERVAL=5
+Environment=SPACEFARM_CLOUD_TIMEOUT_SEC=120
+Environment=SPACEFARM_CLOUD_MAX_IMAGE_BYTES=120000
+ExecStart=/usr/bin/python3 -u /home/mx/spacefarm/tools/vision_service.py cloud-loop
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

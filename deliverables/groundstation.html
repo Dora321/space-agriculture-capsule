@@ -3,32 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>月球温室 · 在轨育种监控站</title>
+<title>AI免维护种花 · 第二代开放式智能花盆</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#05070d;
-  --bg-panel:#0a0f1a;
-  --bg-panel-2:#0d1422;
-  --grid:rgba(60,120,140,0.07);
-  --ink:#c9e8e4;
-  --ink-dim:#5f7d82;
+  --bg:#03070d;
+  --bg-panel:rgba(7,15,25,.94);
+  --bg-panel-2:rgba(12,25,39,.94);
+  --grid:rgba(65,164,172,0.075);
+  --ink:#d9f2ee;
+  --ink-dim:#78969b;
   --glow:#1ef0c8;        /* 青绿荧光：主数据色 */
   --glow-soft:rgba(30,240,200,0.15);
   --amber:#ffb02e;       /* 琥珀：警示 */
   --red:#ff3b4e;         /* 红：告警 */
   --violet:#b06bff;      /* 紫：补光/缺光信号 */
   --blue:#3b9bff;        /* 蓝：低温/过湿 */
-  --line:rgba(60,120,140,0.18);
+  --line:rgba(76,181,181,0.22);
+  --line-strong:rgba(92,214,204,.34);
+  --shadow:0 18px 48px rgba(0,0,0,.32);
+  --shadow-soft:0 8px 24px rgba(0,0,0,.2);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{
   background:var(--bg);
   color:var(--ink);
-  font-family:'Chakra Petch',sans-serif;
+  font-family:'Microsoft YaHei','PingFang SC','Chakra Petch',sans-serif;
   overflow-x:hidden;
   position:relative;
   min-height:100vh;
@@ -39,77 +42,109 @@ body::before{
   background-image:
     linear-gradient(var(--grid) 1px,transparent 1px),
     linear-gradient(90deg,var(--grid) 1px,transparent 1px);
-  background-size:44px 44px;
+  background-size:48px 48px;
   mask-image:radial-gradient(ellipse 120% 90% at 50% 0%,#000 40%,transparent 100%);
 }
 body::after{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.5;
   background:
-    radial-gradient(circle at 15% 10%,rgba(30,240,200,0.08),transparent 35%),
-    radial-gradient(circle at 85% 90%,rgba(176,107,255,0.07),transparent 40%);
+    radial-gradient(circle at 10% 4%,rgba(30,240,200,0.11),transparent 30%),
+    radial-gradient(circle at 92% 92%,rgba(176,107,255,0.09),transparent 38%),
+    radial-gradient(circle at 62% 42%,rgba(59,155,255,.035),transparent 34%);
 }
 .noise{
   position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0.04;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.wrap{position:relative;z-index:2;max-width:1500px;margin:0 auto;padding:20px 26px 50px}
+.wrap{position:relative;z-index:2;max-width:1680px;margin:0 auto;padding:16px 22px 24px}
 
 /* ===== 顶部任务条 ===== */
 .mission-bar{
   display:flex;align-items:center;justify-content:space-between;
   border:1px solid var(--line);
-  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
-  padding:14px 22px;border-radius:4px;margin-bottom:20px;
+  background:linear-gradient(115deg,rgba(12,34,47,.98),rgba(6,14,24,.98) 58%,rgba(11,20,34,.98));
+  padding:12px 20px;border-radius:12px;margin-bottom:14px;
   position:relative;overflow:hidden;
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.055);
   animation:fadeUp .6s ease both;
 }
 .mission-bar::before{
   content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--glow);
   box-shadow:0 0 14px var(--glow);
 }
+.mission-bar::after{content:"";position:absolute;left:3px;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,var(--glow),rgba(59,155,255,.45),transparent 72%)}
 .m-left{display:flex;align-items:center;gap:18px}
 .m-logo{
   font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.5rem;
   letter-spacing:2px;color:var(--ink);
 }
-.m-logo b{color:var(--glow);text-shadow:0 0 18px var(--glow-soft)}
+.m-logo b{color:var(--glow);text-shadow:0 0 22px rgba(30,240,200,.28)}
 .m-sub{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--ink-dim);letter-spacing:1px}
-.m-right{display:flex;gap:30px;align-items:center;font-family:'JetBrains Mono',monospace}
-.m-stat{text-align:right}
+.experiment-btn{border:1px solid rgba(30,240,200,.65);background:linear-gradient(180deg,rgba(30,240,200,.16),rgba(30,240,200,.06));color:var(--glow);
+  padding:8px 13px;border-radius:7px;font-family:'JetBrains Mono';font-size:.68rem;
+  letter-spacing:1px;cursor:pointer}
+.experiment-btn:hover{box-shadow:0 0 14px var(--glow-soft)}
+.header-actions{display:flex;align-items:center;gap:8px}
+.theme-toggle{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.theme-icon{font-size:.9rem;line-height:1;transition:transform .35s ease}
+.theme-toggle:hover .theme-icon{transform:rotate(180deg)}
+.m-right{display:flex;gap:0;align-items:center;font-family:'JetBrains Mono',monospace}
+.m-stat{text-align:right;padding:2px 17px;border-left:1px solid rgba(120,180,185,.12)}
+.m-stat:first-child{border-left:0}
 .m-stat .lbl{font-size:.6rem;color:var(--ink-dim);letter-spacing:2px;text-transform:uppercase}
 .m-stat .val{font-size:1.05rem;color:var(--glow);font-weight:700;letter-spacing:1px}
 .m-stat .val.amber{color:var(--amber)}
 .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--glow);
   box-shadow:0 0 10px var(--glow);animation:blink 1.4s infinite;display:inline-block;margin-right:6px}
 
-/* ===== 主网格 ===== */
-.grid{display:grid;grid-template-columns:1.1fr 1.5fr 1.1fr;gap:18px}
-@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+/* ===== 主网格：桌面端 12 栅格，三行完整呈现 ===== */
+.grid{
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+  grid-template-areas:
+    "sample sample sample sensors sensors sensors chart chart chart chart chart chart"
+    "decision decision decision decision decision actuator actuator actuator vision vision vision vision"
+    "events events events events health health team team team team team team";
+  gap:12px;
+}
+.col{display:contents}
+.panel-sample{grid-area:sample}.panel-sensors{grid-area:sensors}.panel-events{grid-area:events}
+.panel-chart{grid-area:chart}.panel-decision{grid-area:decision}.panel-actuator{grid-area:actuator}
+.panel-health{grid-area:health}.panel-vision{grid-area:vision}.panel-team{grid-area:team}
 
 .panel{
-  border:1px solid var(--line);border-radius:4px;
-  background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel));
-  padding:18px;position:relative;
+  border:1px solid var(--line);border-radius:12px;
+  background:linear-gradient(145deg,rgba(12,27,42,.96),rgba(6,14,24,.97) 72%);
+  padding:14px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-soft),inset 0 1px 0 rgba(255,255,255,.035);
   animation:fadeUp .6s ease both;
 }
+.panel::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(120deg,rgba(30,240,200,.035),transparent 32%)}
 .panel::after{ /* 角标装饰 */
-  content:"";position:absolute;top:8px;right:8px;width:14px;height:14px;
+  content:"";position:absolute;top:9px;right:9px;width:14px;height:14px;
   border-top:1px solid var(--glow);border-right:1px solid var(--glow);opacity:.4;
 }
 .panel-t{
-  font-family:'Orbitron',sans-serif;font-size:.82rem;letter-spacing:2px;
-  color:var(--ink);margin-bottom:16px;
+  font-family:'Orbitron',sans-serif;font-size:.78rem;letter-spacing:1.6px;
+  color:var(--ink);margin-bottom:11px;font-weight:700;
   display:flex;align-items:center;gap:8px;
 }
 .panel-t span{color:var(--glow);font-size:.65rem}
-.col{display:flex;flex-direction:column;gap:18px}
+.panel-t::after{content:"";height:1px;flex:1;min-width:14px;margin-left:4px;
+  background:linear-gradient(90deg,rgba(30,240,200,.28),transparent)}
+.panel-t .ai-src{flex:none}
+.panel-decision{border-color:rgba(30,240,200,.3);box-shadow:0 10px 32px rgba(0,0,0,.24),inset 0 1px 0 rgba(30,240,200,.08)}
+.panel-actuator{border-color:rgba(255,176,46,.25)}
+.panel-vision{border-color:rgba(176,107,255,.38);box-shadow:0 12px 36px rgba(0,0,0,.28),0 0 24px rgba(176,107,255,.04)}
+.panel-team{border-color:rgba(59,155,255,.24)}
 
 /* 作物头卡 */
 .crop-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.crop-name{font-family:'Orbitron';font-size:1.3rem;font-weight:700;color:var(--ink)}
+.crop-name{font-family:'Orbitron';font-size:1.38rem;font-weight:700;color:#effffc;text-shadow:0 0 18px rgba(30,240,200,.12)}
 .crop-en{font-family:'JetBrains Mono';font-size:.68rem;color:var(--ink-dim);letter-spacing:1px;margin-top:-8px;margin-bottom:8px}
-.crop-gen{font-family:'JetBrains Mono';font-size:.7rem;color:var(--violet);
-  border:1px solid var(--violet);padding:2px 8px;border-radius:3px;letter-spacing:1px}
+.crop-gen{font-family:'JetBrains Mono';font-size:.7rem;color:#d3aaff;
+  border:1px solid rgba(176,107,255,.62);background:rgba(176,107,255,.08);padding:3px 9px;border-radius:999px;letter-spacing:1px}
 .crop-meta{font-family:'JetBrains Mono';font-size:.72rem;color:var(--ink-dim);line-height:1.7}
 .crop-meta b{color:var(--glow)}
 .stage-bar{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:10px;overflow:hidden}
@@ -117,10 +152,15 @@ body::after{
   box-shadow:0 0 8px var(--glow-soft);transition:width 1s}
 
 /* 传感器读数 */
-.gauges{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.gauge{border:1px solid var(--line);border-radius:4px;padding:12px;position:relative;background:rgba(0,0,0,0.2)}
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.gauge{border:1px solid rgba(83,156,164,.2);border-radius:9px;padding:9px 11px;position:relative;
+  background:linear-gradient(145deg,rgba(8,20,31,.92),rgba(3,9,16,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+.gauge::before{content:"";position:absolute;left:9px;right:9px;top:0;height:1px;background:linear-gradient(90deg,var(--glow),transparent);opacity:.55}
+.gauge:nth-child(2)::before{background:linear-gradient(90deg,var(--amber),transparent)}
+.gauge:nth-child(3)::before{background:linear-gradient(90deg,var(--glow),transparent)}
+.gauge:nth-child(4)::before{background:linear-gradient(90deg,var(--blue),transparent)}
 .gauge .gl{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);letter-spacing:1px}
-.gauge .gv{font-family:'Orbitron';font-size:1.7rem;font-weight:700;margin-top:4px}
+.gauge .gv{font-family:'Orbitron';font-size:1.48rem;font-weight:700;margin-top:2px;text-shadow:0 0 14px currentColor}
 .gauge .gu{font-size:.7rem;color:var(--ink-dim);margin-left:3px}
 .gauge .gtrack{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:8px;overflow:hidden}
 .gauge .gbar{height:100%;transition:width .8s}
@@ -144,11 +184,11 @@ body::after{
 .tag-real{background:rgba(30,240,200,0.12);color:var(--glow)}
 .tag-virt{background:rgba(95,125,130,0.15);color:var(--ink-dim)}
 
-/* 育种观察 */
-.breeding{border:1px solid var(--line);border-radius:4px;padding:13px;
+/* AI 养护摘要 */
+.breeding{border:1px solid var(--line);border-radius:8px;padding:10px 12px;
   background:linear-gradient(135deg,rgba(176,107,255,0.06),transparent)}
 .breeding .bt{font-family:'Orbitron';font-size:.7rem;color:var(--violet);letter-spacing:1px;margin-bottom:8px}
-.breeding .bx{font-family:'Chakra Petch';font-size:.88rem;line-height:1.6;color:var(--ink);font-style:italic}
+.breeding .bx{font-family:'Chakra Petch';font-size:.78rem;line-height:1.45;color:var(--ink);font-style:italic}
 
 /* 执行器 */
 .actuators{display:flex;flex-direction:column;gap:8px}
@@ -161,54 +201,403 @@ body::after{
 .st-idle{background:rgba(95,125,130,0.12);color:var(--ink-dim)}
 .st-virt{background:rgba(176,107,255,0.12);color:var(--violet)}
 
-/* 育种团队 */
-.crew{display:flex;flex-direction:column;gap:9px}
-.member{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:4px;background:rgba(0,0,0,0.2)}
-.member .av{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,rgba(30,240,200,0.18),rgba(176,107,255,0.18));border:1px solid var(--line);
-  font-family:'Chakra Petch';font-size:.95rem;color:var(--glow);font-weight:600}
-.member .m-name{font-family:'Chakra Petch';font-size:.95rem;color:var(--ink);font-weight:600}
-.member .m-role{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);margin-top:1px}
+/* 项目团队 */
+.team-badge{margin-left:auto!important;flex:none!important;padding:3px 7px;border:1px solid rgba(59,155,255,.2);
+  border-radius:999px;color:var(--blue)!important;background:rgba(59,155,255,.06);
+  font:600 .5rem 'JetBrains Mono'!important;letter-spacing:.8px!important}
+.crew{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.member{--member-accent:var(--glow);position:relative;display:grid;grid-template-columns:38px minmax(0,1fr);
+  align-items:start;gap:9px;padding:9px 10px;border:1px solid color-mix(in srgb,var(--member-accent) 22%,transparent);
+  border-radius:11px;background:linear-gradient(145deg,color-mix(in srgb,var(--member-accent) 8%,rgba(9,25,37,.92)),rgba(4,11,19,.82));
+  min-width:0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.member:nth-child(2){--member-accent:var(--blue)}.member:nth-child(3){--member-accent:var(--amber)}
+.member::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;
+  background:var(--member-accent);box-shadow:0 0 10px color-mix(in srgb,var(--member-accent) 38%,transparent)}
+.member::after{content:attr(data-index);position:absolute;right:7px;bottom:-9px;color:color-mix(in srgb,var(--member-accent) 8%,transparent);
+  font:800 2.8rem 'Orbitron';line-height:1;pointer-events:none}
+.member .av{position:relative;width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--member-accent) 13%,transparent);border:1px solid color-mix(in srgb,var(--member-accent) 25%,transparent);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;font-size:.9rem;color:var(--member-accent);font-weight:700}
+.member-body{position:relative;z-index:1;min-width:0}.member-top{display:flex;align-items:center;gap:6px;min-width:0}
+.member .m-name{font-family:'Microsoft YaHei','PingFang SC',sans-serif;font-size:.82rem;color:var(--ink);font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-status{margin-left:auto;flex:none;padding:1px 5px;border-radius:999px;color:var(--member-accent);
+  background:color-mix(in srgb,var(--member-accent) 10%,transparent);font:500 .49rem 'JetBrains Mono'}
+.member .m-role{font-family:'JetBrains Mono';font-size:.55rem;color:var(--ink-dim);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member .m-task{position:relative;padding-left:9px;font-family:'JetBrains Mono';font-size:.56rem;color:var(--member-accent);
+  margin-top:5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.member .m-task::before{content:"";position:absolute;left:0;top:.42em;width:4px;height:4px;border-radius:50%;background:var(--member-accent)}
+.member-tags{display:flex;gap:4px;margin-top:6px;position:relative;z-index:1}
+.member-tags span{padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.055);
+  color:var(--ink-dim);font-size:.49rem;line-height:1.2;white-space:nowrap}
 
 /* AI 决策链 */
-.chain{display:flex;flex-direction:column;gap:0;margin-bottom:14px}
-.chain-step{border:1px solid var(--line);border-radius:5px;padding:11px 13px;background:rgba(0,0,0,0.22);position:relative}
-.chain-step.out{border-color:rgba(30,240,200,0.35);background:rgba(30,240,200,0.05)}
+.chain{display:grid;grid-template-columns:1fr 22px 1.18fr 22px 1fr;gap:0;margin-bottom:9px;align-items:stretch}
+.chain-step{border:1px solid rgba(75,149,158,.25);border-radius:9px;padding:9px 11px;
+  background:linear-gradient(145deg,rgba(7,22,32,.9),rgba(3,10,17,.82));position:relative;overflow:hidden}
+.chain-step::after{position:absolute;right:7px;bottom:-8px;font-family:'Orbitron';font-size:2.3rem;font-weight:900;color:rgba(30,240,200,.045)}
+.chain-step:nth-child(1)::after{content:"01"}.chain-step:nth-child(3)::after{content:"02"}.chain-step:nth-child(5)::after{content:"03"}
+.chain-step.out{border-color:rgba(30,240,200,0.42);background:linear-gradient(145deg,rgba(30,240,200,.09),rgba(4,18,24,.86))}
 .cs-h{font-family:'Orbitron';font-size:.62rem;letter-spacing:2px;color:var(--glow);margin-bottom:6px}
 .chain-step.out .cs-h{color:var(--glow)}
-.cs-b{font-family:'JetBrains Mono';font-size:.84rem;color:var(--ink);line-height:1.6}
+.cs-b{font-family:'JetBrains Mono';font-size:.7rem;color:var(--ink);line-height:1.45}
 .cs-b .hi{color:var(--glow)} .cs-b .am{color:var(--amber)}
-.cs-reason{font-family:'Chakra Petch';font-size:.78rem;color:var(--ink-dim);margin-top:6px;font-style:italic;line-height:1.5}
-.chain-arrow{text-align:center;color:var(--glow);font-size:.7rem;line-height:1;padding:3px 0;opacity:.7}
+.cs-reason{font-family:'Chakra Petch';font-size:.67rem;color:var(--ink-dim);margin-top:4px;font-style:italic;line-height:1.35}
+.chain-arrow{display:flex;align-items:center;justify-content:center;color:var(--glow);font-size:0;opacity:.7}
+.chain-arrow::before{content:"›";font-size:1.35rem;text-shadow:0 0 10px var(--glow)}
 
 /* 执行器富信息卡 */
-.actx{display:flex;flex-direction:column;gap:11px}
-.actx-card{border:1px solid var(--line);border-radius:5px;padding:11px 13px;background:rgba(0,0,0,0.22)}
+.actx{display:flex;flex-direction:column;gap:8px}
+.actx-card{border:1px solid rgba(255,176,46,.18);border-radius:9px;padding:9px 11px;
+  background:linear-gradient(145deg,rgba(20,22,25,.9),rgba(5,12,19,.86))}
 .actx-h{display:flex;align-items:center;gap:9px;font-family:'Chakra Petch';font-size:.95rem;color:var(--ink);font-weight:600;margin-bottom:9px}
-.actx-h .ai{font-size:1.05rem}
+.actx-h .ai{font-size:1.05rem;width:27px;height:27px;border-radius:8px;display:grid;place-items:center;background:rgba(30,240,200,.08)}
 .actx-h .ast{margin-left:auto}
 .actx-rows{display:flex;flex-direction:column;gap:5px;font-family:'JetBrains Mono';font-size:.72rem}
 .actx-rows>div{display:flex;justify-content:space-between}
 .actx-rows span{color:var(--ink-dim)} .actx-rows b{color:var(--glow);font-weight:500}
 .actx-foot{font-family:'JetBrains Mono';font-size:.62rem;color:var(--ink-dim);margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
 .logstream .ai{color:var(--glow)} .logstream .hl{color:var(--ink)}
-.member .m-task{font-family:'JetBrains Mono';font-size:.62rem;color:var(--glow);margin-top:3px;line-height:1.35}
 
 /* 趋势图 */
 .chart-wrap{position:relative}
-canvas{width:100%;height:180px;display:block}
+canvas{width:100%;height:116px;display:block}
 .chart-legend{display:flex;gap:16px;justify-content:center;margin-top:10px;
   font-family:'JetBrains Mono';font-size:.64rem;color:var(--ink-dim)}
 .chart-legend i{display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle}
 
 /* 日志流 */
-.logstream{font-family:'JetBrains Mono';font-size:.68rem;line-height:1.9;
-  max-height:150px;overflow-y:auto;color:var(--ink-dim);scroll-behavior:smooth;padding-right:4px}
+.logstream{font-family:'JetBrains Mono';font-size:.65rem;line-height:1.65;
+  max-height:112px;overflow-y:auto;color:var(--ink-dim);scroll-behavior:smooth;padding-right:4px}
 .logstream .t{color:var(--glow)}
 .logstream .w{color:var(--amber)}
 
+/* Camera Module 3 / AI 长势观察（与执行器控制链隔离） */
+.vision-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr);gap:10px;align-items:start}
+.vision-media,.vision-details{min-width:0}.vision-media{position:relative}
+.vision-media::before{content:"RECENT CAPTURE";position:absolute;z-index:2;left:7px;top:7px;padding:3px 7px;border-radius:999px;
+  background:rgba(3,8,14,.78);border:1px solid rgba(30,240,200,.38);color:var(--glow);font:600 .52rem 'JetBrains Mono';letter-spacing:.8px;backdrop-filter:blur(4px)}
+.vision-shot{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:contain;border:1px solid var(--line);
+  border-radius:8px;background:#03060b;margin:0;transform:rotate(180deg);transform-origin:center;
+  box-shadow:0 10px 26px rgba(0,0,0,.34),0 0 0 1px rgba(176,107,255,.08)}
+.vision-shot[hidden]{display:none}
+.vision-row{display:flex;justify-content:space-between;gap:10px;color:var(--ink-dim);
+  font-size:.67rem;line-height:1.55;padding-bottom:3px}
+.vision-row b{color:var(--ink);text-align:right;min-width:0}
+.vision-state{padding:2px 6px;border-radius:999px;border:1px solid rgba(120,160,165,.22);background:rgba(120,160,165,.07)}
+.vision-state.ok{color:var(--glow);border-color:rgba(30,240,200,.36);background:rgba(30,240,200,.08)}
+.vision-state.wait{color:var(--amber);border-color:rgba(255,176,46,.34);background:rgba(255,176,46,.07)}
+.vision-state.error{color:var(--red);border-color:rgba(255,59,78,.34);background:rgba(255,59,78,.07)}
+.plant-analysis{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}
+.analysis-item{border:1px solid rgba(76,181,181,.2);border-radius:7px;padding:5px 6px;
+  color:var(--ink-dim);min-width:0;background:rgba(4,13,21,.72);font-size:.59rem;line-height:1.35}
+.analysis-item.wide{grid-column:1/-1}.analysis-item span{display:block;margin-bottom:2px}
+.analysis-item b{display:block;color:var(--ink);font-size:.62rem;font-weight:600;overflow-wrap:anywhere}
+.analysis-item.summary{border-color:rgba(30,240,200,.32);background:rgba(30,240,200,.045)}
+.vision-details{scrollbar-width:thin;scrollbar-color:rgba(30,240,200,.42) transparent}
+.vision-details::-webkit-scrollbar{width:6px}
+.vision-details::-webkit-scrollbar-track{background:rgba(255,255,255,.025);border-radius:6px}
+.vision-details::-webkit-scrollbar-thumb{background:rgba(30,240,200,.38);border-radius:6px}
+.panel-vision .panel-t::after{order:1}.manual-capture-btn{order:2;flex:none;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid rgba(30,240,200,.4);border-radius:999px;padding:4px 8px;background:rgba(30,240,200,.075);
+  color:var(--glow);font:600 .53rem 'Microsoft YaHei','PingFang SC',sans-serif;cursor:pointer;white-space:nowrap}
+.manual-capture-btn:hover{background:rgba(30,240,200,.14);box-shadow:0 0 12px rgba(30,240,200,.1)}
+.manual-capture-btn:disabled{cursor:wait;opacity:.72}.manual-capture-btn.busy .capture-icon{animation:capturePulse 1.1s infinite}
+.manual-capture-btn.done{border-color:rgba(30,240,200,.25);background:rgba(30,240,200,.05)}
+.capture-icon{font-size:.66rem}.capture-label{font-weight:600}
+.vision-scroll-hint{position:sticky;top:0;z-index:3;margin:1px 0 4px;padding:3px 6px;border-radius:5px;
+  color:var(--glow);background:linear-gradient(90deg,var(--bg-panel),rgba(30,240,200,.08));
+  font-size:.54rem;text-align:center;letter-spacing:.3px;border:1px solid rgba(30,240,200,.18)}
+.vision-note{margin-top:7px;padding:6px 7px;border-left:2px solid var(--violet);
+  color:var(--ink-dim);font-size:.68rem;background:rgba(176,107,255,.05)}
+.vision-capture-meta{display:flex;align-items:center;gap:6px;margin-top:6px;color:var(--ink-dim);font:500 .58rem 'JetBrains Mono'}
+.vision-capture-meta i{width:6px;height:6px;border-radius:50%;background:var(--glow);box-shadow:0 0 8px var(--glow)}
+.logstream::-webkit-scrollbar{width:5px}.logstream::-webkit-scrollbar-thumb{background:rgba(30,240,200,.28);border-radius:5px}
+
+/* 实验日期设置：只写实验元数据，不提供执行器控制 */
+.modal-backdrop{position:fixed;inset:0;z-index:20;background:rgba(2,5,10,.82);
+  display:grid;place-items:center;padding:20px;backdrop-filter:blur(5px)}
+.modal-backdrop[hidden]{display:none}
+.experiment-modal{width:min(520px,100%);border:1px solid var(--glow);
+  background:linear-gradient(180deg,#0d1624,#080d16);padding:22px;box-shadow:0 0 40px rgba(30,240,200,.12)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;
+  font-family:'Orbitron';letter-spacing:1px}
+.modal-close{border:0;background:transparent;color:var(--ink-dim);font-size:1.4rem;cursor:pointer}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-field{display:flex;flex-direction:column;gap:5px;font-family:'JetBrains Mono';font-size:.67rem;color:var(--ink-dim)}
+.form-field.wide{grid-column:1/-1}
+.form-field input{background:#050a12;border:1px solid var(--line);color:var(--ink);padding:9px;border-radius:3px;font:inherit}
+.form-help{font-size:.66rem;color:var(--ink-dim);line-height:1.6;margin:13px 0}
+.form-status{min-height:20px;color:var(--glow);font-family:'JetBrains Mono';font-size:.7rem;margin-bottom:10px}
+.form-actions{display:flex;justify-content:flex-end;gap:9px}
+.form-actions button{padding:8px 14px;border-radius:3px;cursor:pointer;font-family:'JetBrains Mono';font-size:.7rem}
+.btn-secondary{border:1px solid var(--line);background:transparent;color:var(--ink-dim)}
+.btn-primary{border:1px solid var(--glow);background:var(--glow-soft);color:var(--glow)}
+@media(min-width:1101px){
+  html,body{overflow:hidden}
+  .wrap{height:100vh;display:flex;flex-direction:column}
+  .grid{flex:1;min-height:0;grid-template-rows:minmax(150px,.9fr) minmax(285px,1.55fr) minmax(128px,.78fr)}
+  .panel{min-height:0;animation-name:fadeIn}
+  .panel-decision #signals{display:grid;grid-template-columns:1fr 1fr;gap:5px 7px}
+  .panel-decision .signal{margin:0;padding:5px 8px;font-size:.65rem;min-width:0}
+  .panel-decision .signal .sig-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .panel-decision .signal .sig-tag{display:none}
+  .panel-health .crop-meta{line-height:1.8}
+  .panel-team .crew{grid-template-columns:repeat(3,minmax(0,1fr));height:calc(100% - 25px);align-items:stretch}
+  .panel-team .member{align-items:start;gap:8px;height:100%}
+  .panel-team .member>div:last-child{min-width:0}
+  .panel-team .m-name,.panel-team .m-role,.panel-team .m-task{overflow:hidden;text-overflow:ellipsis}
+  .panel-vision{display:flex;flex-direction:column}
+  .panel-vision>.panel-t{flex:none}
+  .panel-vision>.vision-layout{flex:1;min-height:0}
+  .panel-vision .vision-details{height:100%;min-height:0;overflow-y:auto;overflow-x:hidden;
+    padding-right:6px;scrollbar-gutter:stable}
+}
+@media(max-width:1100px){
+  html,body{overflow:auto}
+  .wrap{padding:14px}
+  .grid{display:flex;flex-direction:column;gap:12px}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .chain{display:flex;flex-direction:column}
+  .chain-arrow{padding:3px}.chain-arrow::before{content:"▼";font-size:.7rem}
+  canvas{height:180px}
+  .vision-layout{grid-template-columns:1fr}
+  .vision-shot{height:auto;aspect-ratio:16/9}
+}
+@media(max-width:700px){
+  .mission-bar{align-items:flex-start;gap:12px;flex-direction:column}
+  .m-right{gap:12px;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}.crew{grid-template-columns:1fr}
+}
+@media(min-width:1101px) and (max-height:820px){
+  .wrap{padding:7px 14px 7px}
+  .mission-bar{padding:8px 15px;margin-bottom:9px}
+  .m-logo{font-size:1.15rem}.m-sub{font-size:.61rem}.m-right{gap:20px}.m-stat .val{font-size:.88rem}
+  .grid{gap:9px;grid-template-rows:minmax(135px,.86fr) minmax(270px,1.55fr) minmax(116px,.72fr)}
+  .panel{padding:10px 11px}.panel-t{margin-bottom:7px;font-size:.69rem}
+  .crop-head{margin-bottom:7px}.crop-name{font-size:1.08rem}.crop-meta{font-size:.64rem;line-height:1.5}
+  .gauge{padding:6px 8px}.gauge .gv{font-size:1.1rem}.gauge .gtrack{margin-top:4px}
+  canvas{height:92px}.chart-legend{margin-top:5px}
+  .chain-step{padding:6px 8px}.cs-h{margin-bottom:3px}.cs-b{font-size:.61rem}.cs-reason{font-size:.59rem}
+  .panel-decision .signal{padding:3px 6px;font-size:.59rem}.breeding{padding:6px 8px}.breeding .bt{margin-bottom:3px}.breeding .bx{font-size:.67rem}
+  .actx-card{padding:6px 8px}.actx-h{margin-bottom:5px}.actx-rows{gap:3px;font-size:.63rem}.actx-foot{margin-top:6px;padding-top:5px}
+  .vision-layout{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr);gap:7px}
+  .vision-row{font-size:.58rem;line-height:1.35;padding-bottom:2px}.vision-shot{height:auto;margin:0;aspect-ratio:16/9}.plant-analysis{margin:4px 0;gap:3px}.analysis-item{padding:3px 4px;font-size:.51rem;line-height:1.25}.analysis-item b{font-size:.53rem}.vision-note{font-size:.54rem;line-height:1.3;margin-top:4px;padding:4px 5px}
+  .member{grid-template-columns:31px minmax(0,1fr);padding:6px 8px}.member .av{width:29px;height:29px;font-size:.75rem}
+  .member .m-name{font-size:.72rem}.member .m-role{font-size:.49rem}.member .m-task{font-size:.5rem;margin-top:3px}
+  .member-tags{margin-top:4px}.member-tags span{font-size:.43rem;padding:1px 4px}.role-status{font-size:.42rem}
+  .logstream{max-height:82px;font-size:.58rem;line-height:1.55}
+}
+
+</style>
+<style id="ecoTheme">
+/* ===== 现代生态实验室主题（可关闭） ===== */
+:root{
+  --bg:#eef1e8;
+  --bg-panel:rgba(255,255,250,.93);
+  --bg-panel-2:rgba(246,248,240,.96);
+  --grid:rgba(63,101,77,.055);
+  --ink:#19372d;
+  --ink-dim:#6b7f73;
+  --glow:#2f7656;
+  --glow-soft:rgba(47,118,86,.12);
+  --amber:#ad742f;
+  --red:#b8564c;
+  --violet:#796987;
+  --blue:#4f7f8c;
+  --line:rgba(50,91,70,.16);
+  --line-strong:rgba(47,118,86,.3);
+  --shadow:0 18px 44px rgba(54,70,56,.1);
+  --shadow-soft:0 8px 24px rgba(54,70,56,.075);
+}
+body{
+  background:
+    linear-gradient(128deg,rgba(228,235,219,.72),transparent 38%),
+    linear-gradient(180deg,#f6f5ed 0%,#edf1e8 55%,#e7ede2 100%);
+  color:var(--ink);
+  font-family:'Microsoft YaHei','PingFang SC','Noto Sans SC',sans-serif;
+}
+body::before{
+  opacity:.7;
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:72px 72px;
+  mask-image:linear-gradient(to bottom,#000,transparent 88%);
+}
+body::after{
+  opacity:1;
+  background:
+    radial-gradient(circle at 5% 2%,rgba(132,163,111,.19),transparent 28%),
+    radial-gradient(circle at 94% 12%,rgba(196,169,110,.13),transparent 27%),
+    radial-gradient(circle at 80% 94%,rgba(89,132,111,.1),transparent 32%);
+}
+.noise{display:none}
+.wrap{max-width:1720px}
+
+.mission-bar{
+  border-color:rgba(48,89,67,.17);
+  background:rgba(255,255,250,.9);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.85);
+  backdrop-filter:blur(16px);
+}
+.mission-bar::before{
+  width:5px;background:linear-gradient(180deg,#2f7656,#9aad74);box-shadow:none;
+}
+.mission-bar::after{
+  left:5px;background:linear-gradient(90deg,rgba(47,118,86,.5),rgba(183,128,55,.2),transparent 70%);
+}
+.m-logo{
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  font-size:1.42rem;letter-spacing:.7px;color:#173d31;font-weight:800;
+}
+.m-logo b{color:#4e795c;text-shadow:none;font-weight:600}
+.m-sub{color:#7a8c80;letter-spacing:.5px}
+.experiment-btn{
+  border-color:rgba(47,118,86,.35);background:#edf4eb;color:#2f6d50;
+  border-radius:999px;font-family:'Microsoft YaHei','PingFang SC',sans-serif;
+  letter-spacing:.4px;font-weight:600;box-shadow:none;
+}
+.experiment-btn:hover{background:#e2eddf;box-shadow:none}
+.m-stat{border-left-color:rgba(47,92,68,.12)}
+.m-stat .lbl{color:#829187;letter-spacing:1px}
+.m-stat .val{color:#2f6d50;text-shadow:none}
+.pulse-dot{background:#5a8d68;box-shadow:0 0 0 4px rgba(90,141,104,.13)}
+
+.panel{
+  border-color:var(--line);
+  background:rgba(255,255,250,.91);
+  box-shadow:var(--shadow-soft),inset 0 1px 0 rgba(255,255,255,.88);
+  backdrop-filter:blur(12px);
+}
+.panel::before{
+  background:linear-gradient(125deg,rgba(124,157,104,.065),transparent 34%);
+}
+.panel::after{
+  top:12px;right:12px;width:7px;height:7px;border:0;border-radius:50%;
+  background:#8da16f;opacity:.55;
+}
+.panel-t{
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;color:#2c493d;
+  letter-spacing:.45px;font-weight:700;
+}
+.panel-t>span:first-child{
+  width:8px;height:8px;display:inline-block;overflow:hidden;border-radius:50%;
+  background:#5d8965;color:transparent;flex:none;
+}
+.panel-t::after{background:linear-gradient(90deg,rgba(70,112,83,.17),transparent)}
+.panel-decision{border-color:rgba(47,118,86,.24);box-shadow:var(--shadow-soft),inset 3px 0 0 rgba(92,135,94,.45)}
+.panel-actuator{border-color:rgba(173,116,47,.2);box-shadow:var(--shadow-soft),inset 3px 0 0 rgba(183,136,69,.36)}
+.panel-vision{border-color:rgba(94,125,99,.27);box-shadow:0 12px 32px rgba(54,70,56,.1),inset 3px 0 0 rgba(85,126,91,.5)}
+.panel-team{border-color:rgba(79,127,140,.2)}
+
+.crop-name{color:#1d4938;text-shadow:none;font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+.crop-gen{color:#6f607d;border-color:rgba(121,105,135,.36);background:rgba(121,105,135,.07)}
+.stage-bar,.gauge .gtrack{background:rgba(45,77,60,.08)}
+.stage-fill{background:linear-gradient(90deg,#397759,#9aaa6e);box-shadow:none}
+.gauge{
+  border-color:rgba(54,98,74,.14);
+  background:linear-gradient(145deg,rgba(249,250,244,.98),rgba(239,244,235,.93));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+.gauge::before{opacity:.32}
+.gauge .gv{text-shadow:none}
+.ai-primary,.signal{background:rgba(88,130,94,.055)}
+.tag-real{background:rgba(47,118,86,.11)}
+.tag-virt{background:rgba(99,119,106,.1)}
+.breeding{
+  background:linear-gradient(135deg,rgba(121,105,135,.07),rgba(244,242,235,.5));
+  border-color:rgba(121,105,135,.17);
+}
+.breeding .bt{font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.4px}
+.breeding .bx{font-family:'Microsoft YaHei','PingFang SC',sans-serif;font-style:normal}
+
+.chain-step{
+  border-color:rgba(65,104,80,.16);
+  background:linear-gradient(145deg,rgba(249,250,245,.98),rgba(238,243,234,.9));
+}
+.chain-step::after{color:rgba(47,118,86,.06)}
+.chain-step.out{
+  border-color:rgba(47,118,86,.3);
+  background:linear-gradient(145deg,rgba(224,238,222,.92),rgba(244,247,239,.95));
+}
+.cs-h{font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.7px}
+.chain-arrow::before{text-shadow:none;color:#78967b}
+.actx-card{
+  border-color:rgba(173,116,47,.16);
+  background:linear-gradient(145deg,rgba(250,249,242,.98),rgba(244,241,230,.88));
+}
+.actx-h{font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+.actx-h .ai{background:rgba(47,118,86,.08)}
+.act{background:rgba(247,248,240,.8)}
+.st-on{background:rgba(47,118,86,.12)}
+.st-idle{background:rgba(99,119,106,.09)}
+.st-virt{background:rgba(121,105,135,.1)}
+
+.member{
+  border-color:color-mix(in srgb,var(--member-accent) 22%,rgba(67,108,82,.1));
+  background:linear-gradient(145deg,color-mix(in srgb,var(--member-accent) 7%,rgba(252,252,247,.98)),rgba(239,244,235,.9));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 5px 14px rgba(54,70,56,.045);
+}
+.member .av{
+  background:color-mix(in srgb,var(--member-accent) 10%,#f5f7f0);
+  border-color:color-mix(in srgb,var(--member-accent) 24%,transparent);color:var(--member-accent);
+}
+.member .m-name,.actx-h{color:#27463a}
+.member-tags span{background:rgba(255,255,255,.6);border-color:rgba(47,92,68,.09)}
+.team-badge{border-color:rgba(79,127,140,.18);background:rgba(79,127,140,.055);color:#507b86!important}
+.logstream::-webkit-scrollbar-thumb{background:rgba(47,118,86,.23)}
+
+.vision-media::before{
+  content:"最新植物影像";background:rgba(249,249,241,.88);border-color:rgba(47,118,86,.27);
+  color:#2f6f51;box-shadow:0 3px 12px rgba(26,52,37,.1);
+  font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.25px;
+}
+.vision-shot{
+  background:#dfe5dc;border-color:rgba(47,84,64,.2);
+  box-shadow:0 10px 24px rgba(51,70,55,.12),0 0 0 1px rgba(255,255,255,.65);
+}
+.vision-state{border-color:rgba(83,112,94,.18);background:rgba(83,112,94,.06)}
+.vision-state.ok{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.08)}
+.vision-state.wait{border-color:rgba(173,116,47,.28);background:rgba(173,116,47,.07)}
+.vision-state.error{border-color:rgba(184,86,76,.28);background:rgba(184,86,76,.07)}
+.analysis-item{border-color:rgba(58,99,73,.15);background:rgba(244,247,239,.82)}
+.analysis-item.summary{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.06)}
+.vision-scroll-hint{background:linear-gradient(90deg,#fbfbf5,rgba(47,118,86,.09));
+  border-color:rgba(47,118,86,.18);color:#2f6f51}
+.manual-capture-btn{border-color:rgba(47,118,86,.28);background:rgba(47,118,86,.07);color:#2f6f51}
+.manual-capture-btn:hover{background:rgba(47,118,86,.12);box-shadow:none}
+.vision-note{background:rgba(121,105,135,.055);border-left-color:#8b7893}
+.vision-capture-meta i{box-shadow:none}
+
+.modal-backdrop{background:rgba(38,48,39,.48)}
+.experiment-modal{
+  border-color:rgba(47,118,86,.35);background:#fbfbf5;border-radius:14px;
+  box-shadow:0 24px 60px rgba(37,52,39,.2);
+}
+.modal-head{font-family:'Microsoft YaHei','PingFang SC',sans-serif;letter-spacing:.3px;color:#24483a}
+.form-field input{background:#f6f7f1;border-color:rgba(55,94,70,.18);color:var(--ink);border-radius:7px}
+.btn-primary{background:#2f7656;border-color:#2f7656;color:#fff}
+.btn-secondary{background:#f5f6ef}
+
+</style>
+<script>
+(() => {
+  let theme="eco";
+  try{
+    const saved=localStorage.getItem("spacefarmTheme");
+    if(saved==="eco"||saved==="cyber") theme=saved;
+  }catch(_error){}
+  document.documentElement.dataset.theme=theme;
+  if(theme==="cyber") document.getElementById("ecoTheme").sheet.disabled=true;
+})();
+</script>
+<style>
+
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes capturePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.45}}
 .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.19s}
 .d4{animation-delay:.26s}.d5{animation-delay:.33s}.d6{animation-delay:.4s}
 </style>
@@ -221,13 +610,19 @@ canvas{width:100%;height:180px;display:block}
   <div class="mission-bar">
     <div class="m-left">
       <div>
-        <div class="m-logo">LUNA <b>GREENHOUSE</b></div>
-        <div class="m-sub">在轨作物育种监控站</div>
+        <div class="m-logo">AI OPEN <b>PLANTER</b></div>
+        <div class="m-sub">AI免维护种花 · 第二代开放式智能花盆</div>
+      </div>
+      <div class="header-actions">
+        <button class="experiment-btn" id="openExperiment" type="button">种植设置</button>
+        <button class="experiment-btn theme-toggle" id="themeToggle" type="button" aria-label="切换显示主题">
+          <span class="theme-icon" aria-hidden="true">◐</span><span id="themeToggleLabel">科技主题</span>
+        </button>
       </div>
     </div>
     <div class="m-right">
-      <div class="m-stat"><div class="lbl">任务日</div><div class="val" id="mday">217</div></div>
-      <div class="m-stat"><div class="lbl">坐标</div><div class="val">月球 · 南极</div></div>
+      <div class="m-stat"><div class="lbl">养护日</div><div class="val" id="mday">—</div></div>
+      <div class="m-stat"><div class="lbl">设备形态</div><div class="val">第二代开放式</div></div>
       <div class="m-stat"><div class="lbl">上行延迟</div><div class="val" id="uplink"><span class="pulse-dot"></span>1.3s</div></div>
       <div class="m-stat"><div class="lbl">北京时间</div><div class="val" id="clock">--:--:--</div></div>
     </div>
@@ -236,23 +631,23 @@ canvas{width:100%;height:180px;display:block}
   <div class="grid">
     <!-- 左列 -->
     <div class="col">
-      <div class="panel d1">
-        <div class="panel-t"><span>◢</span> 当前样本</div>
+      <div class="panel panel-sample d1">
+        <div class="panel-t"><span>◢</span> 当前植物</div>
         <div class="crop-head">
           <div class="crop-name" id="cropName">番茄</div>
-          <div class="crop-gen" id="cropGen">第 4 代</div>
+          <div class="crop-gen" id="cropGen">AI 托管</div>
         </div>
         <div class="crop-en" id="cropEn">Tomato</div>
         <div class="crop-meta">
-          品种编号 <b id="cropCode">EGG-L5-017</b><br>
-          培养目标 <b id="cropGoal">低重力适应性筛选</b><br>
+          设备档案 <b id="cropCode">POT-01</b><br>
+          养护目标 <b id="cropGoal">新手免维护养花</b><br>
           生长阶段 <b id="cropStage">营养生长期</b> · 当前 <b id="cropPhase">叶面积扩展期</b><br>
-          第 <b id="cropDay">15</b> 天 · 预计采收 <b id="cropHarvest">第 42 天</b>
+          第 <b id="cropDay">15</b> 天 · 养护状态 <b id="cropHarvest">持续监测中</b>
         </div>
         <div class="stage-bar"><div class="stage-fill" id="stageFill" style="width:36%"></div></div>
       </div>
 
-      <div class="panel d2">
+      <div class="panel panel-sensors d2">
         <div class="panel-t"><span>◢</span> 传感器遥测</div>
         <div class="gauges">
           <div class="gauge"><div class="gl">土壤湿度</div><div class="gv" id="gSoil" style="color:var(--glow)">42<span class="gu">%</span></div><div class="gtrack"><div class="gbar" id="bSoil" style="width:42%;background:var(--glow)"></div></div></div>
@@ -262,7 +657,7 @@ canvas{width:100%;height:180px;display:block}
         </div>
       </div>
 
-      <div class="panel d3">
+      <div class="panel panel-events d3">
         <div class="panel-t"><span>◢</span> 事件流</div>
         <div class="logstream" id="log"></div>
       </div>
@@ -270,8 +665,8 @@ canvas{width:100%;height:180px;display:block}
 
     <!-- 中列 -->
     <div class="col">
-      <div class="panel d2">
-        <div class="panel-t"><span>◢</span> 生长指标曲线</div>
+      <div class="panel panel-chart d2">
+        <div class="panel-t"><span>◢</span> 养护环境趋势</div>
         <div class="chart-wrap"><canvas id="chart"></canvas></div>
         <div class="chart-legend">
           <span><i style="background:var(--glow)"></i>土壤湿度</span>
@@ -280,8 +675,8 @@ canvas{width:100%;height:180px;display:block}
         </div>
       </div>
 
-      <div class="panel d3">
-        <div class="panel-t"><span>◢</span> AI 多维决策链 <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
+      <div class="panel panel-decision d3">
+        <div class="panel-t"><span>◢</span> AI 全链路养护决策 <span class="ai-src" id="aiSrc" style="margin-left:auto">树莓派 · AI 在线</span></div>
         <div class="chain">
           <div class="chain-step">
             <div class="cs-h">输入 · 环境感知</div>
@@ -289,31 +684,31 @@ canvas{width:100%;height:180px;display:block}
           </div>
           <div class="chain-arrow">▼  ▼  ▼</div>
           <div class="chain-step">
-            <div class="cs-h">判断 · AI 诊断</div>
+            <div class="cs-h">判断 · AI 分析</div>
             <div class="cs-b" id="chainJudge">营养生长期 · 环境稳定 · 无需主动干预</div>
             <div class="cs-reason" id="aiReason">决策依据：湿度充足，温度适宜，光照达标。</div>
           </div>
           <div class="chain-arrow">▼  ▼  ▼</div>
           <div class="chain-step out">
-            <div class="cs-h">输出 · 执行决策</div>
+            <div class="cs-h">输出 · 自动养护</div>
             <div class="cs-b" id="chainOut">水泵待机 · 补光灯待机 · 继续监控</div>
           </div>
         </div>
         <div id="signals"></div>
         <div class="breeding">
-          <div class="bt">🌱 育种观察</div>
-          <div class="bx" id="breedObs">"叶片色泽较上一代更深绿，株高增速 +12%，建议进入花期前补充磷肥。"</div>
+          <div class="bt">新手养护摘要</div>
+          <div class="bx" id="breedObs">等待传感器与 AI 数据；系统会自动判断浇水和补光需求。</div>
         </div>
       </div>
     </div>
 
     <!-- 右列 -->
     <div class="col">
-      <div class="panel d3">
-        <div class="panel-t"><span>◢</span> 执行器状态</div>
+      <div class="panel panel-actuator d3">
+        <div class="panel-t"><span>◢</span> 自动养护执行器</div>
         <div class="actx">
           <div class="actx-card">
-            <div class="actx-h"><span class="ai">💧</span>水泵<span class="ast st-idle" id="pumpState">待机</span></div>
+            <div class="actx-h"><span class="ai">💧</span>循环浇水<span class="ast st-idle" id="pumpState">待机</span></div>
             <div class="actx-rows">
               <div><span>上次启动</span><b id="pumpLast">—</b></div>
               <div><span>累计运行</span><b id="pumpTotal">0 min</b></div>
@@ -328,30 +723,80 @@ canvas{width:100%;height:180px;display:block}
               <div><span>上次启动</span><b id="lightLast">—</b></div>
             </div>
           </div>
-          <div class="actx-foot">虚拟预留 · 通风风扇 · NPK 施肥泵（待接入硬件）</div>
+          <div class="actx-foot">开放式结构 · 储水循环 · 灌溉水回收再利用</div>
         </div>
       </div>
 
-      <div class="panel d4">
+      <div class="panel panel-health d4">
         <div class="panel-t"><span>◢</span> 系统健康</div>
         <div class="crop-meta">
-          ESP32 飞控 <b id="sysEsp32" style="color:var(--amber)">● 演示</b><br>
-          树莓派载荷 <b id="sysPi" style="color:var(--amber)">● 演示模式</b><br>
-          决策来源 <b id="sysSrc">树莓派 AI</b>
+          ESP32 控制器 <b id="sysEsp32" style="color:var(--amber)">● 演示</b><br>
+          AI 养护中枢 <b id="sysPi" style="color:var(--amber)">● 演示模式</b><br>
+          养护策略 <b id="sysSrc">树莓派 AI</b>
         </div>
       </div>
 
-      <div class="panel d4">
-        <div class="panel-t"><span>◢</span> 育种团队实时任务板</div>
+      <div class="panel panel-vision d4">
+        <div class="panel-t"><span>◢</span> Camera Module 3 · AI 长势观察
+          <button class="manual-capture-btn" id="manualCaptureBtn" type="button" title="立即拍照并提交多模态 AI 分析">
+            <span class="capture-icon">◉</span><span class="capture-label" id="manualCaptureLabel">立即拍照</span>
+          </button>
+        </div>
+        <div class="vision-layout">
+          <div class="vision-media">
+            <img class="vision-shot" id="visionImage" alt="最近一次开放式花盆固定视角照片" hidden>
+            <div class="vision-capture-meta"><i></i><span id="visionCapturedAt">等待首张有效照片</span></div>
+            <div class="vision-note">每两小时记录长势 · 多模态 AI 辅助观察，安全浇水补光仍由传感器链路执行。</div>
+          </div>
+          <div class="vision-details">
+            <div class="vision-row"><span>采集状态</span><b id="visionStatus">等待视觉服务</b></div>
+            <div class="vision-row"><span>拍照门槛</span><b id="visionGate">每 2 小时 · 光照达标</b></div>
+            <div class="vision-scroll-hint">↕ 可在此区域滚动查看完整分析</div>
+            <div class="plant-analysis">
+              <div class="analysis-item"><span>识别植物</span><b id="visionPlant">等待分析</b></div>
+              <div class="analysis-item"><span>生长阶段</span><b id="visionStage">—</b></div>
+              <div class="analysis-item"><span>整体长势</span><b id="visionVigor">—</b></div>
+              <div class="analysis-item"><span>叶片状态</span><b id="visionLeaf">—</b></div>
+              <div class="analysis-item wide summary"><span>综合结论</span><b id="visionSummary">每次只分析当前这一株植物</b></div>
+              <div class="analysis-item wide"><span>可见特征</span><b id="visionFindings">等待单株全景分析</b></div>
+              <div class="analysis-item wide"><span>可能问题</span><b id="visionIssues">暂未发现</b></div>
+              <div class="analysis-item wide"><span>AI 养护建议</span><b id="visionAdvice">等待分析</b></div>
+            </div>
+            <div class="vision-row"><span>分析可信度</span><b id="visionConfidence">—</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel panel-team d4">
+        <div class="panel-t"><span>◢</span> 三人协作 · 实时任务 <span class="team-badge">3 ROLES · ONE SYSTEM</span></div>
         <div class="crew">
-          <div class="member"><div class="av">张</div><div><div class="m-name">张煦涵</div><div class="m-role">太空育种站长</div><div class="m-task" id="taskLead">任务排程待同步</div></div></div>
-          <div class="member"><div class="av">陈</div><div><div class="m-name">陈美伊</div><div class="m-role">农业育种专家</div><div class="m-task" id="taskBreed">观察记录待同步</div></div></div>
-          <div class="member"><div class="av">杨</div><div><div class="m-name">杨灏辰</div><div class="m-role">总工程师</div><div class="m-task" id="taskEng">设备巡检待同步</div></div></div>
+          <div class="member" data-index="01"><div class="av">设</div><div class="member-body"><div class="member-top"><div class="m-name">产品与用户体验</div><span class="role-status">进行中</span></div><div class="m-role">开放式外观 · 新手友好设计</div><div class="m-task" id="taskLead">用户体验任务待同步</div><div class="member-tags"><span>场景设计</span><span>交互体验</span></div></div></div>
+          <div class="member" data-index="02"><div class="av">智</div><div class="member-body"><div class="member-top"><div class="m-name">AI 养护系统</div><span class="role-status">在线</span></div><div class="m-role">环境监测 · 智能决策闭环</div><div class="m-task" id="taskSys">养护策略任务待同步</div><div class="member-tags"><span>视觉分析</span><span>决策闭环</span></div></div></div>
+          <div class="member" data-index="03"><div class="av">机</div><div class="member-body"><div class="member-top"><div class="m-name">机械结构与水循环</div><span class="role-status">巡检中</span></div><div class="m-role">储水回收 · 循环浇水执行</div><div class="m-task" id="taskEng">设备巡检任务待同步</div><div class="member-tags"><span>水循环</span><span>执行反馈</span></div></div></div>
         </div>
       </div>
 
     </div>
   </div>
+</div>
+
+<div class="modal-backdrop" id="experimentBackdrop" hidden>
+  <section class="experiment-modal" role="dialog" aria-modal="true" aria-labelledby="experimentTitle">
+    <div class="modal-head"><span id="experimentTitle">初始化养护计划</span><button class="modal-close" id="closeExperiment" type="button" aria-label="关闭">×</button></div>
+    <form id="experimentForm">
+      <div class="form-grid">
+        <label class="form-field"><span>计划编号</span><input id="experimentId" maxlength="48" pattern="[A-Za-z0-9._-]+" required></label>
+        <label class="form-field"><span>植物名称</span><input id="experimentPlant" maxlength="24" placeholder="例如：白掌"></label>
+        <label class="form-field"><span>养护起始日期</span><input id="plantingDate" type="date" required></label>
+        <label class="form-field"><span>养护日修正（天）</span><input id="dayOffset" type="number" min="-365" max="365" value="0" required></label>
+        <label class="form-field"><span>操作者</span><input id="experimentOperator" maxlength="32" placeholder="姓名或队员编号"></label>
+        <label class="form-field"><span>修改口令（如服务器启用）</span><input id="experimentToken" type="password" autocomplete="current-password"></label>
+      </div>
+      <p class="form-help">开始养护当天记为 D1。保存后由树莓派在约 30 秒内同步；相机观察与传感器养护记录会按该日期归档。</p>
+      <div class="form-status" id="experimentStatus"></div>
+      <div class="form-actions"><button class="btn-secondary" id="cancelExperiment" type="button">取消</button><button class="btn-primary" type="submit">保存计划</button></div>
+    </form>
+  </section>
 </div>
 
 <script>
@@ -364,16 +809,252 @@ const API_BASE = "";              // 同源访问留空；跨机填 "http://<ip>
 const USE_MOCK = false;           // 接真实 /api/state；无 live 数据时自动回退模拟
 const POLL_MS  = 3000;            // 轮询间隔
 
+async function fetchJson(path){
+  const res=await fetch(API_BASE+path+(path.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});
+  if(!res.ok) throw new Error(path+" HTTP "+res.status);
+  return res.json();
+}
+
+const experimentBackdrop=document.getElementById("experimentBackdrop");
+const experimentStatus=document.getElementById("experimentStatus");
+const ecoTheme=document.getElementById("ecoTheme");
+const themeToggle=document.getElementById("themeToggle");
+const themeToggleLabel=document.getElementById("themeToggleLabel");
+function applyTheme(theme,persist=false){
+  const useEco=theme!=="cyber";
+  ecoTheme.sheet.disabled=!useEco;
+  document.documentElement.dataset.theme=useEco?"eco":"cyber";
+  themeToggleLabel.textContent=useEco?"科技主题":"生态主题";
+  themeToggle.title=useEco?"切换为深色智能控制台":"切换为自然养护界面";
+  themeToggle.setAttribute("aria-pressed",String(useEco));
+  document.querySelector(".m-logo b").textContent="PLANTER";
+  document.querySelector(".m-sub").textContent="AI免维护种花 · 第二代开放式智能花盆";
+  if(persist){
+    try{localStorage.setItem("spacefarmTheme",useEco?"eco":"cyber");}catch(_error){}
+    drawChart();
+  }
+}
+applyTheme(document.documentElement.dataset.theme||"eco");
+themeToggle.addEventListener("click",()=>applyTheme(document.documentElement.dataset.theme==="eco"?"cyber":"eco",true));
+function taipeiDate(){return new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Taipei"});}
+function suggestedExperimentId(){return "CARE-"+taipeiDate().replaceAll("-","")+"-A";}
+function showExperimentStatus(message,isError=false){
+  experimentStatus.textContent=message;
+  experimentStatus.style.color=isError?"var(--red)":"var(--glow)";
+}
+async function loadExperiment(fillForm=false){
+  try{
+    const value=await fetchJson("/api/experiment");
+    if(fillForm){
+      document.getElementById("experimentId").value=value.experiment_id||suggestedExperimentId();
+      document.getElementById("experimentPlant").value=value.plant||"";
+      document.getElementById("plantingDate").value=value.planting_date||taipeiDate();
+      document.getElementById("dayOffset").value=value.day_offset??0;
+      document.getElementById("experimentOperator").value=value.updated_by||"";
+    }
+    if(value.configured){
+      showExperimentStatus(`当前 ${value.experiment_id} · D${value.plant_day} · ${value.day_source==="adjusted"?"含人工修正":"自动计算"}`);
+      const mday=document.getElementById("mday");
+      mday.title=`${value.planting_date} 播种 · ${value.day_source}`;
+    }else if(fillForm){
+      showExperimentStatus("尚未初始化，请填写后保存。");
+    }
+    return value;
+  }catch(error){
+    if(fillForm) showExperimentStatus("养护配置读取失败："+error.message,true);
+    return null;
+  }
+}
+async function openExperimentSettings(){
+  experimentBackdrop.hidden=false;
+  showExperimentStatus("正在读取实验配置……");
+  await loadExperiment(true);
+  document.getElementById("experimentId").focus();
+}
+function closeExperimentSettings(){experimentBackdrop.hidden=true;}
+document.getElementById("openExperiment").addEventListener("click",openExperimentSettings);
+document.getElementById("closeExperiment").addEventListener("click",closeExperimentSettings);
+document.getElementById("cancelExperiment").addEventListener("click",closeExperimentSettings);
+experimentBackdrop.addEventListener("click",event=>{if(event.target===experimentBackdrop)closeExperimentSettings();});
+document.getElementById("experimentForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  showExperimentStatus("正在保存……");
+  const token=document.getElementById("experimentToken").value;
+  const headers={"Content-Type":"application/json"};
+  if(token) headers["X-Dashboard-Token"]=token;
+  const payload={
+    experiment_id:document.getElementById("experimentId").value.trim(),
+    plant:document.getElementById("experimentPlant").value.trim(),
+    planting_date:document.getElementById("plantingDate").value,
+    day_offset:Number(document.getElementById("dayOffset").value),
+    timezone:"Asia/Taipei",
+    updated_by:document.getElementById("experimentOperator").value.trim()||"operator"
+  };
+  try{
+    const response=await fetch(API_BASE+"/api/experiment",{method:"POST",headers,body:JSON.stringify(payload)});
+    const value=await response.json();
+    if(!response.ok) throw new Error(value.error||("HTTP "+response.status));
+    if(token) sessionStorage.setItem("spacefarmExperimentToken",token);
+    showExperimentStatus(`保存成功：${value.experiment_id} · 当前 D${value.plant_day}`);
+    setTimeout(closeExperimentSettings,700);
+  }catch(error){
+    showExperimentStatus("保存失败："+error.message,true);
+  }
+});
+document.getElementById("experimentToken").value=sessionStorage.getItem("spacefarmExperimentToken")||"";
+function careWording(value){
+  return String(value||"").replaceAll("育种","养护").replaceAll("表型","长势");
+}
+const VISION_LABELS={
+  seedling:"幼苗期",vegetative:"营养生长期",flowering:"开花期",fruiting:"结果期",harvesting:"成熟期",
+  strong:"旺盛",normal:"正常",weak:"偏弱",green:"绿色正常",yellowing:"发黄",pale:"偏淡",mixed:"颜色不均",
+  high:"高",medium:"中",low:"低",match:"匹配",mismatch:"不匹配",unknown:"暂不确定"
+};
+function visionLabel(value){return VISION_LABELS[value]||value||"—";}
+function visionList(value,fallback){return Array.isArray(value)&&value.length?value.map(careWording).join("；"):fallback;}
+let latestVisionCaptureId="";
+let manualCapturePending=null;
+let manualVisionTimer=null;
+function setManualCaptureButton(label,busy=false,done=false){
+  const button=document.getElementById("manualCaptureBtn");
+  document.getElementById("manualCaptureLabel").textContent=label;
+  button.disabled=busy;
+  button.classList.toggle("busy",busy);
+  button.classList.toggle("done",done);
+}
+function stopManualVisionPolling(){
+  if(manualVisionTimer){clearInterval(manualVisionTimer);manualVisionTimer=null;}
+}
+function updateManualCaptureProgress(status,latest,statusEl){
+  if(!manualCapturePending)return;
+  const isNewCapture=latest.available&&latest.capture_id&&
+    latest.capture_id!==manualCapturePending.previousCaptureId&&
+    Number(latest.captured_at||0)>=manualCapturePending.requestedAt-5;
+  if(isNewCapture&&latest.status==="succeeded"){
+    statusEl.textContent="手动拍照与 AI 分析已更新";
+    statusEl.className="vision-state ok";
+    setManualCaptureButton("更新完成",false,true);
+    manualCapturePending=null;stopManualVisionPolling();
+    setTimeout(()=>setManualCaptureButton("立即拍照"),3500);
+    return;
+  }
+  const elapsed=Date.now()/1000-manualCapturePending.requestedAt;
+  if(status.state==="QUEUED_FOR_ANALYSIS"){
+    statusEl.textContent="手动照片已拍摄 · AI 分析中";
+    setManualCaptureButton("AI 分析中",true);
+  }else if(["CAPTURE_ERROR","QUALITY_REJECTED"].includes(status.state)){
+    statusEl.textContent=status.state==="QUALITY_REJECTED"?"手动照片质量未通过":"手动拍照失败";
+    statusEl.className="vision-state error";
+    setManualCaptureButton("重新拍照",false);manualCapturePending=null;stopManualVisionPolling();
+  }else if(elapsed>360){
+    statusEl.textContent="手动拍照等待超时，请重试";
+    statusEl.className="vision-state error";
+    setManualCaptureButton("重新拍照",false);manualCapturePending=null;stopManualVisionPolling();
+  }else if(elapsed>20){
+    statusEl.textContent=`手动照片处理中 · AI 分析约需 1 分钟（${Math.floor(elapsed)} 秒）`;
+    statusEl.className="vision-state ok";
+    setManualCaptureButton(`分析中 ${Math.floor(elapsed)}s`,true);
+  }else{
+    statusEl.textContent="手动拍照请求已提交 · 等待树莓派";
+    statusEl.className="vision-state wait";
+    setManualCaptureButton("等待拍摄",true);
+  }
+}
+function renderVision(status,latest){
+  const stateText={WAITING_TELEMETRY:"等待新遥测",WAITING_INTERVAL:"等待两小时间隔",
+    WAITING_LIGHT:"等待光照达标",READY:"可以拍摄",QUEUED_FOR_ANALYSIS:"已拍摄，等待 AI",
+    CAPTURE_ERROR:"相机采集异常",QUALITY_REJECTED:"图像质量未通过，等待重拍"};
+  const statusEl=document.getElementById("visionStatus");
+  statusEl.textContent=stateText[status.state]||status.state||"暂无数据";
+  statusEl.className="vision-state "+(
+    ["READY","QUEUED_FOR_ANALYSIS"].includes(status.state)?"ok":
+    ["CAPTURE_ERROR","QUALITY_REJECTED"].includes(status.state)?"error":"wait");
+  const light=status.current_light==null?"—":status.current_light;
+  const required=status.required_light==null?"—":status.required_light;
+  document.getElementById("visionGate").textContent=`每 2 小时 · 光照 ${light}/${required}`;
+  const image=document.getElementById("visionImage");
+  image.hidden=!latest.available;
+  if(latest.available && image.src!==new URL(API_BASE+latest.overview_url,location.href).href){
+    image.src=API_BASE+latest.overview_url;
+  }
+  const capturedAt=document.getElementById("visionCapturedAt");
+  if(latest.available && latest.captured_at){
+    const stamp=new Date(latest.captured_at*1000).toLocaleString("zh-CN",{
+      timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+    capturedAt.textContent=`${stamp} · ${latest.cycle_id||"当前周期"}`;
+  }else capturedAt.textContent="等待首张有效照片";
+  if(latest.capture_id)latestVisionCaptureId=latest.capture_id;
+  const observation=(latest.observations||[])[0]||{};
+  const a=observation.analysis||{};
+  document.getElementById("visionPlant").textContent=a.plant&&a.plant!=="unknown"
+    ?`${a.plant} · ${visionLabel(a.plant_match)}`:"待识别";
+  document.getElementById("visionStage").textContent=visionLabel(a.visible_stage);
+  document.getElementById("visionVigor").textContent=visionLabel(a.vigor);
+  document.getElementById("visionLeaf").textContent=visionLabel(a.leaf_color);
+  document.getElementById("visionFindings").textContent=visionList(a.visible_findings,"暂无明确可见特征");
+  document.getElementById("visionIssues").textContent=visionList(a.possible_issues,"暂未发现明显问题");
+  document.getElementById("visionAdvice").textContent=visionList(a.care_suggestions,"继续结合传感器数据观察");
+  document.getElementById("visionSummary").textContent=careWording(
+    a.comprehensive_observation||a.breeding_observation)||"等待单株全景分析";
+  document.getElementById("visionConfidence").textContent=
+    `${visionLabel(a.certainty)}${a.needs_human_review?" · 建议人工确认":""}`;
+  updateManualCaptureProgress(status,latest,statusEl);
+}
+async function updateVision(){
+  try{
+    const [status,latest]=await Promise.all([
+      fetchJson("/api/vision/status"),fetchJson("/api/vision/latest")]);
+    renderVision(status,latest);
+  }catch(e){
+    document.getElementById("visionStatus").textContent="视觉服务离线";
+  }
+}
+async function requestManualCapture(){
+  if(manualCapturePending)return;
+  let token=sessionStorage.getItem("spacefarmManualCaptureToken")||
+    sessionStorage.getItem("spacefarmExperimentToken")||"";
+  if(!token){
+    token=window.prompt("请输入网页管理口令以触发手动拍照：")||"";
+    if(!token)return;
+  }
+  setManualCaptureButton("正在提交",true);
+  const statusEl=document.getElementById("visionStatus");
+  statusEl.textContent="正在提交手动拍照请求";statusEl.className="vision-state wait";
+  try{
+    const response=await fetch(API_BASE+"/api/vision/capture",{
+      method:"POST",headers:{"Content-Type":"application/json","X-Dashboard-Token":token},
+      body:JSON.stringify({operator:"dashboard",reason:"manual capture from ground station"})
+    });
+    const value=await response.json();
+    if(!response.ok)throw new Error(value.error||("HTTP "+response.status));
+    sessionStorage.setItem("spacefarmManualCaptureToken",token);
+    manualCapturePending={
+      requestId:value.request_id,requestedAt:Number(value.requested_at||Date.now()/1000),
+      previousCaptureId:latestVisionCaptureId
+    };
+    setManualCaptureButton("等待拍摄",true);
+    statusEl.textContent="手动拍照请求已提交 · 等待树莓派";
+    stopManualVisionPolling();
+    manualVisionTimer=setInterval(updateVision,2000);
+    updateVision();
+  }catch(error){
+    if(String(error.message).includes("unauthorized"))sessionStorage.removeItem("spacefarmManualCaptureToken");
+    statusEl.textContent="提交失败："+error.message;statusEl.className="vision-state error";
+    setManualCaptureButton("重新拍照",false);
+  }
+}
+document.getElementById("manualCaptureBtn").addEventListener("click",requestManualCapture);
+
 // ---- 模拟数据（结构 = 树莓派应返回的 JSON）----
 function mockState(reason="树莓派遥测离线，已切换演示模式"){
   const r=(a,b)=>+(a+Math.random()*(b-a)).toFixed(1);
   const now=Date.now()/1000;
-  const cropName="番茄", gen=GEN_BY_PLANT[cropName]||4;
+  const cropName="白掌", gen=1;
   const sn={soil:r(38,46),light:r(50,60),temp:r(23,26),hum:r(60,70)};
   return {
-    mission_day:217, uplink:"模拟", uptime:"演示模式",
-    crop:{name:cropName,en:PLANT_EN[cropName]||"Tomato",gen,stage:"营养生长期",day:15,harvest:"第 42 天",progress:36,
-      code:"TOM-L"+gen+"-015",goal:"低重力坐果与品质筛选",phase:"叶面积扩展期"},
+    mission_day:15, uplink:"模拟", uptime:"演示模式",
+    crop:{name:cropName,en:PLANT_EN[cropName]||"Peace Lily",gen,stage:"营养生长期",day:15,harvest:"持续监测中",progress:36,
+      code:"POT-01",goal:"新手免维护养花",phase:"叶面积扩展期"},
     sensors:sn,
     ai:{src:"demo", action:"演示 · 自动巡检", icon:"✓",
       input:`土壤 ${Math.round(sn.soil)}% · 光照 ${Math.round(sn.light)}% · 温度 ${sn.temp}℃ · 湿度 ${Math.round(sn.hum)}%`,
@@ -383,9 +1064,9 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
       signals:[
         {sig:"LIGHT_LOW",icon:"💡",name:"光照不足",conf:0.78,real:true},
         {sig:"TEMP_HIGH",icon:"🌬️",name:"温度偏高",conf:0.61,real:false},
-        {sig:"NEED_P",icon:"🧪",name:"花期需补磷",conf:0.82,real:false}
+        {sig:"NEED_P",icon:"🧪",name:"花期营养提醒",conf:0.82,real:false}
       ],
-      breeding:`第 ${gen} 代${cropName}处于营养生长期，土壤水分维持在 38-46%，光照稳定；建议今天记录叶色、节间长度，并为进入花期前的磷钾管理建立对照。`
+      breeding:`${cropName}处于营养生长期，土壤水分维持在 38-46%，光照稳定；系统将继续自动判断浇水与补光需求，新手无需频繁干预。`
     },
     actuators:{pumpRunning:false,lightRunning:false,trig:"土壤湿度 < 30%",target:"50%"},
     health:{mode:"demo",esp32:"● 演示",esp32Ok:false,pi:"● 演示模式",piOk:false,source:"演示模式"},
@@ -399,28 +1080,35 @@ function mockState(reason="树莓派遥测离线，已切换演示模式"){
 }
 
 // ---- 真实 /api/state（扁平）→ 本页结构 的映射 ----
-const PLANT_EN={"生菜":"Lettuce","小白菜":"BokChoy","菠菜":"Spinach","韭菜":"Chives",
+const PLANT_EN={"白掌":"Peace Lily","绿萝":"Pothos","吊兰":"Spider Plant","虎尾兰":"Snake Plant",
+  "月季":"Rose","长寿花":"Kalanchoe","多肉":"Succulent","薄荷":"Mint",
+  "生菜":"Lettuce","小白菜":"BokChoy","菠菜":"Spinach","韭菜":"Chives",
   "番茄":"Tomato","辣椒":"Pepper","黄瓜":"Cucumber","茄子":"Eggplant"};
-const GEN_BY_PLANT={"生菜":3,"小白菜":5,"菠菜":2,"韭菜":6,"番茄":4,"辣椒":7,"黄瓜":2,"茄子":5};
-const PLANT_CODE={"生菜":"LET","小白菜":"PAK","菠菜":"SPI","韭菜":"CHI","番茄":"TOM","辣椒":"PEP","黄瓜":"CUC","茄子":"EGG"};
-const PHASE_CN={seedling:"子叶展开期",vegetative:"叶面积扩展期",veg:"叶面积扩展期",flower:"花芽分化期",bloom:"花芽分化期",fruit:"果实膨大期",harvest:"采收成熟期",mature:"采收成熟期"};
+const GEN_BY_PLANT={"白掌":1,"绿萝":1,"吊兰":1,"虎尾兰":1,"月季":1,"长寿花":1,"多肉":1,"薄荷":1,
+  "生菜":3,"小白菜":5,"菠菜":2,"韭菜":6,"番茄":4,"辣椒":7,"黄瓜":2,"茄子":5};
+const PLANT_CODE={"白掌":"LILY","绿萝":"POTH","吊兰":"SPDR","虎尾兰":"SNKE","月季":"ROSE","长寿花":"KALA","多肉":"SUCC","薄荷":"MINT",
+  "生菜":"LET","小白菜":"PAK","菠菜":"SPI","韭菜":"CHI","番茄":"TOM","辣椒":"PEP","黄瓜":"CUC","茄子":"EGG"};
+const PHASE_CN={seedling:"缓苗生根期",vegetative:"叶片生长期",veg:"叶片生长期",flower:"花芽分化期",flowering:"开花养护期",bloom:"开花养护期",fruit:"结果养护期",fruiting:"结果养护期",harvest:"修剪采收期",harvesting:"修剪采收期",mature:"成熟养护期"};
 const LEAFY=["生菜","小白菜","菠菜","韭菜"];
-const STAGE_CN={seedling:"苗期",vegetative:"营养生长期",veg:"营养生长期",flower:"花期",bloom:"花期",fruit:"果期",harvest:"采收期",mature:"采收期"};
-const STAGE_PCT={seedling:18,vegetative:45,veg:45,flower:65,bloom:65,fruit:85,harvest:100,mature:100};
+const STAGE_CN={seedling:"缓苗期",vegetative:"生长期",veg:"生长期",flower:"花期",flowering:"花期",bloom:"花期",fruit:"结果期",fruiting:"结果期",harvest:"修剪采收期",harvesting:"修剪采收期",mature:"成熟期"};
+const STAGE_PCT={seedling:18,vegetative:45,veg:45,flower:65,flowering:65,bloom:65,fruit:85,fruiting:85,harvest:100,harvesting:100,mature:100};
 const STAGE_ADVICE={
-  seedling:"苗期优先控水促根，观察子叶展开、株形紧凑度和徒长风险。",
-  vegetative:"营养生长期重点跟踪叶面积、节间长度和根区水分，保持氮素供应但避免过湿。",
-  veg:"营养生长期重点跟踪叶面积、节间长度和根区水分，保持氮素供应但避免过湿。",
-  flower:"花期建议降低水分波动，重点记录开花数、落花率并补充磷钾策略。",
-  bloom:"花期建议降低水分波动，重点记录开花数、落花率并补充磷钾策略。",
-  fruit:"果期关注水分连续性和钾素供给，记录果形、膨大速度与裂果风险。",
-  harvest:"采收期以品质稳定和分批采收为主，记录单株产量和再生能力。",
-  mature:"采收期以品质稳定和分批采收为主，记录单株产量和再生能力。"
+  seedling:"苗期保持基质微湿并避免强光，系统会优先保护幼苗根系。",
+  vegetative:"叶片生长期保持水分和光照稳定，避免新手因频繁浇水造成烂根。",
+  veg:"叶片生长期保持水分和光照稳定，避免新手因频繁浇水造成烂根。",
+  flower:"花期减少水分大幅波动，保持稳定补光并观察花苞状态。",
+  flowering:"花期减少水分大幅波动，保持稳定补光并观察花苞状态。",
+  bloom:"花期减少水分大幅波动，保持稳定补光并观察花苞状态。",
+  fruit:"结果期保持连续供水，避免忽干忽湿影响植株健康。",
+  fruiting:"结果期保持连续供水，避免忽干忽湿影响植株健康。",
+  harvest:"成熟期继续维持稳定环境，并根据植物状态安排修剪或采收。",
+  harvesting:"成熟期继续维持稳定环境，并根据植物状态安排修剪或采收。",
+  mature:"成熟期继续维持稳定环境，并根据植物状态安排修剪或采收。"
 };
 const SIGMETA={WATER:["💧","浇水",true],LIGHT_LOW:["💡","光照不足",true],LIGHT_HIGH:["☀️","光照过强",false],
   TEMP_HIGH:["🌡️","温度偏高",false],TEMP_LOW:["❄️","温度偏低",false],HUMID_LOW:["🌫️","湿度偏低",false],
-  NEED_N:["🧪","缺氮 N",false],NEED_P:["🧪","缺磷 P",false],NEED_K:["🧪","缺钾 K",false],
-  SENSOR_FAIL:["⚠️","传感器故障",false],OFFLINE_MODE:["📡","离线模式",false],BREEDING_GEN_UP:["🌱","代际跃迁",true]};
+  NEED_N:["🧪","营养提醒 N",false],NEED_P:["🧪","营养提醒 P",false],NEED_K:["🧪","营养提醒 K",false],
+  SENSOR_FAIL:["⚠️","传感器故障",false],OFFLINE_MODE:["📡","离线模式",false],BREEDING_GEN_UP:["🌱","生长里程碑",true]};
 
 function fmtTime(ts){
   const dt=ts?new Date(ts*1000):new Date();
@@ -443,25 +1131,25 @@ function seedFrom(raw){
   return String((raw.plant||"")+(raw.stage||"")+(raw.days||0)).split("").reduce((n,ch)=>n+ch.charCodeAt(0),0);
 }
 function buildTeamTasks(raw, src){
-  const plant=raw.plant||"样本";
+  const plant=raw.plant||"植物";
   const day=Math.max(1,+raw.days||1);
   const seed=seedFrom(raw);
   const lead=[
-    `同步 ${plant} D${day} 采样窗口`,
-    `复核 ${plant} 光照/水分阈值`,
-    `安排下一轮对照组拍照`
-  ];
-  const breed=[
-    `记录 ${plant} 叶色与节间变化`,
-    `标注 ${plant} 第 ${day} 天表型评分`,
-    `核对生长阶段与营养建议`
+    `复核 ${plant} D${day} AI 养护摘要`,
+    `记录新手使用反馈与植物状态`,
+    `检查 ${plant} 光照和水分阈值`
   ];
   const eng=[
-    src==="local"?"检查本地规则接管记录":"检查树莓派 AI 上行链路",
-    `校验水泵与补光灯反馈`,
-    `巡检传感器读数漂移`
+    `校验循环水泵与回流结构`,
+    `检查储水余量与管路连接`,
+    `巡检水泵、补光灯执行反馈`
   ];
-  return {lead:pick(lead,seed),breed:pick(breed,seed+1),eng:pick(eng,seed+2)};
+  const sys=[
+    src==="local"?"检查本地安全规则接管记录":"检查树莓派 AI 决策链路",
+    `核对 ${plant} 传感器读数与阈值`,
+    `复核相机长势观察与养护摘要`
+  ];
+  return {lead:pick(lead,seed),sys:pick(sys,seed+1),eng:pick(eng,seed+2)};
 }
 function buildDiagnostics(raw, actionState, sigs){
   const soil=Math.round(+raw.soil||0), light=Math.round(+raw.light||0);
@@ -482,7 +1170,7 @@ function buildDiagnostics(raw, actionState, sigs){
     conf:(temp>=18&&temp<=32&&hum>=35&&hum<=80)?0.72:0.84,real:true
   });
   rows.push({
-    icon:"🌱",name:`阶段诊断：${STAGE_CN[stage]||stage} · ${STAGE_ADVICE[stage]||"持续记录表型变化"}`,
+    icon:"🌱",name:`养护阶段：${STAGE_CN[stage]||stage} · ${STAGE_ADVICE[stage]||"持续观察植物状态"}`,
     conf:0.68,real:false
   });
   if(actionState.running){
@@ -490,8 +1178,8 @@ function buildDiagnostics(raw, actionState, sigs){
   }
   return rows.slice(0,6);
 }
-function buildBreedingObservation(raw, actionState, sigs, gen){
-  const plant=raw.plant||"当前样本";
+function buildCareSummary(raw, actionState, sigs){
+  const plant=raw.plant||"当前植物";
   const stage=(raw.stage||"seedling").toLowerCase();
   const stageName=STAGE_CN[stage]||stage;
   const day=Math.max(1,+raw.days||1);
@@ -501,16 +1189,16 @@ function buildBreedingObservation(raw, actionState, sigs, gen){
   const alerts=[];
   if(soil<thr) alerts.push(`基质偏干，建议缩短下次水分复核间隔`);
   else if(soil>thr+35) alerts.push(`基质偏湿，建议观察根系通气与叶缘状态`);
-  else alerts.push(`根区水分稳定，可继续观察叶面积扩展`);
-  if(light<lightMin) alerts.push(`光照低于阶段下限，补光后记录叶片角度恢复`);
-  else alerts.push(`光照满足当前阶段，适合做表型拍照对比`);
-  const remoteNote=raw.breeding_observation?`AI 观察：${raw.breeding_observation}。`:"";
-  const actionNote=actionState.running?(actionState.act==="water"?"水泵执行中，记录浇水后 10 分钟土壤回升曲线":"补光执行中，记录补光后叶面响应"):"当前无主动执行，适合作为稳定环境样本";
-  return `第 ${gen} 代${plant}（${stageName} D${day}）：土壤 ${soil}%、光照 ${light}%、温度 ${temp}°C、湿度 ${hum}%RH。${alerts.slice(0,2).join("；")}。${remoteNote}${STAGE_ADVICE[stage]||"继续追踪生长指标"} ${actionNote}。`;
+  else alerts.push(`根区水分稳定，暂时无需人工浇水`);
+  if(light<lightMin) alerts.push(`光照低于阶段下限，系统将按安全策略补光`);
+  else alerts.push(`光照满足当前阶段，无需移动花盆位置`);
+  const remoteNote=raw.breeding_observation?`AI 观察：${careWording(raw.breeding_observation)}。`:"";
+  const actionNote=actionState.running?(actionState.act==="water"?"循环浇水正在执行，无需手动加水":"补光正在执行，无需人工开灯"):"当前无需主动操作，系统继续自动巡检";
+  return `${plant}（${stageName} D${day}）：土壤 ${soil}%、光照 ${light}%、温度 ${temp}°C、湿度 ${hum}%RH。${alerts.slice(0,2).join("；")}。${remoteNote}${STAGE_ADVICE[stage]||"继续保持当前养护环境"} ${actionNote}。`;
 }
 function buildEventLog(raw, actionState, sigs){
   const act=actionState.act;
-  const plant=raw.plant||"当前样本";
+  const plant=raw.plant||"当前植物";
   const day=Math.max(1,+raw.days||1);
   const soil=Math.round(+raw.soil||0), light=Math.round(+raw.light||0);
   const temp=+(+raw.temperature||0).toFixed(1), hum=Math.round(+raw.humidity||0);
@@ -525,8 +1213,8 @@ function buildEventLog(raw, actionState, sigs){
   if(act==="water") rows.push([t,`AI 决策：浇水 ${actionState.duration||0} 秒 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,2]);
   else if(act==="light") rows.push([t,`AI 决策：补光 ${actionState.duration||0} 秒 · 剩余 ${Math.max(0,actionState.remaining||0)} 秒`,2]);
   else rows.push([t,"AI 决策：待机 · 无主动指令",2]);
-  if(raw.reason) rows.push([t,`决策依据：${raw.reason}`,2]);
-  sigs.forEach(s=>rows.push([t,`${s.name} · 可信度 ${(s.conf*100).toFixed(0)}% · ${s.real?"已连接":"虚拟"}`,!s.real]));
+  if(raw.reason) rows.push([t,`决策依据：${careWording(raw.reason)}`,2]);
+  sigs.forEach(s=>rows.push([t,`${s.name} · 可信度 ${(s.conf*100).toFixed(0)}% · ${s.real?"已连接":"养护建议"}`,!s.real]));
   return rows.slice(0,8);
 }
 function buildHealth(d, src){
@@ -536,7 +1224,7 @@ function buildHealth(d, src){
     esp32Ok:!!d.wifi,
     pi:"● 在线",
     piOk:true,
-    source:src==="local"?"本地规则（自治）":"树莓派 AI"
+    source:src==="local"?"本地安全养护":"树莓派 AI 养护"
   };
 }
 
@@ -544,7 +1232,7 @@ function mapState(d){
   const stage=(d.stage||"seedling").toLowerCase(), act=(d.action||"idle").toLowerCase();
   const actionState=resolveAction(d,act);
   const src=(d.decision_source==="local")?"local":"pi";
-  const actMap={water:["💧","浇水 · 精量滴灌"],light:["💡","补光 · 补光灯"],idle:["✓","待机 · 各项正常"]};
+  const actMap={water:["💧","循环浇水 · 精量供水"],light:["💡","自动补光 · 生长灯"],idle:["✓","自动巡检 · 各项正常"]};
   const [aicon,aname]=actMap[actionState.act]||actMap.idle;
   const sigs=(d.signals||[]).map(c=>{const m=SIGMETA[c]||["•",c,false];return{sig:c,icon:m[0],name:m[1],conf:1.0,real:m[2]};});
   const diagnostics=buildDiagnostics(d,actionState,sigs);
@@ -557,20 +1245,20 @@ function mapState(d){
   const judgeMap={water:"基质偏干 · 需精量补水",light:"光照低于阈值 · 需补光",idle:"环境稳定 · 无需主动干预"};
   const outMap={water:"水泵执行中 · 补光灯待机 · 持续监控",light:"水泵待机 · 补光灯执行中 · 持续监控",idle:"水泵待机 · 补光灯待机 · 继续监控"};
   return {
-    mission_day:217, uplink:"1.3s",
+    mission_day:day, uplink:"1.3s",
     uptime:(+d.uptime_sec>0)?(Math.floor(d.uptime_sec/86400)+" 天 "+Math.floor((d.uptime_sec%86400)/3600)+" 时"):"实时在线",
     crop:{name:d.plant||"——",en:PLANT_EN[d.plant]||"—",gen,stage:STAGE_CN[stage]||stage,
-      day,harvest:"约第 "+Math.max(30,day+25)+" 天",progress:STAGE_PCT[stage]||30,
-      code:(PLANT_CODE[d.plant]||"GEN")+"-L"+gen+"-"+String(day).padStart(3,"0"),
-      goal:LEAFY.includes(d.plant)?"低重力密植产量筛选":"低重力坐果与品质筛选",
+      day,daySource:d.day_source||"device",harvest:"持续监测中",progress:STAGE_PCT[stage]||30,
+      code:"POT-01 · "+(PLANT_CODE[d.plant]||"PLANT"),
+      goal:"AI 免维护 · 新手友好养花",
       phase:PHASE_CN[stage]||(STAGE_CN[stage]||stage)},
     sensors:{soil:sR,light:lR,temp:tR,hum:hR},
     ai:{src,action:aname,icon:aicon,
       input:`土壤 ${sR}% · 光照 ${lR}% · 温度 ${tR}℃ · 湿度 ${hR}%`,
       judge:`${STAGE_CN[stage]||stage} · ${judgeMap[actionState.act]||judgeMap.idle}`,
       output:outMap[actionState.act]||outMap.idle,
-      reason:"决策依据："+(d.reason||"湿度充足，温度适宜，光照达标。"),
-      signals:diagnostics,breeding:buildBreedingObservation(d,actionState,sigs,gen)},
+      reason:"决策依据："+careWording(d.reason||"湿度充足，温度适宜，光照达标。"),
+      signals:diagnostics,breeding:buildCareSummary(d,actionState,sigs)},
     actuators:{pumpRunning:actionState.act==="water",lightRunning:actionState.act==="light",
       trig:`土壤湿度 < ${thr}%`,target:lightOpt+"%"},
     health:buildHealth(d,src),
@@ -619,7 +1307,7 @@ function renderSignals(signals){
     el.innerHTML=`<span class="sig-ic">${s.icon}</span>
       <span class="sig-name">${s.name}</span>
       <span class="sig-conf">可信度 ${(s.conf*100).toFixed(0)}%</span>
-      <span class="sig-tag ${s.real?'tag-real':'tag-virt'}">${s.real?'已连接':'虚拟'}</span>`;
+      <span class="sig-tag ${s.real?'tag-real':'tag-virt'}">${s.real?'已连接':'建议'}</span>`;
     box.appendChild(el);
   });
 }
@@ -658,16 +1346,18 @@ function renderHealth(h){
 }
 function renderTeam(team){
   if(!team) return;
-  document.getElementById("taskLead").textContent=team.lead;
-  document.getElementById("taskBreed").textContent=team.breed;
-  document.getElementById("taskEng").textContent=team.eng;
+  const set=(id,v)=>{ if(v!=null){ const e=document.getElementById(id); if(e) e.textContent=v; } };
+  set("taskLead",team.lead);
+  set("taskEng",team.eng);
+  set("taskSys",team.sys);
 }
 async function update(){
   const d=await fetchTelemetry();
-  document.getElementById("mday").textContent=d.mission_day;
+  document.getElementById("mday").textContent="D"+d.crop.day;
+  document.getElementById("mday").title=d.crop.daySource==="adjusted"?"树莓派自动计算 + 人工修正":(d.crop.daySource==="auto"?"树莓派按播种日期自动计算":"设备上报");
   document.getElementById("cropName").textContent=d.crop.name;
   document.getElementById("cropEn").textContent=d.crop.en;
-  document.getElementById("cropGen").textContent="第 "+d.crop.gen+" 代";
+  document.getElementById("cropGen").textContent="AI 托管";
   document.getElementById("cropCode").textContent=d.crop.code;
   document.getElementById("cropGoal").textContent=d.crop.goal;
   document.getElementById("cropPhase").textContent=d.crop.phase;
@@ -712,13 +1402,15 @@ function pushChart(sn){
 function drawChart(){
   const w=cv.width=cv.clientWidth*devicePixelRatio,h=cv.height=180*devicePixelRatio;
   cx.clearRect(0,0,w,h);
+  const themeStyle=getComputedStyle(document.documentElement);
+  const color=name=>themeStyle.getPropertyValue(name).trim();
   // 网格
-  cx.strokeStyle="rgba(60,120,140,0.1)";cx.lineWidth=1;
+  cx.strokeStyle=document.documentElement.dataset.theme==="eco"?"rgba(61,99,74,0.1)":"rgba(60,120,140,0.1)";cx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=h/4*i;cx.beginPath();cx.moveTo(0,y);cx.lineTo(w,y);cx.stroke();}
-  const series=[["soil","#1ef0c8",0,100],["light","#ffb02e",0,100],["temp","#3b9bff",10,40]];
+  const series=[["soil",color("--glow"),0,100],["light",color("--amber"),0,100],["temp",color("--blue"),10,40]];
   series.forEach(([k,col,mn,mx])=>{
     const arr=hist[k];cx.strokeStyle=col;cx.lineWidth=2*devicePixelRatio;
-    cx.shadowColor=col;cx.shadowBlur=8;cx.beginPath();
+    cx.shadowColor=col;cx.shadowBlur=(document.documentElement.dataset.theme==="eco"?2:8);cx.beginPath();
     arr.forEach((v,i)=>{const x=i/(arr.length-1)*w;const y=h-(v-mn)/(mx-mn)*h*0.9-h*0.05;
       i?cx.lineTo(x,y):cx.moveTo(x,y);});
     cx.stroke();cx.shadowBlur=0;
@@ -749,16 +1441,20 @@ function renderLog(logs=LOGS, append=false){
 }
 
 function clock(){
-  // 北京时间（UTC+8）；任务叙事年份固定 2035，月日时分秒用真实北京时间
+  // 北京时间（UTC+8），显示真实日期，不使用虚构在轨时间。
   const b=new Date(Date.now()+8*3600*1000), p=n=>String(n).padStart(2,'0');
-  document.getElementById("clock").textContent="2035-"+p(b.getUTCMonth()+1)+"-"+p(b.getUTCDate())+
+  document.getElementById("clock").textContent=b.getUTCFullYear()+"-"+p(b.getUTCMonth()+1)+"-"+p(b.getUTCDate())+
     " "+p(b.getUTCHours())+":"+p(b.getUTCMinutes())+":"+p(b.getUTCSeconds());
 }
 
 /* init */
 seedHist();renderLog();
 update();drawChart();clock();
+updateVision();
+loadExperiment(false);
 setInterval(update,POLL_MS);
+setInterval(updateVision,10000);
+setInterval(()=>loadExperiment(false),30000);
 setInterval(clock,1000);
 window.addEventListener("resize",drawChart);
 </script>

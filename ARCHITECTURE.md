@@ -8,7 +8,7 @@
 │  │ 🌡️ 土壤 ADC GPIO34 │  │ 📋 本地规则引擎(兜底)  │  │ 💧 水泵 GPIO5      │ │
 │  │ ☀️ 光照 ADC GPIO32 │─▶│ 📡 采纳树莓派 advice   │─▶│ 💡 补光灯 GPIO18   │ │
 │  │ 🌡️ 温湿 DHT11 GPIO4│  │   (在线优先, 过安全门) │  │ 🌈 WS2812 GPIO26   │ │
-│  │ 🔢 旋钮选作物       │  │                        │  │                    │ │
+│  │ 🔢 四键选作物       │  │                        │  │                    │ │
 │  └────────────────────┘  └────────────────────────┘  └────────────────────┘ │
 │      OLED 三页轮播 + WS2812 12 种信号动画（Decision Plane / Action Plane）    │
 └───────────────────────────────────│─────────────────────────────────────────┘
@@ -83,6 +83,18 @@ ESP32 GND            -> Raspberry Pi GND pin 6
 
 **开机自启**：网关做成 systemd 服务 `spacefarm-gateway.service`（`User=mx Group=dialout`，`Restart=always`，`Environment=SPACEFARM_DASHBOARD=http://43.156.68.157:8790/api/state`，`--ai-advice`），已验证转发到云端大屏 `live:true` 实时刷新。
 
+### 1.3 Camera Module 3、多模态分析与早期表型筛选（已部署）
+
+Camera Module 3 通过 CSI-2 直连树莓派。`spacefarm-vision-capture` 负责采集、图片质量检查、固定 ROI 和缓存；`spacefarm-vision-api` 异步调用 `qwen3.7-plus`，校验并存储结构化结果。树莓派不运行植物识别模型。`serial_gateway` 只把最新 ESP32 遥测镜像到视觉数据库，图片不经过 UART，视觉结果也不进入水泵/补光决策。
+
+实验日龄使用独立的元数据链：网页 `POST /api/experiment` 初始化实验编号和播种日期，腾讯云持久化；树莓派网关每 30 秒拉取到本地缓存，按北京时间以播种当天 D1 计算，再覆盖遥测、视觉上下文和 AI 提示词中的旧日龄。Pi 通过 UART `experiment` 消息把同一日龄同步到 ESP32；该消息不包含执行器动作。云端断开时 Pi 使用缓存，Pi 断开时 ESP32 才使用菜单 `Set Day` 临时兜底。
+
+自动拍摄采用光线门控：以当前作物 `light_opt` 为默认达标线，距上次成功拍摄至少 2 小时后才允许再次拍摄；光线不足时顺延，不拍照、不调用多模态 API，也不为拍照额外开启补光灯。
+
+`tools/screening` 按独立种植周期配对候选和固定对照，输出表型分、ΔControl、IQR、数据质量和 A/B/C/D 证据等级。每 2 小时照片只是重复测量，独立 `n` 按完整种植周期计算；少于 3 周期或缺少有效对照时不得给出正式复筛建议。
+
+该扩展只生成“值得复筛”的候选名单，不声称自动育种、优良品种或正式 DUS 结论，也不参与实时控制。相机、网络、多模态 API、筛选服务、额度、磁盘或视觉服务故障时，树莓派网关仍可转发传感器并生成普通 advice；树莓派整体故障时，ESP32 仍回到本地规则。详细方案见 [Camera Module 3 多模态分析与 AI 早期表型筛选架构方案](./deliverables/Camera-Module-3植物图像识别架构方案.md)。
+
 ---
 
 ## 2. Decision Plane / Action Plane 分离架构
@@ -152,46 +164,32 @@ Decision Plane                          Action Plane
 main.py (薄壳，仅依赖注入接线)
   │
   ├── boot_runtime.py ──▶ sensors.py, display.py, status_strip.py
-  ├── loop_runtime.py ──▶ sensor_runtime.py, decision.py, action_runtime.py, display_runtime.py, telemetry.py
+  ├── loop_runtime.py ──▶ sensor_runtime.py, decision.py, action_runtime.py, display_runtime.py, uart_link.py
   │       │
   │       ├── sensor_runtime.py ──▶ sensors.py
-  │       ├── decision.py ──▶ ai_client.py, utils.py
-  │       │       │               │
-  │       │       │               └── local_fallback_decision (纯函数，无 I/O)
-  │       │       │
-  │       │       └── _should_request_ai (AI 门控逻辑)
+  │       ├── decision.py ──▶ utils.py.local_fallback_decision
   │       │
   │       ├── action_runtime.py ──▶ actuators.py, utils.py
-  │       │       │
-  │       │       └── safety_check (防抖/限频/降级)
   │       │
   │       ├── display_runtime.py ──▶ display.py ──▶ sh1106.py
   │       │
-  │       └── telemetry.py (fire-and-forget HTTP POST)
+  │       └── uart_link.py (report/advice/ping/pong)
   │
   └── 共享状态: state.py (SystemState 单例)
 ```
 
 ### 3.2 模块职责
 
-| 模块 | 行数 | 职责 | 测试覆盖 |
-|------|------|------|---------|
-| `main.py` | ~80 | 依赖注入接线，不包含逻辑 | 间接覆盖 |
-| `state.py` | ~40 | `SystemState` 可变状态容器 | 间接覆盖 |
-| `config.py` | ~60 | 硬件引脚、安全常量、AI 参数 | test_config.py (22 用例) |
-| `plants.json` | ~120 | 8 种作物完整参数（阈值/阶段/施肥/光照） | test_config.py |
-| `sensors.py` | ~120 | ADC/DHT/拨码读取 + 校准 | test_runtime_edges.py |
-| `actuators.py` | ~120 | 双继电器控制（水泵+补光灯）+ 安全超时 | test_runtime_edges.py |
-| `status_strip.py` | ~260 | WS2812 11 灯珠（湿度温度计 + 12 种信号动画） | test_runtime_edges.py |
-| `utils.py` | ~340 | 本地决策规则 + 信号收集 + 通用工具 | test_local_decision.py (24 用例) |
-| `decision.py` | ~100 | AI 门控 + 决策编排 | test_runtime_edges.py |
-| `action_runtime.py` | ~130 | 动作执行 + 信号广播 | test_runtime_edges.py |
-| `ai_client.py` | ~180 | AI Prompt + HTTP 请求 + 响应解析 | test_ai_parse.py (15 用例) |
-| `display.py` | ~250 | OLED 三页绘制 + 菜单/天数选择页 | test_runtime_edges.py |
-| `display_runtime.py` | ~80 | OLED 生命周期管理（懒初始化/释放/advance_page） | 间接覆盖 |
-| `buttons.py` | ~120 | ADC 模拟键盘（GPIO33 四键，8 次均值，nav_held 长按加速） | 间接覆盖 |
-| `menu.py` | ~230 | OLED 菜单系统（植物/天数/手动控制/系统信息，蓝键统一返回） | 间接覆盖 |
-| `telemetry.py` | ~80 | 遥测 POST + 信号/育种观察上报 | test_runtime_edges.py |
+| 模块 | 职责 |
+|------|------|
+| `main.py` / `boot_runtime.py` | 依赖注入和启动编排 |
+| `loop_runtime.py` / `sensor_runtime.py` | 采样、调度和传感器降级 |
+| `decision.py` / `utils.py` | Pi advice 门控和 ESP32 本地兜底规则 |
+| `action_runtime.py` / `actuators.py` | 水泵、补光和安全限制 |
+| `uart_link.py` | 与树莓派交换 report/advice/ping/pong |
+| `display.py` / `display_runtime.py` | OLED 页面和生命周期 |
+| `buttons.py` / `menu.py` | GPIO33 四合一模拟按键和菜单 |
+| `status_strip.py` | WS2812 状态与诊断信号 |
 
 ### 3.3 依赖注入模式
 
@@ -412,14 +410,24 @@ Pi advice 过期 → 丢弃 → 回到本地规则
 
 ```
 ESP32 ──UART JSON Line──▶ serial_gateway.py ──HTTP POST──▶ dashboard_server.py ──HTTP GET──▶ 浏览器
-                            (树莓派)             (port 8790)         (contest-demo-dashboard.html)
+                            (树莓派)             (port 8790)         (groundstation.html)
 ```
+
+Camera Module 3 使用独立数据流，不把图片塞进 `/api/state`：`vision-capture → SQLite 队列 → vision-api-worker → qwen3.7-plus → 本地持久 outbox → vision-cloud-sync → 腾讯云`。Pi 先 `PUT /api/vision/images/{event_id}` 上传带 SHA-256 的 JPEG，再以 `POST /api/vision/events` 幂等提交白名单化元数据；断网指数退避，恢复后每轮只补传一个事件。网页通过 `/api/vision/status`、`/api/vision/latest`、`/api/vision/events`、`/api/vision/images/{event_id}` 和 `/api/screening/latest` 读取云端持久数据。
+
+本机 `127.0.0.1:8791` 运维面由独立只读/记录型服务提供：`/healthz` 汇总 capture/api/cloud 三个心跳、额度、磁盘和最近成功时间；`/v1/capture` 只创建限频人工拍摄请求，仍受遥测新鲜度、光线和质量门约束；`/v1/events/{event_id}/label` 追加人工标签、操作者、时间和备注，不覆盖模型原文。新标签会把已同步事件重新放回 outbox。
+
+种植日龄配置使用 `浏览器 → /api/experiment（云端持久化）→ Pi 定时拉取与本地缓存 → UART experiment → ESP32`。`/api/state` 返回时也由云端实验档案覆盖旧日龄，保证刚保存后网页立即显示一致的 Dn；树莓派同步完成后，DeepSeek 与 Camera Module 3 也使用相同值。
+
+所有云端写接口均要求令牌：遥测使用 `DASHBOARD_TOKEN`，视觉与筛选使用 `VISION_UPLOAD_TOKEN`，实验设置使用 `SPACEFARM_EXPERIMENT_TOKEN`。未配置令牌时只允许 loopback 写入；生产 CORS 仅回显 `DASHBOARD_ALLOWED_ORIGIN` 的精确同源地址，不再发送通配符。视觉 JSON 上限 64KB、JPEG 上限 8MB，图片按事件 ID 固定 URL 返回 ETag 与 immutable 缓存。
+
+早期表型筛选使用第四条慢数据链：`视觉时间序列 + 同批固定对照 + 多周期环境摘要 → phenotype-screen-worker → /api/screening/results → 浏览器`。它展示 ΔControl、IQR、优于对照周期比例、数据质量和复筛建议，不通过 `/api/state` 或 UART 下发控制。
 
 ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派网关收到 `report` 后转发 `/api/state`。ESP32 的 `wifi=false` 是预期状态——树莓派才是联网节点。OLED 第三页也切换为 Pi/UART 语义：`PI:OK AI:PI` 表示树莓派链路在线，`PI:OFF AI:LOCAL` 表示树莓派离线、ESP32 本地规则自治。
 
 **网关转发合并 AI 决策（2026-05-31）**：`serial_gateway` 转发大屏时，把当前 AI advice 的 `reason`/`signals`/`duration`/`breeding_observation` 合并进 payload，否则大屏的 AI 诊断面板只有 report、没有决策细节。DeepSeek 的 `reason`/`breeding_observation` 由 `pi_advisor.SYSTEM_PROMPT` 要求输出简体中文。
 
-**地面站大屏 `deliverables/groundstation.html`（2026-05-31）**：retro-futuristic 航天控制台风格，轮询 `/api/state`，`mapState()` 把扁平接口映射成嵌套展示结构（作物/传感器/AI/灯条/执行器/育种团队）。已顶替云端 dashboard_server 的首页 HTML（旧 `contest-demo-dashboard.html` 备份保留）。
+**地面站大屏 `deliverables/groundstation.html`**：轮询 `/api/state`，并以独立周期读取视觉和筛选接口；没有真实视觉结果时显示“暂无数据”，不得生成虚构的植物观察。
 
 ### 8.2 遥测 Payload
 
@@ -467,7 +475,7 @@ ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派�
 
 ### 9.1 dashboard_server.py
 
-- 端口 8790，托管 `contest-demo-dashboard.html`
+- 端口 8790，托管 `groundstation.html`
 - `/api/state` GET 返回最新遥测，POST 接收 ESP32 上报
 - `_validate_state` 白名单校验 + 范围钳位 + signals 过滤
 - 超 120s 无数据标记为 stale，大屏自动切 DEMO 模式
@@ -498,19 +506,7 @@ ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派�
 
 ## 10. 测试体系
 
-| 测试文件 | 用例数 | 覆盖内容 |
-|---------|-------|---------|
-| test_config.py | 22 | 植物数据库完整性、安全常量、拨码编码 |
-| test_local_decision.py | 24 | 本地决策优先级、温度安全、Decision Plane 信号 |
-| test_runtime_edges.py | 16 | 硬件 mock、执行动作分支、WS2812、Pi advice、demo |
-| test_pi_advisor.py | 11 | 树莓派 DeepSeek advisor：prompt/校验/HTTP注入/降级/信号白名单跨端一致 |
-| test_dashboard_server.py | 7 | 遥测校验、nutrient remap、signals/breeding 透传 |
-| test_utils.py | 9 | 时间格式化、移动平均、平滑值 |
-| test_docs_quality.py | 2 | Markdown UTF-8 完整性、链接有效性 |
-| test_loop_runtime.py | 3 | 主循环周期、传感器故障降级、UART poll/report 注入 |
-| test_serial_gateway.py | 18 | 树莓派串口网关、心跳、advice、跨端协议兼容 |
-| test_uart_link.py | 21 | ESP32 UART 编解码、ping/pong、advice 转换、在线超时 |
-| **合计** | **133** | |
+当前 `py -m pytest -q` 共 **199 项测试**，覆盖 ESP32 本地规则、动作安全、UART 协议、树莓派文本 AI、Camera Module 3 调度、SQLite 重试队列、多模态 schema、对照组聚合、Dashboard API 和 Markdown 链接完整性。测试总数以实际 pytest 输出为唯一权威来源，不再维护容易过期的逐文件手工计数表。
 
 ---
 
@@ -522,7 +518,7 @@ ESP32 不直传遥测（`telemetry.py` 已于 2026-05-30 移除）；树莓派�
 |-------|---------|------------|
 | 作物数量描述 | `plants.json` (8 条) | README.md, 评委展示方案.md, KT板设计文档.md, 选型报告.md |
 | 测试用例数 | `py -m pytest` 输出 | README 徽章, 数据见证表, 测试指南.md, 本文测试表 |
-| BOM 成本 | 选型报告.md BOM 表 (¥140/套) | README 徽章, KT板, 评委展示方案.md |
+| BOM 成本 | 选型报告.md BOM 表 (¥135/套) | README 徽章, KT板, 评委展示方案.md |
 | 动作集 | `action_runtime.py` valid_actions | ai_client.SYSTEM_PROMPT, ai_proxy._validate_decision, dashboard_server._validate_state, 大屏 action labels |
 | 信号类型 | `status_strip.py` 12 种常量 | ai_proxy._validate_decision 白名单, 大屏 SIGNAL_LABELS |
 | AI 模型名 | `config.py` AI_MODEL | 评委展示方案.md Q&A, KT板技术参数表 |

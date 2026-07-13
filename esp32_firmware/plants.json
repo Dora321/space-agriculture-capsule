@@ -1,4 +1,71 @@
 {
+  "白掌": {
+    "soil_threshold": 42,
+    "light_min": 10, "light_opt": 45, "light_hours": [6, 8],
+    "water_sec": 8, "growth_stages": [
+      {"days": [0, 14], "stage": "seedling", "fert": "NPK", "water_need": "light", "note": "缓苗期保持微湿，避免积水"},
+      {"days": [15, 60], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "散射光下保持均匀湿润"},
+      {"days": [61, 999], "stage": "flowering", "fert": "PK", "water_need": "normal", "note": "花期维持稳定水分和散射光"}
+    ]
+  },
+  "绿萝": {
+    "soil_threshold": 35,
+    "light_min": 10, "light_opt": 45, "light_hours": [6, 8],
+    "water_sec": 7, "growth_stages": [
+      {"days": [0, 14], "stage": "seedling", "fert": "NPK", "water_need": "light", "note": "适应期避免频繁浇水"},
+      {"days": [15, 999], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "土壤适度干燥后再补水"}
+    ]
+  },
+  "吊兰": {
+    "soil_threshold": 35,
+    "light_min": 10, "light_opt": 55, "light_hours": [6, 8],
+    "water_sec": 7, "growth_stages": [
+      {"days": [0, 14], "stage": "seedling", "fert": "NPK", "water_need": "light", "note": "缓苗期保持通风和微湿"},
+      {"days": [15, 999], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "明亮散射光，保持适中水分"}
+    ]
+  },
+  "虎尾兰": {
+    "soil_threshold": 20,
+    "light_min": 10, "light_opt": 45, "light_hours": [6, 8],
+    "water_sec": 4, "growth_stages": [
+      {"days": [0, 30], "stage": "seedling", "fert": "NPK", "water_need": "light", "note": "生根期宁干勿湿"},
+      {"days": [31, 999], "stage": "vegetative", "fert": "N", "water_need": "light", "note": "耐旱，土壤干燥后少量补水"}
+    ]
+  },
+  "月季": {
+    "soil_threshold": 40,
+    "light_min": 10, "light_opt": 80, "light_hours": [8, 12],
+    "water_sec": 10, "growth_stages": [
+      {"days": [0, 21], "stage": "seedling", "fert": "NPK", "water_need": "light", "note": "缓苗期保持湿润并避免暴晒"},
+      {"days": [22, 60], "stage": "vegetative", "fert": "N", "water_need": "normal", "note": "生长期需要充足光照和稳定水分"},
+      {"days": [61, 999], "stage": "flowering", "fert": "PK", "water_need": "normal", "note": "花期保持充足光照，避免忽干忽湿"}
+    ]
+  },
+  "长寿花": {
+    "soil_threshold": 25,
+    "light_min": 10, "light_opt": 70, "light_hours": [8, 10],
+    "water_sec": 5, "growth_stages": [
+      {"days": [0, 30], "stage": "vegetative", "fert": "NPK", "water_need": "light", "note": "明亮散射光，土壤稍干后浇水"},
+      {"days": [31, 999], "stage": "flowering", "fert": "PK", "water_need": "light", "note": "花期避免积水并保持规律明暗周期"}
+    ]
+  },
+  "多肉": {
+    "soil_threshold": 18,
+    "light_min": 10, "light_opt": 75, "light_hours": [8, 10],
+    "water_sec": 4, "growth_stages": [
+      {"days": [0, 30], "stage": "seedling", "fert": "NPK", "water_need": "light", "note": "生根期使用排水良好基质"},
+      {"days": [31, 999], "stage": "vegetative", "fert": "NPK", "water_need": "light", "note": "明亮散射光，完全干燥后再补水"}
+    ]
+  },
+  "薄荷": {
+    "soil_threshold": 45,
+    "light_min": 10, "light_opt": 65, "light_hours": [8, 10],
+    "water_sec": 8, "growth_stages": [
+      {"days": [0, 14], "stage": "seedling", "fert": "NPK", "water_need": "normal", "note": "幼苗期保持稳定湿润"},
+      {"days": [15, 60], "stage": "vegetative", "fert": "N", "water_need": "heavy", "note": "生长期保持充足光照和水分"},
+      {"days": [61, 999], "stage": "harvesting", "fert": "N", "water_need": "normal", "note": "定期修剪并保持基质湿润"}
+    ]
+  },
   "生菜": {
     "soil_threshold": 30,
     "light_min": 10, "light_opt": 50, "light_hours": [6, 8],

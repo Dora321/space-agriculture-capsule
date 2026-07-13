@@ -1,0 +1,19 @@
+{
+  "cycle_id": "single-plant-care",
+  "plant_info": {
+    "plant": "白掌",
+    "light_opt": 45
+  },
+  "rois": [
+    {
+      "pot_id": "PLANT",
+      "roi_id": "plant-overview",
+      "material_id": "current-plant",
+      "is_control": false,
+      "x": 0,
+      "y": 0,
+      "width": 2304,
+      "height": 1296
+    }
+  ]
+}

@@ -28,6 +28,7 @@ MSG_REPORT = "report"
 MSG_ADVICE = "advice"
 MSG_PING = "ping"
 MSG_PONG = "pong"
+MSG_EXPERIMENT = "experiment"
 
 # MUST mirror uart_link.VALID_SIGNALS / status_strip.py / ai_proxy whitelist.
 VALID_SIGNALS = (
@@ -139,6 +140,17 @@ class GatewayCore:
             "breeding_observation": breeding_observation,
         })
 
+    def make_experiment_sync(self, experiment):
+        """Build a non-control message that synchronizes the authoritative day."""
+        return encode_line({
+            "t": MSG_EXPERIMENT,
+            "experiment_id": experiment["experiment_id"],
+            "planting_date": experiment["planting_date"],
+            "plant_day": int(experiment["plant_day"]),
+            "day_source": experiment.get("day_source", "auto"),
+            "updated_at": experiment.get("updated_at", ""),
+        })
+
     # ---------- timing ----------
     def tick(self, now=None):
         """Return a list of outgoing byte-lines due now (heartbeat ping)."""
@@ -194,7 +206,35 @@ def _report_to_dashboard_state(report):
         "wifi": report.get("online", False),
         "ai": report.get("ai_src") == "pi",
         "decision_source": report.get("ai_src", "local"),
+        "experiment_id": report.get("experiment_id", ""),
+        "planting_date": report.get("planting_date", ""),
+        "day_offset": report.get("day_offset", 0),
+        "day_source": report.get("day_source", "device"),
+        "experiment_elapsed_hours": report.get("experiment_elapsed_hours", 0),
     }
+
+
+def _experiment_url_from_dashboard(dashboard_url):
+    if not dashboard_url:
+        return ""
+    from urllib.parse import urlsplit, urlunsplit
+    parsed = urlsplit(dashboard_url)
+    return urlunsplit((parsed.scheme, parsed.netloc, "/api/experiment", "", ""))
+
+
+def _apply_experiment_to_report(report, experiment):
+    value = dict(report)
+    if not experiment.get("configured"):
+        value["day_source"] = "device"
+        return value
+    value["device_day"] = report.get("day", 0)
+    value["day"] = int(experiment["plant_day"])
+    for key in (
+        "experiment_id", "planting_date", "day_offset", "day_source",
+        "experiment_elapsed_hours",
+    ):
+        value[key] = experiment.get(key)
+    return value
 
 
 def _dashboard_action_from_advice(advice):
@@ -249,13 +289,26 @@ def _ai_snapshot(report):
     return {k: report.get(k) for k in ("plant", "stage", "day", "soil", "light", "temp", "hum")}
 
 
-def _post_json(url, payload, timeout=2):
+def _post_json(url, payload, timeout=2, token=""):
     import urllib.request
     data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["X-Dashboard-Token"] = token
     req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"})
+        url, data=data, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
+
+
+def _get_json(url, token="", timeout=2):
+    import urllib.request
+    headers = {"Accept": "application/json"}
+    if token:
+        headers["X-Dashboard-Token"] = token
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 def main(argv=None):
@@ -289,11 +342,34 @@ def main(argv=None):
                         default=os.environ.get("SPACEFARM_PLANTS_JSON", ""),
                         help="path to plants.json for plant thresholds (optional, "
                              "improves AI prompt quality)")
+    parser.add_argument("--vision-db",
+                        default=os.environ.get("SPACEFARM_VISION_DB", ""),
+                        help="SQLite path used to mirror the latest telemetry for the "
+                             "camera scheduler (empty disables vision telemetry)")
+    parser.add_argument(
+        "--experiment-url",
+        default=os.environ.get("SPACEFARM_EXPERIMENT_URL", ""),
+        help="cloud experiment API; defaults to the dashboard host /api/experiment",
+    )
+    parser.add_argument(
+        "--experiment-file",
+        default=os.environ.get(
+            "SPACEFARM_EXPERIMENT_FILE", "/var/lib/spacefarm/experiment.json"),
+        help="persistent Pi cache for experiment calendar",
+    )
+    parser.add_argument(
+        "--experiment-sync-interval", type=float,
+        default=float(os.environ.get("SPACEFARM_EXPERIMENT_SYNC_INTERVAL", "30")),
+        help="seconds between cloud experiment configuration polls",
+    )
     parser.add_argument("--ai-min-interval", type=float,
                         default=float(os.environ.get("SPACEFARM_AI_MIN_INTERVAL", "300")),
                         help="稳定期 AI 节流：无显著变化时两次 DeepSeek 调用的最小间隔(秒)。"
                              "传感器/作物状态显著变化会立即触发，不受此限。默认 300s。设 0 为每报必问。")
     args = parser.parse_args(argv)
+
+    if not args.experiment_url:
+        args.experiment_url = _experiment_url_from_dashboard(args.dashboard)
 
     _install_sigpipe_guard()
 
@@ -301,6 +377,24 @@ def main(argv=None):
         import serial  # pyserial
     except ImportError:
         raise SystemExit("pyserial not installed: pip install pyserial")
+
+    vision_store = None
+    vision_sink = None
+    if args.vision_db:
+        from vision.store import VisionStore
+        from vision.telemetry_sink import TelemetrySink
+        vision_store = VisionStore(args.vision_db)
+        vision_sink = TelemetrySink(vision_store)
+        print("[GW] vision telemetry enabled:", args.vision_db)
+
+    try:
+        from experiment_clock import ExperimentStore
+    except ImportError:
+        from tools.experiment_clock import ExperimentStore
+    experiment_store = ExperimentStore(args.experiment_file)
+    experiment_token = os.environ.get("SPACEFARM_EXPERIMENT_TOKEN", "")
+    dashboard_token = os.environ.get("DASHBOARD_TOKEN", "")
+    next_experiment_sync = 0.0
 
     def on_report(report):
         # Dashboard forwarding happens in the main loop so it can merge the active
@@ -333,11 +427,22 @@ def main(argv=None):
     # AI 节流追踪：上次请求 DeepSeek 的时刻与当时的状态快照
     last_ai_call_t = None
     last_ai_snapshot = None
+    last_experiment_sent = None
 
     ser = serial.Serial(args.port, args.baud, timeout=0.2)
     print("[GW] gateway up on %s @ %d" % (args.port, args.baud))
     try:
         while True:
+            now_mono = time.monotonic()
+            if args.experiment_url and now_mono >= next_experiment_sync:
+                next_experiment_sync = now_mono + max(5.0, args.experiment_sync_interval)
+                try:
+                    remote = _get_json(args.experiment_url, token=experiment_token)
+                    if remote.get("configured"):
+                        experiment_store.import_remote(remote)
+                        print("[GW] experiment synced:", remote.get("experiment_id"))
+                except Exception as e:
+                    print("[GW] experiment sync failed; using Pi cache:", e)
             try:
                 waiting = ser.in_waiting
                 data = ser.read(waiting or 1)
@@ -348,6 +453,22 @@ def main(argv=None):
             for msg in core.feed(data):
                 if msg.get("t") != MSG_REPORT:
                     continue
+                experiment = experiment_store.status()
+                msg = _apply_experiment_to_report(msg, experiment)
+                if vision_sink is not None:
+                    vision_sink.submit(msg)
+                if experiment.get("configured"):
+                    signature = (
+                        experiment.get("experiment_id"), experiment.get("plant_day"),
+                        experiment.get("updated_at"),
+                    )
+                    if signature != last_experiment_sent:
+                        try:
+                            ser.write(core.make_experiment_sync(experiment))
+                            last_experiment_sent = signature
+                            print("[GW] experiment day sent to ESP32:", experiment["plant_day"])
+                        except (BrokenPipeError, ConnectionResetError, OSError) as e:
+                            print("[GW] experiment sync write error:", e)
                 advice = None
                 if args.test_advice:
                     test_signals = []
@@ -425,7 +546,7 @@ def main(argv=None):
                     ]
                     payload["breeding_observation"] = last_advice.get("breeding_observation", "")
                     try:
-                        _post_json(args.dashboard, payload)
+                        _post_json(args.dashboard, payload, token=dashboard_token)
                     except Exception as e:
                         print("[GW] dashboard forward failed:", e)
             for line in core.tick():
@@ -438,6 +559,10 @@ def main(argv=None):
         print("\n[GW] stopped")
     finally:
         ser.close()
+        if vision_sink is not None:
+            vision_sink.close()
+        if vision_store is not None:
+            vision_store.close()
 
 
 if __name__ == "__main__":

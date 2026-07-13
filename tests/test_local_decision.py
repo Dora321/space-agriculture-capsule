@@ -303,6 +303,16 @@ class TestSignals:
         assert "WATER" not in d["signals"]
         assert "LIGHT_LOW" not in d["signals"]
 
+    def test_nutrient_signals_disabled_without_sensor_or_pump(self):
+        info = _plant()
+        d = local_fallback_decision(
+            soil=info["soil_threshold"] + 20,
+            plant_info=info,
+            current_time=1000,
+            light=info["light_min"] + 20,
+        )
+        assert not {"NEED_N", "NEED_P", "NEED_K"}.intersection(d["signals"])
+
     def test_decision_dict_has_signals_and_breeding_keys(self):
         """所有决策返回值都包含 signals 和 breeding_observation 键"""
         info = _plant()

@@ -1,0 +1,17 @@
+[Unit]
+Description=SpaceFarm Camera Module 3 capture scheduler
+After=spacefarm-gateway.service
+
+[Service]
+Type=simple
+User=mx
+Group=video
+WorkingDirectory=/home/mx/spacefarm
+EnvironmentFile=/home/mx/spacefarm/.config/vision.env
+ExecStart=/usr/bin/python3 -u /home/mx/spacefarm/tools/vision_service.py capture
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

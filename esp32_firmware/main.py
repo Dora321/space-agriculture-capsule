@@ -1,9 +1,9 @@
 """
-太空农业种植舱 - ESP32 主控板固件
+AI 开放式智能花盆 - ESP32 主控板固件
 版本: v2.0
 日期: 2026-05-30
-说明: 基于 MicroPython 的智能种植舱控制系统（双层架构 / 单一路线）
-      ESP32 为舱内飞控：感知 / 本地规则 + 树莓派 advice / 执行 / 安全护栏。
+说明: 基于 MicroPython 的智能花盆控制系统（双层架构 / 单一路线）
+      ESP32 为养护控制器：感知 / 本地规则 + 树莓派 advice / 执行 / 安全护栏。
       联网、大屏、AI 全部由树莓派经 UART 承担——ESP32 不再使用 WiFi。
       交互方式：模拟键盘(ADC GPIO33) + OLED 菜单
 """
@@ -55,7 +55,7 @@ def _demo_value(name, default):
 
 
 def _init_uart_link():
-    """Initialize ESP32 UART2 for the Raspberry Pi payload computer."""
+    """Initialize ESP32 UART2 for the Raspberry Pi AI hub."""
     global _uart_link
     if _uart_link is not None:
         return True
@@ -134,6 +134,15 @@ def _poll_uart():
                 if decision is not None:
                     state.pending_pi_decision = decision
                     print("[UART] Pi advice queued:", decision.get("action"))
+            elif msg.get("t") == uart_link.MSG_EXPERIMENT:
+                day = uart_link.experiment_to_day(msg)
+                if day is not None:
+                    state.manual_day = day
+                    state.days_since_planting = day
+                    state.day_source = "pi"
+                    state.experiment_id = str(msg.get("experiment_id", ""))[:48]
+                    state.growth_stage = config.get_growth_stage(state.plant_info, day)
+                    print("[UART] Experiment day synced:", day)
         return bool(msgs)
     except Exception as e:
         print("[UART] poll skipped:", e)
@@ -286,6 +295,12 @@ def init_system():
     print("[Net] ESP32 networking disabled: Raspberry Pi handles WiFi/AI/dashboard")
     state.wifi_connected = False
     _init_uart_link()
+    if getattr(config, "UART_ENABLED", False):
+        # Avoid presenting a stale hard-coded planting date while waiting for Pi sync.
+        # The blue-key Set Day menu remains available if the Pi is offline.
+        state.manual_day = 1
+        state.days_since_planting = 1
+        state.day_source = "awaiting_pi"
 
     # ── 现在再 import 重模块 ──────────────────────────────────
     import boot_runtime

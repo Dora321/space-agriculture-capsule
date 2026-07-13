@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>第二代开放式智能花盆 · KT 展板 1200×600mm</title>
+<!-- HyperFrames 兼容：纯 HTML/CSS。浏览器 Ctrl+P → 另存为 PDF（@page 已设 1200×600mm）即印刷尺寸 -->
+<!-- 2026-07-11 主题重做：太空育种 → AI 免维护种花 · 第二代开放式智能花盆（旧版见 git 历史） -->
+<style>
+  :root{
+    --h1:40mm; --h2:14mm;
+    --secTitle:8.5mm; --body:5.2mm;
+    --font:"Source Han Sans SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+    --mono:"Cascadia Code","Consolas",monospace;
+    /* 浅色高清主题 · 植物绿为主色 */
+    --bg:#f4f9f6; --panel:#ffffff; --panelBorder:#dfeae2;
+    --fg:#14291d; --muted:#587266; --line:#d8e6dc;
+    --accent:#1f9d57; --accent2:#1769d6; --warm:#e07b00;
+    --chipBg:#e9f7ee; --soft:#f2faf4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{font-family:var(--font); -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  .i{fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+
+  /* ===== 展板本体 1200×600mm ===== */
+  .board{
+    width:1200mm; height:600mm; position:relative; overflow:hidden; color:var(--fg);
+    background:radial-gradient(130% 100% at 85% -10%, #ffffff, var(--bg) 70%);
+    padding:22mm; display:grid; grid-template-rows:80mm 1fr 62mm 138mm 6mm; row-gap:10mm;
+  }
+  /* 点阵底纹 */
+  .board::before{content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+    background-image:radial-gradient(circle, rgba(31,157,87,.06) .6mm, transparent .7mm);
+    background-size:15mm 15mm;}
+  /* 同心环装饰（水波纹） */
+  .deco{position:absolute; pointer-events:none; z-index:0; border-radius:50%;
+    background:repeating-radial-gradient(circle at center, transparent 0 30mm, rgba(31,157,87,.05) 30mm 30.7mm);}
+  .deco.tr{right:-150mm; top:-180mm; width:520mm; height:520mm;}
+  .deco.bl{left:-160mm; bottom:-190mm; width:480mm; height:480mm;
+    background:repeating-radial-gradient(circle at center, transparent 0 28mm, rgba(23,105,214,.05) 28mm 28.7mm);}
+
+  /* ===== 标题带（深绿锚点）===== */
+  .title{position:relative; z-index:1; border-radius:8mm; padding:0 24mm; color:#fff; overflow:hidden;
+    display:grid; grid-template-columns:1fr 360mm; gap:20mm; align-items:center;
+    background:linear-gradient(115deg,#0b2417 0%,#155c3a 54%,#0f5a50 100%);
+    box-shadow:0 3mm 12mm rgba(16,64,40,.22);}
+  .title::before{content:""; position:absolute; right:-60mm; top:-90mm; width:260mm; height:260mm; border-radius:50%;
+    background:repeating-radial-gradient(circle at center, transparent 0 16mm, rgba(255,255,255,.06) 16mm 16.6mm);}
+  h1{font-size:var(--h1); line-height:1.0; font-weight:800; letter-spacing:.6mm;}
+  .sub{font-size:var(--h2); font-weight:700; color:#ffce85; margin-top:5mm; letter-spacing:1.2mm;}
+  .accentbar{height:2.2mm; width:130mm; margin-top:7mm; border-radius:2mm;
+    background:linear-gradient(90deg,#52d98a,#46b3ff);}
+  .idblock{position:relative; z-index:1; justify-self:end; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:3mm;}
+  .school{font-size:11mm; font-weight:800;}
+  .meta{font-size:5.6mm; color:rgba(255,255,255,.78);}
+  .qrwrap{display:flex; align-items:center; gap:6mm; margin-top:4mm;}
+  .qrcap{font-size:4.6mm; color:rgba(255,255,255,.85); text-align:right; max-width:64mm; line-height:1.3;}
+  .qr{width:44mm; height:44mm; background:#fff; padding:3mm; border-radius:3mm; box-shadow:0 1mm 4mm rgba(0,0,0,.25);}
+
+  /* ===== 主体三栏 ===== */
+  .body{position:relative; z-index:1; display:grid; grid-template-columns:270mm 1fr 478mm; gap:16mm; min-height:0;}
+  .panel{position:relative; overflow:hidden; background:var(--panel); border:.4mm solid var(--panelBorder);
+    border-radius:7mm; padding:10mm 10mm 9mm; box-shadow:0 2mm 7mm rgba(20,60,40,.07);
+    display:flex; flex-direction:column; gap:6mm;}
+  .panel .wm{position:absolute; right:-14mm; bottom:-16mm; width:92mm; height:92mm; opacity:.05; pointer-events:none; color:var(--accent);}
+  .sech{display:flex; align-items:center; gap:5mm;}
+  .sech .hic{width:7.5mm; height:7.5mm; color:var(--accent); flex:0 0 auto;}
+  .secTitle{font-size:var(--secTitle); font-weight:800; line-height:1.12;}
+  .p{font-size:var(--body); line-height:1.45;}
+  .muted{color:var(--muted);}
+
+  /* ① 痛点 → 进化 */
+  .quote{margin-top:auto; border-left:2.6mm solid var(--warm); padding:5mm 6mm; background:#fff7ee;
+    border-radius:0 4mm 4mm 0; font-size:6mm; font-weight:800; line-height:1.4;}
+  .tag{align-self:flex-start; font-family:var(--mono); font-size:4.4mm; color:var(--accent);
+    background:var(--chipBg); border-radius:20mm; padding:2.5mm 6mm;}
+  .htl{position:relative; display:flex; justify-content:space-between; margin-top:1.5mm; padding:0 1mm;}
+  .htl::before{content:""; position:absolute; left:10mm; right:10mm; top:3.4mm; height:.9mm; border-radius:1mm;
+    background:linear-gradient(90deg,#9db1a5,var(--accent2),var(--accent));}
+  .hstep{position:relative; flex:1; text-align:center;}
+  .hdot{width:5mm; height:5mm; border-radius:50%; background:#9db1a5; margin:1mm auto 2mm; box-shadow:0 0 0 2mm #eef2ef;}
+  .hstep:nth-child(2) .hdot{background:var(--accent2); box-shadow:0 0 0 2mm #eaf2fd;}
+  .hstep.last .hdot{background:var(--accent); box-shadow:0 0 0 2mm var(--chipBg);}
+  .hwhen{font-size:4.8mm; font-weight:800;}
+  .hwhat{font-size:3.9mm; color:var(--muted); margin-top:.5mm;}
+  .htime{font-size:3.5mm; color:var(--muted); margin-top:2.5mm; line-height:1.25;}
+  .htime b{display:block; font-size:5mm; font-weight:800; color:var(--muted);}
+  .hstep:nth-child(2) .htime b{color:var(--accent2);}
+  .hstep.last .htime b{color:var(--accent);}
+
+  /* 统一特性卡（痛点 / 三大设计 / 下一步）*/
+  .featlist{flex:1; display:flex; flex-direction:column; gap:4mm; justify-content:space-between;}
+  .feat{display:flex; gap:4mm; align-items:flex-start; padding:4.5mm 5mm; border-radius:5mm;
+    background:var(--fc-bg,var(--soft)); border:.4mm solid var(--panelBorder); border-left:2.6mm solid var(--fc,var(--accent));}
+  .feat .fic{width:8.5mm; height:8.5mm; flex:0 0 auto; color:var(--fc,var(--accent)); margin-top:.5mm;}
+  .feat .ft{font-size:5mm; font-weight:800; line-height:1.15;}
+  .feat .ft b{color:var(--fc,var(--accent));}
+  .feat .fb{font-size:4mm; color:var(--muted); line-height:1.35; margin-top:1.5mm;}
+
+  /* ② 架构图 */
+  .arch{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-evenly; gap:5mm; margin-top:1mm;}
+  .node{width:100%; border:.5mm solid var(--line); border-radius:4mm; background:var(--soft);
+    padding:5.5mm 7mm; display:flex; align-items:center; gap:5mm;}
+  .node .nic{width:10mm; height:10mm; flex:0 0 auto; color:var(--accent);}
+  .node .nt{font-size:5.6mm; font-weight:700; line-height:1.15;}
+  .node .nt small{display:block; font-weight:500; color:var(--muted); font-size:4mm; margin-top:1mm;}
+  .node.cloud{border-style:dashed; background:#eef5ff;}
+  .node.cloud .nic{color:var(--accent2);}
+  .conn{font-family:var(--mono); font-size:4.4mm; color:var(--muted);}
+  .duo{display:flex; gap:4mm; width:100%; align-items:stretch;}
+  .duo .node{flex:1;}
+  .uart{display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:4mm; color:var(--warm); white-space:nowrap;}
+  .uart b{font-size:4.6mm;}
+  .triple{display:flex; gap:4mm; width:100%;}
+  .triple .node{flex:1; flex-direction:column; align-items:flex-start; gap:2mm; padding:3.5mm 4mm;}
+  .triple .node .nt{font-size:4.4mm;}
+  .archcap{font-size:4.5mm; color:var(--muted); text-align:center;}
+  .archdetail{display:flex; flex-direction:column; gap:2.5mm; margin-top:2mm;}
+  .adrow{font-size:4mm; color:var(--muted); line-height:1.3; border-left:2mm solid var(--accent); padding-left:4mm;}
+  .adrow b{color:var(--fg); font-weight:800; margin-right:2mm;}
+  .archspecs{display:flex; flex-wrap:wrap; gap:3mm; margin-top:3mm;}
+  .achip{font-family:var(--mono); font-size:3.7mm; color:var(--accent); background:var(--chipBg);
+    border:.4mm solid var(--panelBorder); border-radius:20mm; padding:2mm 4mm;}
+
+  /* ③ 实物 + 大屏 */
+  .shotrow{flex:1; display:flex; gap:5mm; min-height:0; margin-top:1mm;}
+  .bigshot{flex:1; min-width:0; display:flex; flex-direction:column; gap:1.5mm; min-height:0;}
+  .bigshot img{flex:1; min-height:0; width:100%; object-fit:contain; border:.4mm solid var(--panelBorder);
+    border-radius:4mm; background:#fff; padding:1.5mm;}
+  .bigshot figcaption{font-size:4.2mm; color:var(--muted); text-align:center;}
+
+  /* ===== 主数字带 ===== */
+  .metrics{position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,1fr); gap:12mm;}
+  .metric{background:var(--panel); border:.4mm solid var(--panelBorder); border-radius:6mm; box-shadow:0 2mm 7mm rgba(20,60,40,.07);
+    padding:5mm 6mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
+  .metric .num{font-size:27mm; font-weight:800; line-height:.92; color:var(--fg); letter-spacing:.3mm;}
+  .metric .num .u{font-size:.42em; font-weight:700; margin-left:1mm;}
+  .metric .lab{font-size:5mm; color:var(--muted); margin-top:2.5mm;}
+  .metric .note{font-size:3.4mm; color:var(--muted); margin-top:2mm; line-height:1.3;}
+  .metric.cost{border:.7mm solid var(--warm); background:#fff7ee;}
+  .metric.cost .num{color:var(--warm);}
+  .metric.cost .lab{color:#a86a1c; font-weight:700;}
+  .metric.cost .note{font-size:3.5mm; color:#9a7340; margin-top:2.5mm; line-height:1.3;}
+
+  /* ===== 底部四栏 ===== */
+  .bottom{position:relative; z-index:1; display:grid; grid-template-columns:1fr 220mm 320mm 300mm; gap:12mm; min-height:0;}
+  .flow{display:flex; align-items:stretch; gap:3mm; margin-top:1mm;}
+  .step{flex:1; border:.5mm solid var(--line); border-radius:5mm; background:var(--soft); padding:4mm 3mm; text-align:center;}
+  .step .sic{width:8.5mm; height:8.5mm; margin-bottom:2mm;}
+  .step .st{font-size:5.6mm; font-weight:800; color:var(--fg);}
+  .step .sd{font-size:3.9mm; color:var(--muted); margin-top:1.5mm; line-height:1.3;}
+  .step.s1 .sic{color:var(--accent2);} .step.s2 .sic{color:#6b4ef0;} .step.s3 .sic{color:var(--accent);} .step.s4 .sic{color:var(--warm);}
+  .arrow{display:flex; align-items:center; color:var(--accent); font-size:7mm; font-weight:700;}
+  .example{font-size:4mm; color:var(--muted); line-height:1.35; border-left:2mm solid var(--accent); padding-left:4mm; margin-top:3mm;}
+  .example b{color:var(--fg); font-family:var(--mono); margin-right:2mm;}
+  .looprow{display:flex; gap:4mm; margin-top:4mm; flex-wrap:wrap;}
+  .loopbar{display:inline-flex; align-items:center; gap:3mm; font-family:var(--mono); font-size:4.6mm; color:var(--warm); background:#fff7ee; border-radius:20mm; padding:2.5mm 5mm;}
+  .loopbar .i{width:5.5mm; height:5.5mm;}
+  .specbar{display:inline-flex; align-items:center; font-family:var(--mono); font-size:4.6mm; color:var(--accent2); background:#eaf2fd; border-radius:20mm; padding:2.5mm 5mm;}
+  .safety{display:flex; flex-wrap:wrap; align-items:center; gap:3mm; margin-top:4mm;}
+  .safety>b{font-size:4.2mm; color:var(--warm); font-weight:800;}
+  .schip{font-family:var(--mono); font-size:4mm; color:#b06a00; background:#fff7ee;
+    border:.4mm solid #f0d6b0; border-radius:20mm; padding:2mm 4mm;}
+
+  /* 团队（横排 3 人）*/
+  .team-row{flex:1; display:flex; gap:5mm; margin-top:1mm; min-height:0;}
+  .tmc{flex:1; min-width:0; background:var(--soft); border:.4mm solid var(--panelBorder); border-radius:6mm;
+    padding:6mm 4mm; display:flex; flex-direction:column; align-items:center; text-align:center;}
+  .tmc .av{width:34mm; height:34mm; border-radius:50%; overflow:hidden; border:.6mm solid var(--accent); margin-bottom:3mm;
+    display:flex; align-items:center; justify-content:center; font-size:15mm; font-weight:800; color:var(--accent); background:#fff;}
+  .tmc .av img{width:100%; height:100%; object-fit:cover; object-position:50% 20%;}
+  .tmc .nm{font-size:5.8mm; font-weight:800;}
+  .tmc .ro{font-size:4.3mm; color:var(--accent2); margin-bottom:2mm; line-height:1.25;}
+  .tmc .duty{font-size:3.8mm; color:var(--muted); line-height:1.35; margin-top:1.5mm;}
+
+  /* ===== 页脚条 ===== */
+  .footer{position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between;
+    border-top:.4mm solid var(--line); padding-top:3mm; font-family:var(--mono); font-size:4.4mm; color:var(--muted);}
+  .footer b{color:var(--accent);}
+
+  /* ===== 预览 / 印刷 ===== */
+  @media screen{
+    body{background:#222732; display:flex; justify-content:center; padding:40px 0;}
+    .board{zoom:.32; box-shadow:0 12px 44px rgba(0,0,0,.5);}
+    .bar{position:fixed; top:0; left:0; right:0; z-index:9; background:#0e1118; color:#cdd6e6;
+      font:14px/1.5 var(--font); padding:9px 16px; text-align:center; border-bottom:1px solid #2a3142;}
+    .bar b{color:#ffce85;}
+  }
+  @media print{
+    @page{size:1200mm 600mm; margin:0;}
+    body{background:#fff;}
+    .bar{display:none;}
+    .board{zoom:1;}
+  }
+</style>
+</head>
+<body>
+<div class="bar">第二代开放式智能花盆 · KT 展板 1200×600mm　|　导出印刷文件：<b>Ctrl+P → 另存为 PDF → 边距“无” → 勾选“背景图形”</b></div>
+
+<!-- 图标库 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="ic-layers" viewBox="0 0 24 24"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5l9 4.5 9-4.5"/></symbol>
+  <symbol id="ic-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9z"/></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4.5L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14 4.5L20 16"/><path d="M20 20v-4h-4"/></symbol>
+  <symbol id="ic-leaf" viewBox="0 0 24 24"><path d="M5 21c0-9 6-15 16-16 0 10-7 16-16 16z"/><path d="M5 21c3-5 7-8 12-10"/></symbol>
+  <symbol id="ic-signal" viewBox="0 0 24 24"><path d="M2.5 9a15 15 0 0 1 19 0"/><path d="M6 12.5a10 10 0 0 1 12 0"/><path d="M9.5 16a5 5 0 0 1 5 0"/><path d="M12 19.5h.01"/><path d="M3 3l18 18"/></symbol>
+  <symbol id="ic-ai" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v2M15 3v2M9 19v2M15 19v2M3 9h2M3 15h2M19 9h2M19 15h2"/></symbol>
+  <symbol id="ic-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-8 5.5 5.5 0 0 1 10.6 1.2A3.6 3.6 0 0 1 17.5 18z"/></symbol>
+  <symbol id="ic-chip" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="ic-gauge" viewBox="0 0 24 24"><path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 17l3.5-4.5"/><circle cx="12" cy="17" r="1.3"/></symbol>
+  <symbol id="ic-drop" viewBox="0 0 24 24"><path d="M12 3.5s6 5.6 6 10.5a6 6 0 0 1-12 0c0-4.9 6-10.5 6-10.5z"/></symbol>
+  <symbol id="ic-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></symbol>
+  <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="ic-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="12" rx="2"/><circle cx="12" cy="13" r="3.2"/><path d="M8 7l1.6-2h4.8L16 7"/></symbol>
+  <symbol id="ic-person" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
+  <symbol id="ic-up" viewBox="0 0 24 24"><path d="M5 19L19 5"/><path d="M9 5h10v10"/></symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2L19 19M19 5l-1.8 1.8M6.8 17.2L5 19"/></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3.5L22 20H2z"/><path d="M12 10v5"/><path d="M12 17.8h.01"/></symbol>
+</svg>
+
+<div class="board">
+  <div class="deco tr"></div><div class="deco bl"></div>
+
+  <!-- 标题带 -->
+  <section class="title">
+    <div>
+      <h1>第二代开放式智能花盆</h1>
+      <div class="sub">AI 免维护种花 · 新手也能把花养好</div>
+      <div class="accentbar"></div>
+    </div>
+    <div class="idblock">
+      <div class="school">沐新青少年科创活动中心</div>
+      <div class="meta">开放式智能花盆研发团队</div>
+      <div class="qrwrap">
+        <div class="qrcap">扫码围观：<br>它此刻正在照顾植物</div>
+        <div class="qr" data-qr></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主体三栏 -->
+  <section class="body">
+    <!-- ① 痛点与进化 -->
+    <div class="panel">
+      <svg class="i wm"><use href="#ic-leaf"/></svg>
+      <div class="sech"><svg class="i hic"><use href="#ic-alert"/></svg><div class="secTitle">花，为什么总被养死？</div></div>
+      <div class="featlist">
+        <div class="feat" style="--fc:#c2483a;--fc-bg:#fdf0ee">
+          <svg class="i fic"><use href="#ic-drop"/></svg>
+          <div><div class="ft">忘浇水 / 浇太多</div><div class="fb">凭感觉浇——旱死或烂根，新手养花头号死因</div></div>
+        </div>
+        <div class="feat" style="--fc:#e07b00;--fc-bg:#fff7ee">
+          <svg class="i fic"><use href="#ic-sun"/></svg>
+          <div><div class="ft">光照不对</div><div class="fb">徒长、黄叶、不开花，问题出在哪看不出来</div></div>
+        </div>
+        <div class="feat" style="--fc:#6b4ef0;--fc-bg:#f0ecfe">
+          <svg class="i fic"><use href="#ic-clock"/></svg>
+          <div><div class="ft">出差 / 假期没人管</div><div class="fb">一趟长假回来，花已经救不活了</div></div>
+        </div>
+      </div>
+      <div class="htl">
+        <div class="hstep"><div class="hdot"></div><div class="hwhen">传统花盆</div><div class="hwhat">全靠记性和经验</div><div class="htime">浇水依据<b>感觉</b></div></div>
+        <div class="hstep"><div class="hdot"></div><div class="hwhen">定时浇水盆</div><div class="hwhat">到点就浇 · 不看天不看土</div><div class="htime">浇水依据<b>闹钟</b></div></div>
+        <div class="hstep last"><div class="hdot"></div><div class="hwhen">第二代开放式</div><div class="hwhat">先感知、再思考、后动手</div><div class="htime">浇水依据<b>数据＋AI</b></div></div>
+      </div>
+      <div class="quote">把养花老手的经验，装进一只花盆</div>
+      <div class="tag">开放式结构 · 储水循环 · 灌溉水回收</div>
+    </div>
+
+    <!-- ② 双层架构 -->
+    <div class="panel">
+      <svg class="i wm"><use href="#ic-layers"/></svg>
+      <div class="sech"><svg class="i hic"><use href="#ic-layers"/></svg><div class="secTitle">双层架构：聪明 ＋ 可靠</div></div>
+      <div class="arch">
+        <div class="node cloud"><svg class="i nic"><use href="#ic-cloud"/></svg><div class="nt">云端 · DeepSeek 养护顾问 · 远程大屏</div></div>
+        <div class="conn">↕ WiFi</div>
+        <div class="duo">
+          <div class="node"><svg class="i nic"><use href="#ic-chip"/></svg><div class="nt">树莓派<small>联网 · AI · 摄像头视觉</small></div></div>
+          <div class="uart"><span>◀</span><b>UART</b><span>▶</span></div>
+          <div class="node"><svg class="i nic"><use href="#ic-ai"/></svg><div class="nt">ESP32<small>养护控制器 · 有电即运行</small></div></div>
+        </div>
+        <div class="conn">↓</div>
+        <div class="triple">
+          <div class="node"><svg class="i nic"><use href="#ic-gauge"/></svg><div class="nt">感知<small>土壤·光照·温湿度</small></div></div>
+          <div class="node"><svg class="i nic"><use href="#ic-drop"/></svg><div class="nt">执行<small>水泵·补光灯</small></div></div>
+          <div class="node"><svg class="i nic"><use href="#ic-monitor"/></svg><div class="nt">显示<small>OLED·WS2812</small></div></div>
+        </div>
+      </div>
+      <div class="archcap">ESP32 有电即独立养护；树莓派负责思考、联网与远程大屏。</div>
+      <div class="archdetail">
+        <div class="adrow"><b>降级链</b>在线 DeepSeek → 离线本地规则 → 安全护栏（限频·限时·温度）</div>
+        <div class="adrow"><b>断网自治</b>WiFi 断了、AI 掉线，ESP32 照样把花养好——免维护不打折</div>
+        <div class="adrow"><b>AI 之眼</b>摄像头定点拍照，千问多模态 AI 评估长势，人工可复核留痕</div>
+        <div class="adrow"><b>大屏只读</b>远程只看不遥控，杜绝误操作</div>
+      </div>
+      <div class="archspecs">
+        <span class="achip">UART 串口</span><span class="achip">本地规则引擎</span><span class="achip">8 套植物养护模型</span><span class="achip">199 用例护航</span>
+      </div>
+    </div>
+
+    <!-- ③ 实物 + 大屏 -->
+    <div class="panel">
+      <div class="sech"><svg class="i hic"><use href="#ic-monitor"/></svg><div class="secTitle">实物 + 远程大屏</div></div>
+      <div class="shotrow">
+        <figure class="bigshot"><img src="cabin.png" alt="智能花盆实物"><figcaption>第二代开放式智能花盆 · 实物</figcaption></figure>
+        <figure class="bigshot"><img src="dashboard.png" alt="远程大屏"><figcaption>远程大屏 · 实时数据与 AI 决策记录</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主数字带 -->
+  <section class="metrics">
+    <div class="metric"><div class="num">199</div><div class="lab">测试用例全通过</div><div class="note">覆盖断联降级 · 限频保护 · 传感器异常 · 视觉队列</div></div>
+    <div class="metric"><div class="num">18<span class="u">天+</span></div><div class="lab">连续运行不断档</div><div class="note">断网 / 断上位机 / AI 掉线均不停机</div></div>
+    <div class="metric"><div class="num">8<span class="u">套</span></div><div class="lab">植物养护模型</div><div class="note">一键切换 · 每种植物分生长阶段定制水光策略</div></div>
+    <div class="metric cost"><div class="num">¥135</div><div class="lab">单盆核心成本</div><div class="note">¥135＝单盆核心（ESP32＋传感器＋执行器）；树莓派与云端由多盆共享分摊 · 一拖 N</div></div>
+  </section>
+
+  <!-- 底部四栏：工作闭环 / 下一步 / 三大设计 / 团队 -->
+  <section class="bottom">
+    <div class="panel">
+      <svg class="i wm"><use href="#ic-refresh"/></svg>
+      <div class="sech"><svg class="i hic"><use href="#ic-refresh"/></svg><div class="secTitle">工作闭环：感知 → 判断 → 执行 → 记录</div></div>
+      <div class="flow">
+        <div class="step s1"><svg class="i sic"><use href="#ic-gauge"/></svg><div class="st">感知</div><div class="sd">土壤湿度 · 光照 · 温湿度</div></div>
+        <div class="arrow">→</div>
+        <div class="step s2"><svg class="i sic"><use href="#ic-ai"/></svg><div class="st">判断</div><div class="sd">本地规则 ＋ DeepSeek</div></div>
+        <div class="arrow">→</div>
+        <div class="step s3"><svg class="i sic"><use href="#ic-drop"/></svg><div class="st">执行</div><div class="sd">水泵 · 补光灯</div></div>
+        <div class="arrow">→</div>
+        <div class="step s4"><svg class="i sic"><use href="#ic-doc"/></svg><div class="st">记录</div><div class="sd">OLED · 远程大屏日志</div></div>
+      </div>
+      <div class="example"><b>实例</b>光照 29% ＜ 阈值 → AI 判断「需补光」→ 补光灯开 → 大屏记录（置信 100%）</div>
+      <div class="looprow">
+        <div class="loopbar"><svg class="i"><use href="#ic-refresh"/></svg>断网时，花盆自己照顾植物</div>
+        <div class="specbar">60 秒巡检一次</div>
+        <div class="specbar">AI 响应 &lt; 3 秒</div>
+      </div>
+      <div class="safety"><b>安全护栏</b><span class="schip">动作时长上限</span><span class="schip">每小时限频</span><span class="schip">温度保护</span></div>
+    </div>
+
+    <div class="panel">
+      <svg class="i wm"><use href="#ic-up"/></svg>
+      <div class="sech"><svg class="i hic"><use href="#ic-up"/></svg><div class="secTitle" style="font-size:6.6mm">下一步优化方向</div></div>
+      <div class="featlist">
+        <div class="feat"><svg class="i fic"><use href="#ic-camera"/></svg><div><div class="ft">长势时间线</div><div class="fb">每天定点照片对比，长势变化一眼可见</div></div></div>
+        <div class="feat"><svg class="i fic"><use href="#ic-doc"/></svg><div><div class="ft">一键人工复核</div><div class="fb">网页表单纠正 AI 判断，越用越准</div></div></div>
+        <div class="feat"><svg class="i fic"><use href="#ic-up"/></svg><div><div class="ft">对照组实验</div><div class="fb">AI 养 vs 常规养，多周期用数据说话</div></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <svg class="i wm"><use href="#ic-spark"/></svg>
+      <div class="sech"><svg class="i hic" style="color:#6b4ef0"><use href="#ic-spark"/></svg><div class="secTitle" style="font-size:6.6mm">三大核心设计</div></div>
+      <div class="featlist">
+        <div class="feat" style="--fc:#1f9d57;--fc-bg:#eef9f2">
+          <svg class="i fic"><use href="#ic-refresh"/></svg>
+          <div><div class="ft">开放式 ＋ <b>储水循环</b></div><div class="fb">普通花盆的样子，智能系统的心——灌溉水回收再利用，浇下去的水不浪费。</div></div>
+        </div>
+        <div class="feat" style="--fc:#1769d6;--fc-bg:#eaf2fd">
+          <svg class="i fic"><use href="#ic-signal"/></svg>
+          <div><div class="ft">断网<b>自治</b></div><div class="fb">WiFi 断了、云挂了，ESP32 照样按本地规则养护，长假出门也放心。</div></div>
+        </div>
+        <div class="feat" style="--fc:#6b4ef0;--fc-bg:#f0ecfe">
+          <svg class="i fic"><use href="#ic-ai"/></svg>
+          <div><div class="ft">AI <b>双决策</b> ＋ 视觉</div><div class="fb">DeepSeek 读传感数据，千问多模态 AI 看照片长势——两双"眼睛"共同判断，更像老花农。</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="sech"><svg class="i hic"><use href="#ic-person"/></svg><div class="secTitle" style="font-size:6.6mm">研发团队</div></div>
+      <!-- 把 av 里的单字换成 <img src="照片.png" alt="姓名"> 即可放真照片；nm 填姓名 -->
+      <div class="team-row">
+        <div class="tmc">
+          <div class="av">设</div>
+          <div class="nm">李宇鑫</div><div class="ro">产品与用户体验</div>
+          <div class="duty">开放式外观 · 新手友好设计</div>
+        </div>
+        <div class="tmc">
+          <div class="av">智</div>
+          <div class="nm">尹泽康</div><div class="ro">AI 养护系统</div>
+          <div class="duty">环境监测 · 智能决策闭环</div>
+        </div>
+        <div class="tmc">
+          <div class="av">机</div>
+          <div class="nm">邓宇成</div><div class="ro">机械结构与水循环</div>
+          <div class="duty">储水回收 · 循环浇水执行</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <div class="footer">
+    <div>第二代开放式智能花盆 · AI 免维护种花　·　<b>把养花老手的经验，装进一只花盆</b></div>
+    <div>扫码体验远程大屏 → 43.156.68.157:8790</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+  var url='http://43.156.68.157:8790';
+  document.querySelectorAll('[data-qr]').forEach(function(el){
+    try{
+      var qr=qrcode(0,'M'); qr.addData(url); qr.make();
+      var n=qr.getModuleCount(), r='';
+      for(var y=0;y<n;y++)for(var x=0;x<n;x++)if(qr.isDark(y,x))r+='<rect x="'+x+'" y="'+y+'" width="1" height="1"/>';
+      el.innerHTML='<svg viewBox="0 0 '+n+' '+n+'" width="100%" height="100%" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="'+n+'" height="'+n+'" fill="#fff"/><g fill="#0a1024">'+r+'</g></svg>';
+    }catch(e){ el.textContent='二维码'; }
+  });
+</script>
+</body>
+</html>

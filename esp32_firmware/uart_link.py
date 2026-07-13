@@ -1,10 +1,10 @@
-"""UART link layer between ESP32 (flight controller) and Raspberry Pi (payload
-computer).
+"""UART link layer between ESP32 (care controller) and Raspberry Pi (AI
+hub).
 
 Protocol: JSON-over-Line. One JSON object per line, terminated by '\n'.
 Direction vocabulary:
   ESP32 -> Pi : report (sensors+state, ~every READ_INTERVAL), pong (reply to ping)
-  Pi -> ESP32 : advice (AI decision, on demand), ping (heartbeat, ~every 10s)
+  Pi -> ESP32 : advice (AI decision), experiment (day sync), ping (heartbeat)
 
 ESP32 autonomy contract:
   - The Pi is an *advisor*. Every advice must still pass the ESP32-side safety
@@ -28,6 +28,7 @@ MSG_REPORT = "report"
 MSG_ADVICE = "advice"
 MSG_PING = "ping"
 MSG_PONG = "pong"
+MSG_EXPERIMENT = "experiment"
 
 VALID_ACTIONS = ("water", "light", "idle")
 
@@ -136,6 +137,17 @@ def advice_to_decision(advice):
         "breeding_observation": advice.get("breeding_observation", ""),
         "seq": advice.get("seq"),
     }
+
+
+def experiment_to_day(message):
+    """Return a validated authoritative plant day, or None for bad input."""
+    if not isinstance(message, dict) or message.get("t") != MSG_EXPERIMENT:
+        return None
+    try:
+        day = int(message.get("plant_day"))
+    except (TypeError, ValueError):
+        return None
+    return day if 1 <= day <= 999 else None
 
 
 class UartLink:

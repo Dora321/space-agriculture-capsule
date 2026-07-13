@@ -6,13 +6,20 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
-# 忽略大多数 preview 图（中间产物），但保留 README 引用的展示图
+# 视觉检查截图属于可再生成的中间产物
 deliverables/*preview*.png
-!deliverables/contest-demo-dashboard-preview.png
-!deliverables/figma-kt-redesign-v2-preview.png
+
+# KT 板 PDF 由 deliverables/kt-board/index.html 重新生成，不作为源码提交
+deliverables/kt-board/*.pdf
 
 # Secrets / API keys
 esp32_firmware/config.py
+config/vision.env
+config/vision_experiment.json
+.config/
+
+# Runtime data and captured images
+data/
 
 # Claude local settings
 .claude/
